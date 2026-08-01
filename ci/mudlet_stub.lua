@@ -41,6 +41,7 @@ echo = note("echo")
 decho = note("decho")
 hecho = note("hecho")
 cechoLink = note("cechoLink")
+echoLink = note("echoLink")   -- the fallback path when dechoLink is missing
 deleteLine = note("deleteLine")
 selectCurrentLine = note("selectCurrentLine")
 selectString = function() return 1 end

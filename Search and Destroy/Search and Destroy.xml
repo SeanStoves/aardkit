@@ -1589,11 +1589,13 @@ local panel = aardkit.panel.new({
 SD.panel = panel
 
 local tabs, rows, foot = {}, {}, nil
-local scroll, seltxt, btns = nil, nil, {}
+local seltxt, btns = nil, {}
 
 -- which row the buttons act on. Kept per tab so switching tabs and back doesn't
 -- lose your place.
 SD.aim = SD.aim or {}
+-- first visible row per tab; the list is a window onto the targets, not all of them
+SD.top = SD.top or {}
 
 function SD.aimed()
     local i = SD.aim[SD.kind]
@@ -1622,15 +1624,35 @@ end
 
 function SD.on_tab(kind)
     SD.kind = kind
+    SD.top[kind] = SD.top[kind] or 1
     SD.paint()
 end
 
 -- Selecting is all a row click does. It used to walk you there, which meant a
 -- misclick sent you across the world.
+--
+-- The callback gets a slot, not a target index, because the list scrolls - slot
+-- 1 is whatever is at the top right now.
+function SD.on_rowclick(slot)
+    local p = SD.page or { first = 1 }
+    SD.on_row((p.first or 1) + (tonumber(slot) or 1) - 1)
+end
+
 function SD.on_row(i)
     SD.aim[SD.kind] = (SD.aim[SD.kind] == i) and nil or i
     SD.paint()
 end
+
+local function scrollby(n)
+    local t = SD.targets[SD.kind] or {}
+    local p = SD.page or { fits = 1 }
+    SD.top[SD.kind] = math.min(math.max(1, (SD.top[SD.kind] or 1) + n),
+        math.max(1, #t - (p.fits or 1) + 1))
+    SD.paint()
+end
+
+function SD.on_up()   scrollby(-(SD.page and SD.page.fits or 1)) end
+function SD.on_down() scrollby(SD.page and SD.page.fits or 1) end
 
 function SD.on_refresh()
     SD.refresh(SD.kind)
@@ -1692,37 +1714,17 @@ end
 -- Geyser.ScrollBox is a real scrolling container - children can sit past its
 -- bottom edge and it scrolls to them - so every target gets a row and the list
 -- stops being capped at whatever fits.
--- Geyser lives on the Lua side, which is compressed into a Qt resource and not
--- greppable, so its classes get checked rather than assumed. Without ScrollBox
--- this still works, it just goes back to showing what fits.
-local function has_scrollbox()
-    return type(Geyser) == "table" and type(Geyser.ScrollBox) == "table"
-        and type(Geyser.ScrollBox.new) == "function"
-end
-
-local function scrollbox(top, w, h)
-    if not has_scrollbox() then return nil end
-    if not scroll then
-        local ok, box = pcall(function()
-            return Geyser.ScrollBox:new({
-                name = "aardkit_snd_scroll" .. (panel.gen or 1),
-                x = PAD, y = top, width = w, height = h,
-            }, panel.container)
-        end)
-        if not ok or not box then return nil end
-        scroll = box
-    end
-    scroll:move(PAD, top)
-    scroll:resize(w, h)
-    return scroll
-end
-
-local function row_label(i, box)
+-- Geyser.ScrollBox was tried here and is wrong for this: nested inside an
+-- Adjustable.Container it draws its scrollbar against the main window rather
+-- than the panel, and the rows and buttons land outside the frame. So the list
+-- is plain labels with an offset, and the arrows page it. Everything stays a
+-- child of the container, which is the thing that nests correctly.
+local function row_label(i)
     local name = "aardkit_snd_row" .. i .. "_" .. (panel.gen or 1)
     if not rows[i] then
         rows[i] = Geyser.Label:new({ name = name, x = 0, y = 0, width = 10, height = ROW_H - 2 },
-            box)
-        rows[i]:setClickCallback("aardkit.snd.on_row", i)
+            panel.container)
+        rows[i]:setClickCallback("aardkit.snd.on_rowclick", i)
     end
     return rows[i]
 end
@@ -1769,18 +1771,19 @@ function SD.paint()
     local listh  = math.max(ROW_H, ph - chrome)
     local iw     = w - PAD * 2
 
-    -- inside a scroll box every target gets a row; without one, only what fits
-    local box = scrollbox(top, iw, listh)
-    local last = #t
-    if not box then
-        last = math.min(#t, math.max(1, math.floor(listh / ROW_H)))
-    end
+    local fits  = math.max(1, math.floor(listh / ROW_H))
+    local first = math.min(math.max(1, SD.top[SD.kind] or 1), math.max(1, #t - fits + 1))
+    SD.top[SD.kind] = first
+    local last  = math.min(#t, first + fits - 1)
+    SD.page = { first = first, last = last, fits = fits, total = #t }
 
-    for i = 1, last do
+    local slot = 0
+    for i = first, last do
         local e = t[i]
-        local l = row_label(i, box or panel.container)
+        slot = slot + 1
+        local l = row_label(slot)
         local on = (SD.aim[SD.kind] == i)
-        l:move(box and 0 or PAD, (box and 0 or top) + (i - 1) * ROW_H)
+        l:move(PAD, top + (slot - 1) * ROW_H)
         l:resize(iw - PAD * 2, ROW_H - 2)
         l:setStyleSheet(style(on and COL.sel or COL.row, on and COL.accent or COL.border))
         local mark = e.killed and "\226\156\148" or (e.qty &gt; 1 and ("x" .. e.qty) or "\226\128\162")
@@ -1794,7 +1797,7 @@ function SD.paint()
             e.corpse and "  (corpse out)" or ""))
         l:show()
     end
-    for i = last + 1, #rows do rows[i]:hide() end
+    for i = slot + 1, #rows do rows[i]:hide() end
 
     -- what the buttons will act on
     if not seltxt then
@@ -1803,17 +1806,36 @@ function SD.paint()
             x = 0, y = 0, width = 10, height = SEL_H,
         }, panel.container)
     end
+    -- leave room for the arrows when they're showing, or the text runs under them
+    local paging = #t &gt; math.max(1, math.floor(listh / ROW_H))
     seltxt:move(PAD, top + listh + PAD)
-    seltxt:resize(iw, SEL_H)
+    seltxt:resize(iw - (paging and 48 or 0), SEL_H)
     seltxt:setStyleSheet("background-color: transparent; border: 0px;")
     local aim = SD.aimed()
     seltxt:echo(string.format("&lt;span style='color:%s'&gt;&amp;nbsp;%s&lt;/span&gt;",
         aim and COL.text or COL.dim,
         aim and ("\226\134\146 " .. aim.name .. (aim.area ~= "" and ("  (" .. aim.area .. ")") or ""))
             or (#t == 0 and "nothing tracked \226\128\148 press re-check"
-                or ((last &lt; #t and ((#t - last) .. " more below \226\128\148 ") or "")
-                    .. "click a target, then a button"))))
+                or (#t &gt; fits and string.format("%d-%d of %d \226\128\148 click a target, then a button",
+                        first, last, #t)
+                    or "click a target, then a button"))))
     seltxt:show()
+
+    if #t &gt; fits then
+        local aw = 20
+        for k, spec in ipairs({ { "up", "\226\150\178", "aardkit.snd.on_up" },
+                                { "down", "\226\150\188", "aardkit.snd.on_down" } }) do
+            local live = (spec[1] == "up") and (first &gt; 1) or (spec[1] == "down" and last &lt; #t)
+            local b = button(spec[1], spec[2], spec[3],
+                w - PAD - (3 - k) * (aw + 2), aw, top + listh + PAD - 1)
+            b:setStyleSheet(style(COL.btn, live and COL.border or "#26304a"))
+            b:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+                live and COL.text or COL.dim, spec[2]))
+            b:show()
+        end
+    elseif btns.up then
+        btns.up:hide(); btns.down:hide()
+    end
 
     local by = top + listh + PAD + SEL_H
     local bw = math.floor((iw - PAD * 3) / 4)
