@@ -1,6 +1,6 @@
 # Search and Destroy
 
-A searchable mob and area database carried over from the MUSHclient plugin, plus a three-tab panel that reads your quest, campaign and gquest targets from the MUD and walks you to one when you click it.
+A searchable mob and area database carried over from the MUSHclient plugin, a three-tab panel that reads your quest, campaign and gquest targets from the MUD and walks you to one when you click it, and `ah <mob>` to follow the MUD's own hunt skill into areas your map has never seen.
 
 ## Install
 
@@ -24,6 +24,8 @@ that every module here builds on. Without it nothing else loads.
 | `snd cp | quest | gq` | ask the MUD for that target list |
 | `snd go <n>` | speedwalk to target n |
 | `snd next` | walk to the first target listed |
+| `ah <mob>` | auto-hunt: follow the MUD's hunt skill to it |
+| `aha` | cancel the hunt |
 | `snd status` | row counts for mobs/areas/keywords, scan state |
 | `snd mob <kw>` | rooms a mob was seen in, clickable [go] |
 | `mobwhere <kw>` | same lookup, shorter alias |

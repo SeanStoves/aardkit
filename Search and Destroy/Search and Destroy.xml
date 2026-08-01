@@ -281,6 +281,20 @@
 				<packageName />
 				<regex>^mobwhere\s+(.+)$</regex>
 			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>ah</name>
+				<script>solao.snd.hunt(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^ah(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>aha</name>
+				<script>solao.snd.hunt_stop("cancelled")</script>
+				<command />
+				<packageName />
+				<regex>^(?:aha|ah0)$</regex>
+			</Alias>
 		</AliasGroup>
 	</AliasPackage>
 	<ActionPackage />
@@ -535,6 +549,9 @@ function SD.cmd(arg)
     elseif verb == "gq" or verb == "gquest" then
         SD.kind = "gquest"; SD.refresh("gquest"); SD.panel:show()
 
+    elseif verb == "hunt" then
+        SD.hunt(rest)
+
     elseif verb == "go" then
         local n = tonumber(U.trim(rest))
         if not n then U.warn("Usage: snd go &lt;number&gt;") else SD.goto_target(SD.kind, n) end
@@ -569,6 +586,8 @@ function SD.cmd(arg)
             { "snd cp | quest | gq", "read your targets and show them" },
             { "snd go &lt;n&gt;",       "walk to target n" },
             { "snd next",         "walk to the first one still owed" },
+            { "ah &lt;mob&gt;",         "auto-hunt: follow the MUD's hunt skill to it" },
+            { "aha",              "cancel the hunt" },
             { "snd status",       "row counts" },
             { "snd mob &lt;keyword&gt;", "where a mob has been seen (clickable [go])" },
             { "mobwhere &lt;kw&gt;",    "same thing, shorter" },
@@ -816,6 +835,174 @@ function SD.counts(kind)
     end
     return done, #t
 end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>snd/hunt</name>
+				<packageName />
+				<script>--[[
+    Search &amp; Destroy — auto-hunt
+    Sean Stoves, 2026-08-01
+
+    'ah &lt;mob&gt;' follows the MUD's own hunt skill to a target, one room at a time.
+    The loop is: hunt, read the direction, move, hunt again, until the mob is in
+    the room with you.
+
+    This is the piece 'snd go' can't do. That walks the Mudlet mapper, so it needs
+    the room already in your map; hunt works in areas you've never seen.
+
+    The message formats are the MUD's. Two are worth knowing about:
+
+      You are confident that a sea snake passed through here, heading north.
+      You are almost certain that a sea snake is north from here.
+
+    and the three low-skill variants ("the trail is confusing", "there are traces
+    of", "you have no idea what you're doing") deliberately ABORT rather than
+    being followed. Under 85% hunt skill the direction is a guess, and following
+    a guess walks you somewhere random.
+
+    Safety, because this moves you around the world on its own:
+      - never runs while you're flagged AFK, same gate as everything else here
+      - a hard step cap, so a hunt that loops can't walk forever
+      - stops dead on anything it doesn't recognise rather than pressing on
+]]
+
+solao = solao or {}
+solao.snd = solao.snd or {}
+
+local SD = solao.snd
+local U  = solao.util
+
+local CFG = U.load("sndhunt", { gap = 0.4, maxsteps = 120 })
+
+local trigs, mob, steps, lastdir = {}, nil, 0, nil
+local opening = false   -- mid door-open, so a stray 'You open' can't move us
+
+local function untrig()
+    for _, id in ipairs(trigs) do pcall(killTrigger, id) end
+    trigs = {}
+end
+
+local function arm(pat, fn)
+    trigs[#trigs + 1] = tempRegexTrigger(pat, fn)
+end
+
+function SD.hunting()
+    return mob ~= nil
+end
+
+function SD.hunt_stop(why, good)
+    if not mob then return end
+    local m = mob
+    untrig()
+    mob, steps, lastdir, opening = nil, 0, nil, false
+    if good then
+        U.ok("Auto-hunt: found " .. m .. ".")
+    elseif why then
+        U.warn("Auto-hunt: stopped - " .. why .. ".")
+    end
+end
+
+local function step(dir)
+    if not mob then return end
+    steps = steps + 1
+    if steps &gt; CFG.maxsteps then
+        SD.hunt_stop("gave up after " .. CFG.maxsteps .. " rooms")
+        return
+    end
+    if solao.whopoll and solao.whopoll.afk then
+        SD.hunt_stop("you're flagged AFK")
+        return
+    end
+    lastdir = dir
+    send(dir, false)
+    tempTimer(CFG.gap, function()
+        if mob then send("hunt " .. mob, false) end
+    end)
+end
+
+function SD.hunt(name)
+    name = U.trim(name or "")
+    if name == "" then
+        U.warn("Usage: ah &lt;mob&gt;    ('aha' or 'ah stop' to cancel)")
+        return
+    end
+    local low = name:lower()
+    if low == "stop" or low == "abort" or low == "cancel" or low == "0" then
+        SD.hunt_stop("cancelled")
+        return
+    end
+    if solao.whopoll and solao.whopoll.afk then
+        U.warn("Auto-hunt: not while you're flagged AFK.")
+        return
+    end
+
+    SD.hunt_stop()
+    mob, steps, lastdir, opening = name, 0, nil, false
+    U.note("Auto-hunt: after " .. name .. "...")
+
+    -- the two readings that mean the trail is solid
+    arm([[^You are confident that .+ passed through here, heading (north|south|east|west|up|down)\.$]],
+        function() step(matches[2]) end)
+    arm([[^You are (?:almost )?certain that .+ is (north|south|east|west|up|down) from here\.$]],
+        function() step(matches[2]) end)
+
+    -- arrived
+    arm([[^\w.+ is here!$]], function() SD.hunt_stop(nil, true) end)
+
+    -- Under 85% hunt skill the MUD hedges, and the direction it gives is a
+    -- guess. Following a guess is how you end up three areas away.
+    arm([[^(?:The trail of .+ is confusing|There are traces of .+ having been here|You have no idea what you're doing)]],
+        function() SD.hunt_stop("hunt skill too low to trust the trail") end)
+
+    -- portals need a command we can't infer; hand it back rather than guess
+    arm([[^You are (?:almost )?certain that .+ is through .+\.$]],
+        function() SD.hunt_stop("the trail goes through a portal - take it yourself") end)
+    arm([[^You are confident that .+ passed through here, heading through .+\.$]],
+        function() SD.hunt_stop("the trail goes through a portal - take it yourself") end)
+
+    -- A shut door is worth one 'open' in the direction we were already headed.
+    -- Going back through step() rather than sending the move directly keeps the
+    -- step cap and the AFK gate on the door path too - it's the same move.
+    arm([[^The .+ is closed\.$]], function()
+        if lastdir then
+            opening = true
+            send("open " .. lastdir, false)
+        end
+    end)
+    arm([[^You open .+\.$]], function()
+        if mob and opening and lastdir then
+            opening = false
+            step(lastdir)
+        end
+    end)
+
+    arm([[^You do not have a key for .+\.$]],
+        function() SD.hunt_stop("locked door and no key") end)
+    arm([[^Magical wards around .+ bounce you back\.$]],
+        function() SD.hunt_stop("warded room") end)
+
+    arm([[^(?:No one in this area by (?:the name '.+'|that name)\.|You couldn't find a path to .+ from here\.|You seem unable to hunt that target for some reason\.)$]],
+        function() SD.hunt_stop("the MUD can't hunt that here") end)
+    arm([[^(?:Not while you are fighting!|You can't hunt while (?:resting|sitting)\.|You dream about going on a nice hunting trip)]],
+        function() SD.hunt_stop("can't hunt right now") end)
+
+    send("hunt " .. mob, false)
+end
+
+function SD.huntcmd(verb, rest)
+    if verb == "hunt" then
+        SD.hunt(rest)
+        return true
+    end
+    return false
+end
+
+-- a hunt in progress means nothing once the connection drops
+U.killhandler(solao_snd_hunt_disc)
+solao_snd_hunt_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
+    function() SD.hunt_stop() end)
 </script>
 				<eventHandlerList />
 			</Script>
