@@ -941,7 +941,7 @@ end
 
 function SD.on_cp_target(name, area)
     if not capturing then cp_start() end
-    if TCFG.rewrite then deleteLine(); gagged = true end
+    if TCFG.rewrite then U.gag(); gagged = true end
     local e, isnew = add("campaign", name, area, 1)
     if e and not isnew then e.qty = (e.qty or 1) + 1 end
     -- cp_stop() repaints once the block closes - a 'cp check' streams 10-15

@@ -219,7 +219,7 @@ end
 function CO.on_coords(zone, x, y)
     -- Gag first and unconditionally. This used to sit inside the display path,
     -- so anywhere the panel had nothing to say the raw tag printed instead.
-    deleteLine()
+    U.gag()
     zone, x, y = tonumber(zone), tonumber(x), tonumber(y)
 
     if last.x and x and last.dir then
@@ -232,7 +232,7 @@ function CO.on_coords(zone, x, y)
 end
 
 function CO.on_nocoords()
-    deleteLine()
+    U.gag()
     CO.zone, CO.x, CO.y = nil, nil, nil
     last.x, last.y = nil, nil
     settitle("Location: -")

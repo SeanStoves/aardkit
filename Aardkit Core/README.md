@@ -21,6 +21,7 @@ Shared foundation every other module builds on: the panel manager, saved state u
 | `aardkit stock` | what we switch off in the stock AardwolfMudlet module |
 | `aardkit stock on\|off <alias>` | toggle one back on or off |
 | `aardkit probe` | reports which Mudlet Lua functions exist here |
+| `aardkit gaglog on\|off` | keep gagged lines in the session log behind a marker |
 | `panel` | lists panels with mode and visibility |
 | `panel <name>` | toggles that panel |
 | `panel <name> show\|hide` | shows or hides it |

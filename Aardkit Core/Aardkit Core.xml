@@ -280,7 +280,33 @@ end
 -- not matching what someone else owns.
 ---
 
+-- What we hide from the screen can still be kept in the log. Mudlet's
+-- appendLog() writes to the logfile without displaying, so a gagged line goes
+-- to the file behind a marker and the screen never sees it. That makes a
+-- session log a record of what the MUD sent rather than a record of what we
+-- chose to let through - which matters when the thing you need to look up
+-- afterwards is exactly the thing a gag ate.
+--
+-- The signature isn't greppable: the binary documents one argument, "text to
+-- append to logfile", but Mudlet's console functions conventionally take an
+-- optional window name first. Try the windowed form, fall back to the bare one.
+-- Guessing wrong on a Lua-side API is how dechoLink stayed quiet for a
+-- fortnight.
+local GCFG = U.load("gaglog", { on = true, mark = "GAGGED -- " })
+
+function U.gaglog(v)
+    if v ~= nil then GCFG.on = v and true or false; U.save("gaglog", GCFG) end
+    return GCFG.on
+end
+
 function U.gag()
+    if GCFG.on and U.has("appendLog") then
+        local line = getCurrentLine()
+        if line and line ~= "" then
+            local text = (GCFG.mark or "") .. line
+            if not pcall(appendLog, "main", text) then pcall(appendLog, text) end
+        end
+    end
     deleteLine()
     return true
 end
@@ -1074,6 +1100,7 @@ function aardkit.cmd(arg)
             { "aardkit plugins", "what's loaded" },
             { "aardkit stock",        "what we switch off in the stock AardwolfMudlet module" },
             { "aardkit probe",   "which Mudlet functions actually exist here" },
+            { "aardkit gaglog on|off", "keep gagged lines in the session log" },
             { "panel",       "manage the docked/embedded windows" },
         }
         local names = {}
@@ -1086,6 +1113,14 @@ function aardkit.cmd(arg)
 
     elseif verb == "stock" then
         if aardkit.stock then aardkit.stock.cmd(rest) else U.warn("stock module handling isn't loaded.") end
+
+    elseif verb == "gaglog" then
+        local v = U.trim(rest):lower()
+        if v == "on" or v == "off" then
+            U.gaglog(v == "on")
+        end
+        U.ok("Gagged lines are " .. (U.gaglog() and "written to the session log behind a marker."
+            or "not logged - what we hide is gone."))
 
     elseif verb == "probe" then
         -- Mudlet's Lua-side API isn't greppable in the binary, so ask the

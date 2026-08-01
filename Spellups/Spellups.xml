@@ -558,7 +558,7 @@ end
 
 local function ingest_row()
     local line = getCurrentLine()
-    deleteLine()          -- we own this block, so we hide it too
+    U.gag()          -- we own this block, so we hide it too
 
     if line:find("^{/") then
         local what = ingesting
@@ -608,13 +608,13 @@ local function ingest_start(what)
 end
 
 function SP.on_spellheaders()
-    deleteLine()
+    U.gag()
     ingest_start("spells")
     SP.skills, SP.byname = {}, {}
 end
 
 function SP.on_recoveries()
-    deleteLine()
+    U.gag()
     ingest_start("recoveries")
     SP.recov = {}
 end
