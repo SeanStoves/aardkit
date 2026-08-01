@@ -143,6 +143,24 @@ end
 
 ---
 -- persistence — one table per key, saved as a Lua chunk
+--
+-- Yes, these execute. Mudlet's table.load is dofile() under the hood
+-- (mudlet-lua/Other.lua), so &lt;profile&gt;/aardkit/&lt;key&gt;.lua is run, not parsed. A
+-- review raised it and it is a real mechanism, so here is why it stays:
+--
+--   * writing a state file already requires write access to the profile
+--     directory. Anything with that can edit the plugin scripts sitting beside
+--     them, or the profile XML Mudlet loads at startup, both of which run too.
+--     dofile grants an attacker nothing they don't already have.
+--   * the trust boundary that matters is FOREIGN data, and it's elsewhere and
+--     already correct. Nothing outside this directory ever reaches table.load:
+--     migrate reads MUSHclient dumps and loot reads shared pool files, and both
+--     go through yajl.to_value, which parses as data and cannot execute.
+--
+-- What would change the answer: a state file arriving from anywhere but this
+-- machine - synced between profiles, downloaded, pasted in by someone helping
+-- you debug. If that ever becomes a feature, this has to become JSON first.
+-- Don't quietly widen who can write here.
 ---
 
 -- Two things were wrong here. table.save does NOT error when it can't open the
@@ -150,11 +168,11 @@ end
 -- flag said "didn't crash", not "wrote", and a read-only profile reported
 -- success while the settings went nowhere.
 --
--- And it wrote in place. Write beside the real file, then rename over it. table.save opens the target
--- with "w", which truncates first and writes after, so a crash or a full disk
--- mid-write left a half-file - and since a half-file won't parse, the next load
--- fell back to code defaults and you lost the lot. rename is atomic on the same
--- filesystem, so the old file stands until the new one is complete.
+-- And it wrote in place: table.save opens the target with "w", truncating
+-- first and writing after, so a crash or a full disk mid-write left a
+-- half-file - and a half-file won't parse, so the next load fell back to code
+-- defaults and the lot was gone. Write beside it and rename over, which is
+-- atomic on one filesystem: the old file stands until the new one is whole.
 function U.save(key, tbl)
     local path = U.datafile(key .. ".lua")
     local tmp  = path .. ".new"
@@ -362,6 +380,11 @@ end
 --
 -- The trailing boolean is useCurrentFormat and xEcho does accept it: four args
 -- with a boolean fourth is the documented no-window form.
+--
+-- A string cmd gets compiled and run when the link is clicked, so anything
+-- built from MUD text has to go through %q (which escapes it into a safe Lua
+-- literal) or be a number. Every call site does today. A function sidesteps the
+-- question entirely and is the better habit.
 ---
 
 local function asfunc(cmd)

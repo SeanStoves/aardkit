@@ -32,6 +32,19 @@ there for a human glancing at the file, and Mudlet's own writer strips it the
 moment you tick **Sync**, which is a step our own install instructions tell you
 to take. Without module.json the check fails rather than guessing.
 
+## Saved state is executed, and that is deliberate
+
+`U.load`/`U.save` go through Mudlet's `table.load`, which is `dofile()` - your
+files under `<profile>/aardkit/` are run, not parsed. That is a considered
+choice, not an oversight: writing one already needs write access to the profile
+directory, and anything with that can edit the module scripts sitting beside
+them, which are executed too.
+
+The boundary that matters is data from elsewhere, and it is kept separate -
+anything foreign (a shared loot file, a migration dump) is parsed with
+`yajl.to_value` and never executed. Keep it that way. If you add a feature that
+brings a state file in from another machine, this has to become JSON first.
+
 ## Don't infer MUD output from another plugin
 
 This one has cost real time here more than once. If you're writing a trigger,
