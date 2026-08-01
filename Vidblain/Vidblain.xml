@@ -101,10 +101,12 @@
     room name is the line immediately before it, so the number gets appended
     there rather than printed on a line of its own.
 
-    Which way the axes run isn't documented anywhere I could find, so it isn't
-    guessed: move once and it works out for itself which axis east changes and
-    in which direction, then remembers. Until it has seen a move it reports the
-    raw difference without claiming a compass direction.
+    The axes, measured rather than assumed - 24,18 then 'run 2s5e' lands on
+    29,20, so x grows EAST and y grows SOUTH. y running southward is the
+    surprising half and the reason this wasn't left to a guess.
+
+    The learning is still here and still runs: if any of that is ever wrong, one
+    clean move corrects it and the correction sticks.
 ]]
 
 solao = solao or {}
@@ -117,7 +119,9 @@ local CFG = U.load("vidblain", {
     show   = "coordareas",   -- coordareas | always | off
     marks  = {},             -- name -&gt; {x=,y=}
     target = nil,
-    axis   = nil,            -- learned: { xdir = "east"|"west", ydir = "north"|"south" }
+    -- which compass direction each axis grows in; measured, and re-learned if a
+    -- move ever disagrees
+    axis   = { xdir = "east", ydir = "south" },
 })
 
 VB.zone, VB.x, VB.y = nil, nil, nil
@@ -207,6 +211,26 @@ function VB.delta()
     return table.concat(out, " ")
 end
 
+-- the delta as something you can actually type
+function VB.runcmd()
+    local t = CFG.target
+    local a = CFG.axis
+    if not (t and a and a.xdir and a.ydir and inzone()) then return nil end
+    local dx, dy = t.x - VB.x, t.y - VB.y
+    if dx == 0 and dy == 0 then return nil end
+
+    local parts = {}
+    if dy ~= 0 then
+        local way = (dy &gt; 0) and a.ydir or (a.ydir == "south" and "north" or "south")
+        parts[#parts + 1] = math.abs(dy) .. way:sub(1, 1)
+    end
+    if dx ~= 0 then
+        local way = (dx &gt; 0) and a.xdir or (a.xdir == "east" and "west" or "east")
+        parts[#parts + 1] = math.abs(dx) .. way:sub(1, 1)
+    end
+    return "run " .. table.concat(parts)
+end
+
 ---
 -- put it on the room name line
 ---
@@ -251,17 +275,31 @@ function VB.cmd(arg)
             { "here", inzone() and (VB.x .. "," .. VB.y .. "  (zone " .. VB.zone .. ")") or "no coordinates here" },
             { "target", CFG.target and (CFG.target.name .. "  " .. CFG.target.x .. "," .. CFG.target.y) or "none" },
             { "to go", VB.delta() or "-" },
-            { "axes", CFG.axis and ((CFG.axis.xdir or "?") .. " / " .. (CFG.axis.ydir or "?"))
+            { "axes", CFG.axis and ("+x " .. (CFG.axis.xdir or "?") .. ", +y " .. (CFG.axis.ydir or "?"))
                       or "not learned yet - move once" },
+            { "run", VB.runcmd() or "-" },
             { "show", CFG.show },
             { "" },
         }
         for k, v in pairs(KNOWN) do rows[#rows + 1] = { "  " .. k, v[1] .. "," .. v[2] } end
         rows[#rows + 1] = { "" }
         rows[#rows + 1] = { "vid &lt;name|x,y&gt;", "set the target and show the way" }
+        rows[#rows + 1] = { "vid run", "send the run command for the straight line" }
         rows[#rows + 1] = { "vid clear", "drop the target" }
         rows[#rows + 1] = { "vid show off|coordareas|always", "" }
         U.help("Vidblain", rows)
+
+    elseif verb == "run" or verb == "go" then
+        local c = VB.runcmd()
+        if not c then
+            U.warn("No target, or you're already on it. 'vid omen tor' first.")
+        else
+            -- Vidblain is a maze, so this walks the straight line and the MUD
+            -- gives up after three blocked moves. Run it again from wherever
+            -- you end up; it's a nudge, not a pathfinder.
+            U.ok(c)
+            send(c, false)
+        end
 
     elseif verb == "clear" then
         CFG.target = nil; U.save("vidblain", CFG); U.ok("Target cleared.")

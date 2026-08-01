@@ -23,6 +23,7 @@ that every module here builds on. Without it nothing else loads.
 | `vid` | current coordinates, target, and the known exits |
 | `vid <name>` | aim at a known exit, e.g. `vid omen tor` |
 | `vid 11,8` | aim at a coordinate |
+| `vid run` | send the run command for the straight line |
 | `vid clear` | drop the target |
 | `vid show off|coordareas|always` | where coordinates get shown |
 
