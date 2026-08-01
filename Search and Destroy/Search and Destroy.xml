@@ -71,7 +71,7 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>^You have .* to finish this campaign\.$</string>
+					<string>^(?:You have .* to finish this campaign\.|Use 'cp check' to see only targets that you still need to kill\.)$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -732,15 +732,28 @@ end
 
 SD.cp_stop = cp_stop
 
-function SD.on_cp_header()
+-- Campaign prints two different shapes and NEITHER carries a header, which is
+-- what the first attempt armed on:
+--
+--   cp check       * a bartering customer (Fellchantry)
+--   campaign info  Find and kill 1 * Islien (Unearthly Bonds)
+--
+-- So arm when we send the command rather than waiting to recognise a banner
+-- that isn't there. Released by the time-remaining line, with a timer behind it.
+function SD.arm_campaign()
     SD.targets.campaign = {}
     SD.kind = "campaign"
     cp_stop()
-    cp_trig = tempRegexTrigger("^\\* (.+) \\((.+)\\)\\s*$", function()
-        add("campaign", matches[2], matches[3], 1)
-    end)
-    -- released by the "You have N days ... to finish" line; this is the backstop
-    cp_timer = tempTimer(10, cp_stop)
+    cp_trig = tempRegexTrigger(
+        "^(?:\\* |Find and kill \\d+ \\* )(.+) \\((.+)\\)\\s*$", function()
+            add("campaign", matches[2], matches[3], 1)
+        end)
+    cp_timer = tempTimer(12, cp_stop)
+end
+
+-- kept because 'campaign check' on some paths does print it
+function SD.on_cp_header()
+    SD.arm_campaign()
 end
 
 function SD.on_quest_target(name)
@@ -1185,6 +1198,7 @@ end
 function SD.refresh(kind)
     kind = kind or SD.kind
     if kind == "campaign" then
+        SD.arm_campaign()          -- the reply carries no banner to arm on
         send("campaign check", false)
     elseif kind == "quest" then
         send("quest info", false)
