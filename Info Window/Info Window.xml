@@ -38,6 +38,26 @@
 					<integer>1</integer>
 				</regexCodePropertyList>
 			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>info blank</name>
+				<script>aardkit.infowin.on_blank()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
 		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
@@ -109,14 +129,40 @@ apply_buffer()
 -- trigger
 ---
 
+-- Aardwolf pads INFO with a trailing blank - 93% of them in the logs - so
+-- gagging the INFO line alone leaves the blank behind. That was a fifth of
+-- every log file: 2288 blank lines in 10118, and zero INFO lines to show for
+-- them.
+--
+-- The first attempt armed a tempLineTrigger for the next line to eat it. That
+-- can't work reliably here: deleteLine() has just removed the current line, so
+-- "one line from now" is counting from a line that no longer exists, and a
+-- batch of INFO messages arms several of them at once to fight over the same
+-- blank.
+--
+-- A flag and a permanent trigger instead. The blank either arrives next or it
+-- doesn't, and either way nothing is left armed.
+local eat_blank = false
+
 function IW.capture()
     panel:capture_line()
     if CFG.gag then
-        deleteLine()
-        -- eat the single blank line Aardwolf pads INFO with
-        tempLineTrigger(1, 1, [[if getCurrentLine():match("^%s*$") then deleteLine() end]])
+        U.gag()
+        -- The padding arrives in the same packet, so the blank trigger below
+        -- always beats this timer. It's here for the 7% that aren't padded, so
+        -- the flag can't sit armed and swallow somebody else's blank later.
+        eat_blank = true
+        tempTimer(0.05, function() eat_blank = false end)
     end
 end
+
+-- every blank line comes through here; only one directly after an INFO goes
+function IW.on_blank()
+    if not eat_blank then return end
+    eat_blank = false
+    U.gag()
+end
+
 
 ---
 -- commands

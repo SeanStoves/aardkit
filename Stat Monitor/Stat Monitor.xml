@@ -72,7 +72,7 @@ local function defaults()
     return t
 end
 
-local CFG = U.load("statmon", { show = defaults() })
+local CFG = U.load("statmon", { show = defaults(), style = "grid" })
 
 local ROW_H, PAD, HDR_H = 16, 4, 15
 local MINCOL = 118          -- narrower than this and the numbers collide
@@ -215,7 +215,8 @@ end
 panel = aardkit.panel.new({
     name = "statmon", title = "Stats",
     x = "20px", y = "480px", width = 260, height = 260,
-    consoleless = true,
+    fontSize = 9,
+    wrap = false,
     onresize = function() if aardkit.statmon.paint then aardkit.statmon.paint() end end,
     onbuild  = function()
         cells, heads = {}, {}
@@ -225,7 +226,85 @@ panel = aardkit.panel.new({
 
 SM.panel = panel
 
+---
+-- the MUSHclient layout
+--
+-- What the original looked like, for anyone who reads it faster:
+--
+--     Str   : [  352/200]
+--     HR    : [      255]
+--
+-- Aligned label, aligned bracket, value right-justified inside it, so the
+-- numbers form a column you read down. That needs a fixed-width font, which is
+-- why the panel keeps a console even though the grid style doesn't use one -
+-- HTML labels can't align two values on a row, and that is the whole point of
+-- this layout.
+---
+
+local lastframe
+
+local function paint_mush()
+    local c = panel.console
+    if not c then return end
+
+    -- hide the grid's widgets; they'd sit on top of the console
+    for _, t in ipairs({ cells, heads }) do
+        for _, l in ipairs(t) do pcall(function() l:hide() end) end
+    end
+    pcall(function() c:show() end)
+
+    local rows, lw, vw = {}, 0, 0
+    for _, g in ipairs(GROUPS) do
+        for _, f in ipairs(g.fields) do
+            local v = CFG.show[f[2]] and get(f[1], f[2]) or nil
+            if v ~= nil then
+                local maxv = f[5] and get(f[5], f[6]) or nil
+                local text = maxv and (tostring(v) .. "/" .. tostring(maxv))
+                              or pretty(f[1], f[2], v)
+                local col = COL.val
+                if maxv and g.key == "vitals" then col = vitalcol(v, maxv) end
+                rows[#rows + 1] = { label = f[4], text = text, col = col, group = g.key }
+                if #f[4] &gt; lw then lw = #f[4] end
+                if #text &gt; vw then vw = #text end
+            end
+        end
+    end
+
+    if #rows == 0 then
+        local empty = "&lt;#8a93a8&gt;Nothing from the MUD yet.&lt;r&gt;\n"
+        if empty ~= lastframe then
+            lastframe = empty
+            c:clear(); U.outw(c.name, empty)
+        end
+        return
+    end
+
+    local buf, n = {}, 0
+    local group = rows[1].group
+    for _, r in ipairs(rows) do
+        if r.group ~= group then n = n + 1; buf[n] = "\n"; group = r.group end
+        n = n + 1
+        buf[n] = string.format(
+            "&lt;%s&gt;%-" .. lw .. "s&lt;r&gt; &lt;%s&gt;:&lt;r&gt; &lt;%s&gt;[&lt;r&gt;&lt;%s&gt;%" .. vw .. "s&lt;r&gt;&lt;%s&gt;]&lt;r&gt;\n",
+            COL.label, r.label, COL.line, COL.line, r.col, r.text, COL.line)
+    end
+
+    local frame = table.concat(buf, "", 1, n)
+    if frame == lastframe then return end
+    lastframe = frame
+    c:clear()
+    U.outw(c.name, frame)
+end
+
 function SM.paint()
+    if CFG.style == "mush" then return paint_mush() end
+    -- the console belongs to the other style; get it out of the way
+    if panel.console then pcall(function() panel.console:hide() end) end
+    lastframe = nil
+    return SM.paint_grid()
+end
+
+function SM.paint_grid()
     local c = panel.container
     if not c then return end
 
@@ -387,6 +466,22 @@ function SM.cmd(arg)
             U.ok("Stats: " .. f[3] .. " " .. verb .. ".")
         end
 
+    elseif verb == "mush" or verb == "grid" or verb == "style" then
+        if verb ~= "style" then
+            CFG.style = verb
+            U.save("statmon", CFG)
+            lastframe = nil
+            -- the two styles use different widgets, so clear the other's
+            for _, t in ipairs({ cells, heads }) do
+                for _, l in ipairs(t) do pcall(function() l:hide() end) end
+            end
+            SM.paint()
+            panel:show()
+        end
+        U.ok("Stats: " .. (CFG.style == "mush"
+            and "MUSHclient layout - aligned single column, 'stats grid' for the other."
+            or  "grid layout - grouped and reflowing, 'stats mush' for the old one."))
+
     elseif verb == "reset" then
         CFG.show = defaults()
         U.save("statmon", CFG)
@@ -416,6 +511,7 @@ function SM.cmd(arg)
             { "stats fields", "every field, what's on, what the MUD is sending" },
             { "stats on|off &lt;field&gt;", "add one of the extras, or drop one you never read" },
             { "stats reset", "back to the default set" },
+            { "stats mush | grid", "the old aligned column, or the grouped grid" },
             { "stats dock|embed|show|hide", "panel placement" },
             { "" },
             { "Read-only. It draws what GMCP has already sent." },

@@ -1,6 +1,6 @@
 # Info Window
 
-Captures INFO: lines into their own panel, colours intact, and gags them from the main output.
+Captures INFO: lines into their own panel, colours intact, and gags them from the main output — along with the blank line Aardwolf pads each one with, which is otherwise a fifth of everything on your screen.
 
 ## Install
 

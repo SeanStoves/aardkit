@@ -24,6 +24,7 @@ that every module here builds on. Without it nothing else loads.
 | `stats fields` | every field, what's on, and what the MUD is sending |
 | `stats on\|off <field>` | add one of the extras, or drop one you never read |
 | `stats reset` | back to the default set |
+| `stats mush \| grid` | the old aligned single column, or the grouped grid |
 | `stats dock\|embed\|show\|hide` | panel placement |
 
 Each has its own `help` with the full list.
