@@ -23,6 +23,7 @@ that every module here builds on. Without it nothing else loads.
 | `snd` | toggle the target panel |
 | `snd cp | quest | gq` | ask the MUD for that target list |
 | `snd go <n>` | speedwalk to target n |
+| `(panel) click a target` | selects it; the buttons below act on it |
 | `snd next` | walk to the first target listed |
 | `ah <mob>` | auto-hunt: follow the MUD's hunt skill to it |
 | `aha` | cancel the hunt |
@@ -51,7 +52,12 @@ the three low-skill "the trail is confusing" readings all halt it, because under
 hunt the direction is a guess. It never runs while you're flagged AFK and gives up
 after 120 rooms.
 
-Clicking a target walks you there and stops. If the area isn't in your map it falls
+Clicking a target in the panel selects it and does nothing else; the buttons below
+act on it, one press per command — [hunt] asks the MUD which way it is, [attack]
+swings, [go] walks. Nothing chains into anything. The list scrolls, so every
+target has a row.
+
+[go] walks you there and stops. If the area isn't in your map it falls
 back on the MUD's own `runto <keyword>`, which needs Aylor recall or a runprefix, and
 that is where it ends — nothing hunts or kills for you. Run `snd keywords` once to
 learn the area list.

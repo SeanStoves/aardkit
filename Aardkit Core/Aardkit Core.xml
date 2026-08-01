@@ -201,26 +201,49 @@ function U.has(name)
     return type(_G[name]) == "function"
 end
 
--- links: dechoLink is the one that takes our colour form, but fall back through
--- what's actually present rather than dying
-function U.outLink(s, cmd, hint)
-    if U.has("dechoLink") then
-        dechoLink(to_decho(s), cmd, hint or "", true)
-    elseif U.has("echoLink") then
-        echoLink((s:gsub("&lt;[^&gt;]*&gt;", "")), cmd, hint or "", true)
-    else
-        U.out(s)
+---
+-- links
+--
+-- This used to reach for dechoLink first. Mudlet has no such function - the
+-- binary registers echoLink, cechoLink, insertLink and setLink and nothing
+-- else - so every clickable thing we printed fell through to the plain-text
+-- branch and rendered as dead text that looked exactly like a working button.
+--
+-- The command goes over as a function, which is what Mudlet's own code does.
+-- A string is eval'd instead, which puts the burden of quoting on every call
+-- site; a mob called Doctor Cameroon "Rusty" Baboon is the sort of thing that
+-- goes wrong there. Strings still work here, they just get wrapped.
+---
+
+-- cecho resets with &lt;reset&gt;; our markup and decho both use &lt;r&gt;
+local function to_cecho(s)
+    return (tostring(s or ""):gsub("&lt;r&gt;", "&lt;reset&gt;"))
+end
+
+local function asfunc(cmd)
+    if type(cmd) == "function" then return cmd end
+    local s = tostring(cmd or "")
+    local compile = loadstring or load
+    return function()
+        local fn = compile(s)
+        if fn then fn() end
     end
 end
 
+local function plain(s) return (tostring(s or ""):gsub("&lt;[^&gt;]*&gt;", "")) end
+
+function U.outLink(s, cmd, hint)
+    local fn = asfunc(cmd)
+    if U.has("cechoLink") and pcall(cechoLink, to_cecho(s), fn, hint or "", true) then return end
+    if U.has("echoLink") then echoLink(plain(s), fn, hint or "", true) return end
+    U.out(s)
+end
+
 function U.outLinkw(win, s, cmd, hint)
-    if U.has("dechoLink") then
-        dechoLink(win, to_decho(s), cmd, hint or "", true)
-    elseif U.has("echoLink") then
-        echoLink(win, (s:gsub("&lt;[^&gt;]*&gt;", "")), cmd, hint or "", true)
-    else
-        U.outw(win, s)
-    end
+    local fn = asfunc(cmd)
+    if U.has("cechoLink") and pcall(cechoLink, win, to_cecho(s), fn, hint or "", true) then return end
+    if U.has("echoLink") then echoLink(win, plain(s), fn, hint or "", true) return end
+    U.outw(win, s)
 end
 
 function U.killhandler(id)
