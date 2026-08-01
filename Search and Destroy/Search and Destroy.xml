@@ -178,8 +178,8 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-				<name>gq target</name>
-				<script>solao.snd.on_gq_target(matches[2], matches[3])</script>
+				<name>gq header</name>
+				<script>solao.snd.on_gq_header()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -191,7 +191,67 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>^Kill at least (\d+) \* (.+)\.$</string>
+					<string>\[ Quest Targets \]</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>gq target</name>
+				<script>solao.snd.on_gq_target(matches[2], matches[3], matches[4])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Kill at least (\d+) \* (.+) \((.+)\)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>campaign kill</name>
+				<script>solao.snd.on_camp_kill("campaign")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Congratulations, that was one of your CAMPAIGN mobs!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>gquest kill</name>
+				<script>solao.snd.on_camp_kill("gquest")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Congratulations, that was one of the GLOBAL QUEST mobs!$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -548,6 +608,13 @@ solao.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
         Eldred the Wise can be found in the vicinity of Training Room which
         is in the general area of The Witches of Omen Tor.
 
+        -----------------------------[ Quest Targets ]---------------------
+        Kill at least 1 * a bored visitor (The Reception Area).
+        Kill at least 2 * a marsh vole (An odd village among the trees).
+
+        Congratulations, that was one of your CAMPAIGN mobs!
+        Congratulations, that was one of the GLOBAL QUEST mobs!
+
     The campaign rows are just "* name (area)", which is far too generic to leave
     a trigger sitting on all session. So it arms on the header and releases on the
     time-remaining line, with a timer in case that never lands.
@@ -678,10 +745,16 @@ function SD.on_quest_area(area)
     if SD.paint then SD.paint() end
 end
 
-function SD.on_gq_target(qty, name)
-    add("gquest", name, "", qty)
+function SD.on_gq_target(qty, name, room)
+    local e = add("gquest", name, "", qty)
+    if e then e.room = U.trim(room or "") end
     SD.kind = "gquest"
     if SD.paint then SD.paint() end
+end
+
+function SD.on_gq_header()
+    SD.targets.gquest = {}
+    SD.kind = "gquest"
 end
 
 function SD.on_cp_done()
@@ -695,15 +768,30 @@ function SD.on_quest_done()
     if SD.paint then SD.paint() end
 end
 
--- Ticks a target off. NOT currently wired to a trigger: the MUD's per-target
--- campaign kill line hasn't been captured live yet, and guessing the pattern
--- would tick off the wrong things. Until it is, progress updates when you re-run
--- the check, which is why the panel says so rather than showing a stale count.
-function SD.on_kill(name)
+-- The congratulations line doesn't name what you killed, so read back up the
+-- buffer for the death line that came with it. Cheaper and more honest than
+-- re-sending 'campaign check' after every kill.
+local DEATH = { "^(.+) is DEAD!!$", "^(.+) is slain by .+!!$" }
+
+function SD.on_camp_kill(kind)
+    local n = getLineNumber and getLineNumber()
+    if not n then return end
+    local lines = getLines(math.max(0, n - 6), n) or {}
+    for i = #lines, 1, -1 do
+        for _, pat in ipairs(DEATH) do
+            local who = lines[i]:match(pat)
+            if who then SD.on_kill(who, kind); return end
+        end
+    end
+end
+
+-- Ticks a target off by name. Called from the campaign/gquest kill lines above.
+function SD.on_kill(name, kind)
     name = U.trim(name or ""):lower()
     if name == "" then return end
     local hit = false
-    for _, t in pairs(SD.targets) do
+    for k, t in pairs(SD.targets) do
+      if not kind or k == kind then
         for _, e in ipairs(t) do
             if not e.killed and (e.name:lower() == name
                 or e.name:lower():find(name, 1, true)
@@ -712,6 +800,7 @@ function SD.on_kill(name)
                 hit = true
             end
         end
+      end
     end
     if hit and SD.paint then SD.paint() end
 end
@@ -896,8 +985,9 @@ function SD.paint()
             .. "'&gt;nothing tracked — click to read your " .. LABEL[SD.kind]:lower()
             .. "&lt;/span&gt;&lt;/center&gt;")
     else
+        local done, total = SD.counts(SD.kind)
         foot:echo("&lt;center&gt;&lt;span style='color:" .. COL.dim .. "'&gt;"
-            .. #t .. " left"
+            .. done .. " of " .. total .. " down"
             .. (#t &gt; avail and ("  • " .. (#t - avail) .. " below") or "")
             .. "  • click to walk • click here to re-check&lt;/span&gt;&lt;/center&gt;")
     end
