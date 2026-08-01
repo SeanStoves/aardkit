@@ -3,7 +3,7 @@
 <MudletPackage version="1.001">
 	<TriggerPackage>
 		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-			<name>vidblain</name>
+			<name>coords</name>
 			<script />
 			<triggerType>0</triggerType>
 			<conditonLineDelta>0</conditonLineDelta>
@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>coords</name>
-				<script>aardkit.vid.on_coords(matches[2], matches[3], matches[4])</script>
+				<script>aardkit.coords.on_coords(matches[2], matches[3], matches[4])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>no coords</name>
-				<script>aardkit.vid.on_nocoords()</script>
+				<script>aardkit.coords.on_nocoords()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -62,47 +62,56 @@
 	<TimerPackage />
 	<AliasPackage>
 		<AliasGroup isActive="yes" isFolder="yes">
-			<name>vidblain</name>
+			<name>coords</name>
 			<script />
 			<command />
 			<packageName />
 			<regex />
 			<Alias isActive="yes" isFolder="no">
-				<name>vid</name>
-				<script>aardkit.vid.cmd(matches[2] or "")</script>
+				<name>coord</name>
+				<script>aardkit.coords.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
-				<regex>^vid(?:blain)?(?:\s+(.*))?$</regex>
+				<regex>^(?:coords?|vid(?:blain)?)(?:\s+(.*))?$</regex>
 			</Alias>
 		</AliasGroup>
 	</AliasPackage>
 	<ActionPackage />
 	<ScriptPackage>
 		<ScriptGroup isActive="yes" isFolder="yes">
-			<name>vidblain</name>
+			<name>coords</name>
 			<packageName />
 			<script />
 			<eventHandlerList />
 			<Script isActive="yes" isFolder="no">
-				<name>vidblain</name>
+				<name>coords</name>
 				<packageName />
 				<script>--[[
-    Vidblain coordinates
+    Coordinates
     Sean Stoves, 2026-08-01
 
-    Vidblain drops you somewhere random and the way out is a fixed coordinate:
-    the Zenith Trail to Omen Tor is at 11,8, Fury City at 11,26, and so on. The
-    MUD tells you where you are on every room, so put it where you'll see it.
+    Aardwolf puts a coordinate on every room in the big open zones and tells you
+    it on arrival:
 
         Below the Basement Staircase
         {coords}0,30,20
 
-    The tag is 'zone,x,y', or a bare '{coords}-1' outside a coordinate area. It
-    is always gagged - we took it off the tag gag's list so we could read it, so
-    hiding it is now our job and has to happen whether or not we display it.
+    'zone,x,y', or a bare '{coords}-1' where there is no grid. Seven zones turn
+    up in a month of logs - 0 is the Aylor street grid and by a long way the most
+    common, 4 the continent, 1/2/3/5 the oceans, 6 the air you fly through. This
+    was called Vidblain for a while, which named the one place that never showed
+    up in the sample.
+
+    The tag is always gagged. We took it off the tag gag's list so we could read
+    it, so hiding it is our job now and has to happen whether or not we have
+    anything to display.
 
     The reading goes in a small draggable panel of its own, with the position as
     the title: there is nothing else to put in a box that size.
+
+    Vidblain is still why you'd want a target: it drops you somewhere random and
+    every way out is a fixed coordinate - Omen Tor at 11,8, Fury City at 11,26.
+    Those are preset; anywhere else, give it an x,y.
 
     The axes, measured rather than assumed - 24,18 then 'run 2s5e' lands on
     29,20, so x grows EAST and y grows SOUTH. y running southward is the
@@ -113,12 +122,12 @@
 ]]
 
 aardkit = aardkit or {}
-aardkit.vid = aardkit.vid or {}
+aardkit.coords = aardkit.coords or {}
 
-local VB = aardkit.vid
+local CO = aardkit.coords
 local U  = aardkit.util
 
-local CFG = U.load("vidblain", {
+local CFG = U.load("coords", {
     show   = "coordareas",   -- coordareas | always | off  (when to fill the panel)
     marks  = {},             -- name -&gt; {x=,y=}
     target = nil,
@@ -127,7 +136,7 @@ local CFG = U.load("vidblain", {
     axis   = { xdir = "east", ydir = "south" },
 })
 
-VB.zone, VB.x, VB.y = nil, nil, nil
+CO.zone, CO.x, CO.y = nil, nil, nil
 
 -- Consoleless: the title carries the reading, so there's nothing to put in a
 -- body. Small enough to tuck anywhere, and the panel manager remembers where.
@@ -137,7 +146,7 @@ local panel = aardkit.panel.new({
     consoleless = true,
 })
 
-VB.panel = panel
+CO.panel = panel
 
 local function settitle(txt)
     local h = panel and panel.holder
@@ -153,10 +162,10 @@ local KNOWN = {
 }
 
 local function inzone()
-    return VB.zone ~= nil and VB.x ~= nil
+    return CO.zone ~= nil and CO.x ~= nil
 end
 
-local function vidblain()
+local function invidblain()
     local z = gmcp and gmcp.room and gmcp.room.info and gmcp.room.info.zone
     return z == "vidblain"
 end
@@ -178,10 +187,10 @@ local function learn(dx, dy, dir)
         return
     end
     CFG.axis = a
-    U.save("vidblain", CFG)
+    U.save("coords", CFG)
 end
 
-function VB.on_move(dir)
+function CO.on_move(dir)
     last.dir = dir
 end
 
@@ -189,7 +198,7 @@ end
 -- the tag
 ---
 
-function VB.on_coords(zone, x, y)
+function CO.on_coords(zone, x, y)
     -- Gag first and unconditionally. This used to sit inside the display path,
     -- so anywhere the panel had nothing to say the raw tag printed instead.
     deleteLine()
@@ -200,22 +209,22 @@ function VB.on_coords(zone, x, y)
     end
     last.x, last.y, last.dir = x, y, nil
 
-    VB.zone, VB.x, VB.y = zone, x, y
-    VB.stamp()
+    CO.zone, CO.x, CO.y = zone, x, y
+    CO.stamp()
 end
 
-function VB.on_nocoords()
+function CO.on_nocoords()
     deleteLine()
-    VB.zone, VB.x, VB.y = nil, nil, nil
+    CO.zone, CO.x, CO.y = nil, nil, nil
     last.x, last.y = nil, nil
     settitle("Location: -")
 end
 
 -- how far, and which way, to the active target
-function VB.delta()
+function CO.delta()
     local t = CFG.target
     if not (t and inzone()) then return nil end
-    local dx, dy = t.x - VB.x, t.y - VB.y
+    local dx, dy = t.x - CO.x, t.y - CO.y
     if dx == 0 and dy == 0 then return "here" end
 
     local a = CFG.axis
@@ -235,11 +244,11 @@ function VB.delta()
 end
 
 -- the delta as something you can actually type
-function VB.runcmd()
+function CO.runcmd()
     local t = CFG.target
     local a = CFG.axis
     if not (t and a and a.xdir and a.ydir and inzone()) then return nil end
-    local dx, dy = t.x - VB.x, t.y - VB.y
+    local dx, dy = t.x - CO.x, t.y - CO.y
     if dx == 0 and dy == 0 then return nil end
 
     local parts = {}
@@ -258,24 +267,24 @@ end
 -- the panel
 ---
 
-function VB.stamp()
+function CO.stamp()
     -- 'off' used to save and then do nothing at all: the panel kept updating and
     -- the only way to be rid of it was 'panel coords hide'.
     if CFG.show == "off" then panel:hide(); return end
 
     if not inzone() then settitle("Location: -"); return end
-    if CFG.show == "coordareas" and not vidblain() then
-        settitle(string.format("Location: %d,%d", VB.x, VB.y))
+    if CFG.show == "coordareas" and not invidblain() then
+        settitle(string.format("Location: %d,%d", CO.x, CO.y))
         return
     end
 
-    local d = VB.delta()
+    local d = CO.delta()
     if d and d ~= "here" then
-        settitle(string.format("%d,%d  →  %s", VB.x, VB.y, d))
+        settitle(string.format("%d,%d  →  %s", CO.x, CO.y, d))
     elseif d == "here" then
-        settitle(string.format("%d,%d  arrived", VB.x, VB.y))
+        settitle(string.format("%d,%d  arrived", CO.x, CO.y))
     else
-        settitle(string.format("Location: %d,%d", VB.x, VB.y))
+        settitle(string.format("Location: %d,%d", CO.x, CO.y))
     end
 end
 
@@ -283,34 +292,36 @@ end
 -- commands
 ---
 
-function VB.cmd(arg)
+function CO.cmd(arg)
     local verb, rest = U.split_verb(arg)
     rest = U.trim(rest)
 
     if verb == "" or verb == "status" then
         local rows = {
-            { "here", inzone() and (VB.x .. "," .. VB.y .. "  (zone " .. VB.zone .. ")") or "no coordinates here" },
+            { "here", inzone() and (CO.x .. "," .. CO.y .. "  (zone " .. CO.zone .. ")") or "no coordinates here" },
             { "target", CFG.target and (CFG.target.name .. "  " .. CFG.target.x .. "," .. CFG.target.y) or "none" },
-            { "to go", VB.delta() or "-" },
+            { "to go", CO.delta() or "-" },
             { "axes", CFG.axis and ("+x " .. (CFG.axis.xdir or "?") .. ", +y " .. (CFG.axis.ydir or "?"))
                       or "not learned yet - move once" },
-            { "run", VB.runcmd() or "-" },
+            { "run", CO.runcmd() or "-" },
             { "show", CFG.show },
             { "" },
         }
+        rows[#rows + 1] = { "Vidblain exits" }
         for k, v in pairs(KNOWN) do rows[#rows + 1] = { "  " .. k, v[1] .. "," .. v[2] } end
         rows[#rows + 1] = { "" }
-        rows[#rows + 1] = { "vid &lt;name|x,y&gt;", "set the target and show the way" }
-        rows[#rows + 1] = { "vid run", "send the run command for the straight line" }
-        rows[#rows + 1] = { "vid clear", "drop the target" }
-        rows[#rows + 1] = { "vid show off|coordareas|always", "when the panel has anything to say" }
-        rows[#rows + 1] = { "vid panel [show|hide|dock|embed]", "move it or put it away" }
-        U.help("Vidblain", rows)
+        rows[#rows + 1] = { "coord &lt;name|x,y&gt;", "set the target and show the way" }
+        rows[#rows + 1] = { "coord run", "send the run command for the straight line" }
+        rows[#rows + 1] = { "coord clear", "drop the target" }
+        rows[#rows + 1] = { "coord show off|coordareas|always", "when the panel has anything to say" }
+        rows[#rows + 1] = { "coord panel [show|hide|dock|embed]", "move it or put it away" }
+        rows[#rows + 1] = { "", "'vid' still works if that's what your fingers type" }
+        U.help("Coordinates", rows)
 
     elseif verb == "run" or verb == "go" then
-        local c = VB.runcmd()
+        local c = CO.runcmd()
         if not c then
-            U.warn("No target, or you're already on it. 'vid omen tor' first.")
+            U.warn("No target, or you're already on it. 'coord omen tor' first.")
         else
             -- Vidblain is a maze, so this walks the straight line and the MUD
             -- gives up after three blocked moves. Run it again from wherever
@@ -320,23 +331,23 @@ function VB.cmd(arg)
         end
 
     elseif verb == "clear" then
-        CFG.target = nil; U.save("vidblain", CFG); U.ok("Target cleared.")
+        CFG.target = nil; U.save("coords", CFG); U.ok("Target cleared.")
 
-    -- 'vid panel &lt;verb&gt;' rather than 'vid dock' etc, because 'vid show' is already
-    -- the display mode and the two were colliding - the panel one was reachable
-    -- only as the undiscoverable 'vid show2'.
+    -- 'coord panel &lt;verb&gt;' rather than 'coord dock' etc, because 'coord show' is
+    -- already the display mode and the two were colliding - the panel one was
+    -- reachable only as the undiscoverable 'vid show2'.
     elseif verb == "panel" then
         if rest == "" then rest = "toggle" end
         aardkit.panel.cmd("coords " .. rest)
 
     elseif verb == "show" then
         if rest == "off" or rest == "always" or rest == "coordareas" then
-            CFG.show = rest; U.save("vidblain", CFG)
+            CFG.show = rest; U.save("coords", CFG)
             if rest ~= "off" then panel:show() end
-            VB.stamp()
+            CO.stamp()
             U.ok("Coordinates: " .. rest .. ".")
         else
-            U.warn("vid show off|coordareas|always")
+            U.warn("coord show off|coordareas|always")
         end
 
     else
@@ -353,12 +364,12 @@ function VB.cmd(arg)
             end
         end
         if not CFG.target or (x == nil and not CFG.target.name:find(arg:lower(), 1, true)) then
-            U.warn("Don't know '" .. arg .. "'. Try 'vid' for the list, or 'vid 11,8'.")
+            U.warn("Don't know '" .. arg .. "'. Try 'coord' for the list, or 'coord 11,8'.")
             return
         end
-        U.save("vidblain", CFG)
+        U.save("coords", CFG)
         U.ok("Target " .. CFG.target.name .. " at " .. CFG.target.x .. "," .. CFG.target.y
-            .. (VB.delta() and ("  -  " .. VB.delta()) or ""))
+            .. (CO.delta() and ("  -  " .. CO.delta()) or ""))
     end
 end
 
@@ -369,15 +380,15 @@ local DIRS = {
     e = "east", east = "east", w = "west", west = "west",
 }
 
-U.killhandler(aardkit_vid_send)
-aardkit_vid_send = registerAnonymousEventHandler("sysDataSendRequest", "aardkit.vid.on_send")
+U.killhandler(aardkit_coords_send)
+aardkit_coords_send = registerAnonymousEventHandler("sysDataSendRequest", "aardkit.coords.on_send")
 
-function VB.on_send(_, cmd)
+function CO.on_send(_, cmd)
     local d = DIRS[U.trim(tostring(cmd or "")):lower()]
-    if d then VB.on_move(d) end
+    if d then CO.on_move(d) end
 end
 
-aardkit.register("vid", "Vidblain coordinates and where you're heading", VB.cmd)
+aardkit.register("coord", "where you are on the Aardwolf grid, and how far to a target", CO.cmd)
 </script>
 				<eventHandlerList />
 			</Script>
