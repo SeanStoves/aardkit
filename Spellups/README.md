@@ -24,6 +24,7 @@ that every module here builds on. Without it nothing else loads.
 | `spellup list` | every known spellup and its state |
 | `spellup why <name>` | reason the last cast of it failed |
 | `spellup slist` | re-read the skill table from the MUD |
+| `(panel) Current \| Dropped` | what is running, or what fell off in the last minute |
 | `spellup reclass` | re-read and diff against the old spellup set |
 | `spellup sync` | read 'aff' to learn what is already running |
 | `spellup auto` | autocast status and settings |

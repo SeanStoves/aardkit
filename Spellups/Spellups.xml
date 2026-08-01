@@ -461,7 +461,8 @@ local U  = aardkit.util
 
 local CFG = U.load("spellups", {
     warn30 = true, warn10 = true, channel = "echo",
-    decay = 300,   -- how long a fallen buff stays on the panel before fading out
+    decay = 60,    -- how long a fallen buff stays on the panel before fading out
+    view  = "up",  -- which button is pressed: up | gone
 })
 
 ---
@@ -472,6 +473,14 @@ SP.skills = SP.skills or {}   -- skillnum -&gt; {name,target,duration,prac,recov
 SP.byname = SP.byname or {}   -- name -&gt; skillnum
 SP.recov  = SP.recov  or {}   -- recnum  -&gt; name
 SP.affect = SP.affect or {}   -- skillnum -&gt; expiry epoch
+-- skillnum -&gt; true, once the MUD has sent a real {affon} with seconds on it.
+--
+-- The skill table can't tell us this. 'slist' reports duration=0 for all 619
+-- skills - sanctuary, fly and cure light alike - so that column is not a buff
+-- length and filtering on it would empty the panel. What actually separates a
+-- buff from an instant heal is whether the MUD ever announces an affect for it,
+-- and it only does that for things that last. So we learn it by watching.
+SP.hasdur = SP.hasdur or {}
 SP.blocked = SP.blocked or {} -- recnum  -&gt; expiry epoch
 SP.failed = SP.failed or {}   -- skillnum -&gt; {code=, at=}
 SP.dropped = SP.dropped or {} -- skillnum -&gt; when it fell off
@@ -619,6 +628,7 @@ local warned = {}   -- skillnum -&gt; { [30]=true, [10]=true }
 function SP.on_affon(num, secs)
     num, secs = tonumber(num), tonumber(secs)
     if not num then return end
+    if (secs or 0) &gt; 0 then SP.hasdur[num] = true end
     SP.affect[num] = os.time() + (secs or 0)
     SP.failed[num] = nil
     SP.dropped[num] = nil
@@ -659,9 +669,11 @@ function SP.on_sfail(num, target, code, rec)
     end
     -- "already affected" is information, not a failure: the MUD is telling us
     -- our picture is stale
+    -- "already affected" means it IS an affect, so it counts as one that lasts -
+    -- but the 60s is a guess standing in until a real {affon} arrives.
     if code == 2 then
-        local s = SP.skills[num]
-        SP.affect[num] = os.time() + ((s and s.duration or 0) &gt; 0 and s.duration or 60)
+        SP.hasdur[num] = true
+        SP.affect[num] = os.time() + 60
     end
 end
 
@@ -827,7 +839,47 @@ end
 -- panel
 ---
 
-local panel = aardkit.panel.new({
+---
+-- the two views
+--
+-- Up is what you're running. Gone is what fell off in the last minute and is
+-- worth recasting. Anything older than that is neither - it's a potion or a
+-- gear affect you were never going to recast, and leaving it on screen just
+-- made the panel something you stopped reading.
+---
+
+local BTN_H = 20
+local tabs = {}
+-- the paint frame cache, declared up here because SP.on_view has to be able to
+-- invalidate it: switching view changes the output without changing the data,
+-- and a stale frame comparison would swallow the repaint entirely
+local buf, lastframe = {}, nil
+-- declared before tab() so the closure below binds this local and not a global
+-- of the same name, which is nil forever
+local panel
+
+local function tab(key, label, x, w)
+    if not tabs[key] then
+        tabs[key] = Geyser.Label:new({
+            name = "aardkit_sp_" .. key .. "_" .. (panel and panel.gen or 1),
+            x = 0, y = 0, width = 10, height = BTN_H - 2,
+        }, panel.container)
+        tabs[key]:setClickCallback("aardkit.spellup.on_view", key)
+    end
+    local b = tabs[key]
+    b:move(x, 2)
+    b:resize(w, BTN_H - 2)
+    local on = (CFG.view == key)
+    b:setStyleSheet(string.format(
+        "background-color: %s; border: 1px solid %s; border-radius: 3px;",
+        on and "#274060" or "#1b2540", on and "#e94560" or "#3a4a6b"))
+    b:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+        on and "#c8d0dc" or "#8a93a8", label))
+    b:show()
+    return b
+end
+
+panel = aardkit.panel.new({
     name     = "spellups",
     title    = "Spellups",
     width    = 300,
@@ -837,7 +889,20 @@ local panel = aardkit.panel.new({
     fontSize = 9,
     -- laid out by hand, so it has to be told when the panel changes size
     onresize = function() if aardkit.spellup.paint then aardkit.spellup.paint() end end,
+    -- _build hands back a brand-new container on a dock/embed switch, so the
+    -- cached labels are pointing into the old one
+    onbuild  = function()
+        tabs = {}
+        if aardkit.spellup.paint then aardkit.spellup.paint() end
+    end,
 })
+
+function SP.on_view(which)
+    CFG.view = (which == "gone") and "gone" or "up"
+    U.save("spellups", CFG)
+    lastframe = nil          -- the frame differs even when the data hasn't
+    SP.paint()
+end
 
 SP.panel = panel
 
@@ -859,8 +924,6 @@ end
 -- Reused across repaints. The panel redraws once a second to keep the clocks
 -- honest, so anything allocated here is allocated 86400 times a day - build the
 -- frame in one buffer and hand it over in a single write.
-local buf, lastframe = {}, nil
-
 -- bright red at the moment it drops, sinking toward the background as it ages
 local function fadecol(t)
     t = math.min(1, math.max(0, t))
@@ -871,6 +934,20 @@ end
 function SP.paint()
     if not panel.console then return end
     local c = panel.console
+
+    if panel.container then
+        local w = U.px(panel.container.get_width and panel.container:get_width()
+                       or panel.container.width)
+        if w &lt; 60 then w = 300 end
+        local half = math.floor((w - 12) / 2)
+        tab("up",   "Current",  4, half)
+        tab("gone", "Dropped",  8 + half, half)
+        -- the console starts below the buttons rather than under them
+        pcall(function()
+            c:move(0, BTN_H + 2)
+            c:resize("100%", "-" .. (BTN_H + 2) .. "px")
+        end)
+    end
 
     local n = 0
     local function put(s) n = n + 1; buf[n] = s end
@@ -883,12 +960,16 @@ function SP.paint()
 
         for id in pairs(SP.affect) do
             local left = SP.left(id)
-            if left and SP.skills[id] then up[#up + 1] = { id = id, left = left } end
+            -- SP.hasdur: only things the MUD has actually announced an affect
+            -- for. A cure light never lasts and never belonged on here.
+            if left and SP.skills[id] and SP.hasdur[id] then
+                up[#up + 1] = { id = id, left = left }
+            end
         end
 
         for id, at in pairs(SP.dropped) do
             local age = now - at
-            if not SP.skills[id] or age &gt; CFG.decay then
+            if not SP.skills[id] or not SP.hasdur[id] or age &gt; CFG.decay then
                 SP.dropped[id] = nil
                 SP.failed[id] = nil          -- prune alongside; nothing else does
             else
@@ -899,8 +980,13 @@ function SP.paint()
         table.sort(up,   function(a, b) return a.left &lt; b.left end)
         table.sort(gone, function(a, b) return a.age &lt; b.age end)
 
+        -- one view at a time; the buttons say which
+        if CFG.view == "gone" then up = {} else gone = {} end
+
         if #up == 0 and #gone == 0 then
-            put("&lt;#8a93a8&gt;Nothing running.&lt;r&gt;\n")
+            put(CFG.view == "gone"
+                and "&lt;#8a93a8&gt;Nothing dropped in the last minute.&lt;r&gt;\n"
+                or  "&lt;#8a93a8&gt;Nothing running.&lt;r&gt;\n")
         else
             local w = 0
             for _, e in ipairs(up)   do w = math.max(w, #SP.skills[e.id].name) end

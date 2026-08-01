@@ -318,6 +318,26 @@
 					<integer>1</integer>
 				</regexCodePropertyList>
 			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>where miss</name>
+				<script>aardkit.snd.on_nowhere(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^There is no (.+) around here\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
 		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
@@ -467,14 +487,30 @@ local function keyword_for(mob)
     return r and r[1] and r[1].keyword or nil
 end
 
-function SD.where(term)
+-- The MUD's own 'where' only sees the area you're standing in, so a miss tells
+-- you nothing about where the thing actually lives. We have 1795 mobs on record
+-- with the rooms they were seen in, so answer the question it couldn't.
+function SD.on_nowhere(term)
+    term = U.trim(term or "")
+    if term == "" then return end
+    local rows = SD.where(term, true)
+    if not rows then
+        U.note("...and nothing matching '" .. term .. "' on record either. 'snd scan on' learns them as you go.")
+    end
+end
+
+-- quiet = don't complain when there's no match; the caller says something better
+function SD.where(term, quiet)
     term = U.trim(term)
     if term == "" then U.warn("Usage: mobwhere &lt;keyword&gt;"); return end
 
     local rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. term .. "%"))
     if not rows or #rows == 0 then
-        U.note("No mob matching '" .. term .. "' in the S&amp;D data.")
-        return
+        if not quiet then
+            U.note("Nothing matching '" .. term .. "' on record. The database only knows mobs"
+                .. " it has been shown - 'snd scan on' records them as you walk.")
+        end
+        return nil
     end
 
     -- merge per mob name so one line covers every room it's been seen in
@@ -495,7 +531,7 @@ function SD.where(term)
     end
     table.sort(order, function(x, y) return agg[x].cnt &gt; agg[y].cnt end)
 
-    U.note(#order .. " mob(s) matching '" .. term .. "':")
+    U.note(#order .. " mob(s) matching '" .. term .. "' on record:")
     for i, nm in ipairs(order) do
         if i &gt; 20 then
             U.out("\n  &lt;#8a93a8&gt;... " .. (#order - 20) .. " more&lt;r&gt;")
@@ -519,6 +555,7 @@ function SD.where(term)
         end
     end
     echo("\n")
+    return order
 end
 
 function SD.walkto(roomid)

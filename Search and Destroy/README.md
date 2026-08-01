@@ -31,6 +31,7 @@ that every module here builds on. Without it nothing else loads.
 | `snd status` | row counts for mobs/areas/keywords, scan state |
 | `snd mob <kw>` | rooms a mob was seen in, clickable [go] |
 | `mobwhere <kw>` | same lookup, shorter alias |
+| `(auto)` | a failed MUD 'where' falls back to the database by itself |
 | `snd area [text]` | area list with level ranges and start rooms |
 | `snd keywords` | read 'area keyword' so runto works for unmapped areas |
 | `snd scan on\|off` | record mobs from room descriptions while moving |

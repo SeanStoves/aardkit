@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 35 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>statmon</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>stats</name>
+				<script>aardkit.statmon.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^stats(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>statmon</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>statmon</name>
+				<packageName />
+				<script>--[[
+    Stat Monitor
+    Sean Stoves, 2026-08-01
+
+    Everything Aardwolf tells us about the character, in a panel that reflows.
+
+    Written against the GMCP protocol rather than ported: Mudlet already parses
+    the char.* messages into a table, so this reads gmcp.char and lays it out.
+    That also means it cannot be wrong about a field name - anything the MUD
+    doesn't send simply isn't drawn, rather than showing a label with a nil
+    beside it. If Aardwolf adds a field to char.stats one day it turns up here
+    with no change needed.
+
+    Informational only. Nothing here sends a command; it draws what has already
+    arrived.
+
+    Responsive: the grid picks a column count from the panel width, so the same
+    panel is a tall narrow strip down one side or a wide short bar across the
+    top, and the rows re-flow when you drag it.
+]]
+
+aardkit = aardkit or {}
+aardkit.statmon = aardkit.statmon or {}
+
+local SM = aardkit.statmon
+local U  = aardkit.util
+
+local CFG = U.load("statmon", {
+    groups = { vitals = true, char = true, stats = true, combat = true, worth = true },
+})
+
+local ROW_H, PAD, HDR_H = 16, 4, 15
+local MINCOL = 118          -- narrower than this and the numbers collide
+
+local COL = {
+    hdr   = "#e0af68",
+    label = "#8a93a8",
+    val   = "#c8d0dc",
+    good  = "#3ad07a",
+    warn  = "#e0af68",
+    bad   = "#f7768e",
+    row   = "#141b2d",
+    line  = "#3a4a6b",
+}
+
+---
+-- what to show
+--
+-- Ordered, because a stat panel that reorders itself between updates is
+-- unreadable. Anything the MUD doesn't send is skipped rather than drawn with a
+-- blank beside it, so this can't claim a field Aardwolf stopped sending.
+--
+--   { subtable, key, long label, short label, max subtable, max key }
+--
+-- The maxes matter more than they look: a trained stat reads 'str 18/25', and
+-- without the max you can't tell a capped stat from one worth training. Field
+-- names checked against what Aardwolf actually sends.
+---
+
+local GROUPS = {
+    { key = "vitals", title = "Vitals", fields = {
+        { "vitals", "hp",    "Health", "Hp",  "maxstats", "maxhp" },
+        { "vitals", "mana",  "Mana",   "Mn",  "maxstats", "maxmana" },
+        { "vitals", "moves", "Moves",  "Mvs", "maxstats", "maxmoves" },
+    }},
+    { key = "char", title = "Character", fields = {
+        { "base",   "name",     "Name",     "Name" },
+        { "status", "level",    "Level",    "Lvl" },
+        { "status", "tnl",      "To level", "TNL" },
+        { "base",   "race",     "Race",     "Race" },
+        { "base",   "class",    "Class",    "Cls" },
+        { "base",   "subclass", "Subclass", "Sub" },
+        { "base",   "clan",     "Clan",     "Clan" },
+        { "base",   "tier",     "Tier",     "Tier" },
+        { "base",   "remorts",  "Remorts",  "Rmt" },
+        { "base",   "perlevel", "Per level","P/L" },
+    }},
+    { key = "stats", title = "Stats", fields = {
+        { "stats", "str",  "Strength",     "Str", "maxstats", "maxstr" },
+        { "stats", "int",  "Intelligence", "Int", "maxstats", "maxint" },
+        { "stats", "wis",  "Wisdom",       "Wis", "maxstats", "maxwis" },
+        { "stats", "dex",  "Dexterity",    "Dex", "maxstats", "maxdex" },
+        { "stats", "con",  "Constitution", "Con", "maxstats", "maxcon" },
+        { "stats", "luck", "Luck",         "Luk", "maxstats", "maxluck" },
+    }},
+    { key = "combat", title = "Combat", fields = {
+        { "stats",  "hr",       "Hitroll",   "HR" },
+        { "stats",  "dr",       "Damroll",   "DR" },
+        { "status", "align",    "Alignment", "Align" },
+        { "status", "state",    "State",     "State" },
+        { "status", "enemy",    "Foe",       "Foe" },
+        { "status", "enemypct", "Foe %",     "Foe%" },
+    }},
+    { key = "worth", title = "Worth", fields = {
+        { "worth", "qp",     "Quest pts", "QP" },
+        { "worth", "tp",     "Trivia",    "TP" },
+        { "worth", "gold",   "Gold",      "Gold" },
+        { "worth", "bank",   "Bank",      "Bank" },
+        { "worth", "trains", "Trains",    "Trn" },
+        { "worth", "pracs",  "Pracs",     "Prac" },
+    }},
+}
+
+-- Aardwolf sends numbers as strings about half the time
+local function num(v)
+    return tonumber(tostring(v or ""))
+end
+
+local function get(sub, key)
+    local c = gmcp and gmcp.char
+    local t = c and c[sub]
+    local v = t and t[key]
+    if v == nil or v == "" then return nil end
+    return v
+end
+
+-- 'state' is a code; 3 is the only one worth naming and it means you're playing
+local STATE = { [1] = "login", [2] = "MOTD", [3] = "playing", [9] = "note" }
+
+local function pretty(sub, key, v)
+    if key == "state" then return STATE[num(v)] or tostring(v) end
+    local n = num(v)
+    if n and (key == "gold" or key == "bank" or key == "tnl") then return U.commas(n) end
+    return tostring(v)
+end
+
+-- hp/mana/moves get a colour off how much is left
+local function vitalcol(cur, max)
+    local c, m = num(cur), num(max)
+    if not (c and m and m &gt; 0) then return COL.val end
+    local pct = c / m
+    if pct &gt;= 0.75 then return COL.good end
+    if pct &gt;= 0.35 then return COL.warn end
+    return COL.bad
+end
+
+---
+-- panel
+---
+
+local cells, heads = {}, {}
+local panel
+
+local function cell(i)
+    if not cells[i] then
+        cells[i] = Geyser.Label:new({
+            name = "aardkit_sm_c" .. i .. "_" .. (panel and panel.gen or 1),
+            x = 0, y = 0, width = 10, height = ROW_H,
+        }, panel.container)
+    end
+    return cells[i]
+end
+
+local function head(i)
+    if not heads[i] then
+        heads[i] = Geyser.Label:new({
+            name = "aardkit_sm_h" .. i .. "_" .. (panel and panel.gen or 1),
+            x = 0, y = 0, width = 10, height = HDR_H,
+        }, panel.container)
+    end
+    return heads[i]
+end
+
+panel = aardkit.panel.new({
+    name = "statmon", title = "Stats",
+    x = "20px", y = "480px", width = 260, height = 260,
+    consoleless = true,
+    onresize = function() if aardkit.statmon.paint then aardkit.statmon.paint() end end,
+    onbuild  = function()
+        cells, heads = {}, {}
+        if aardkit.statmon.paint then aardkit.statmon.paint() end
+    end,
+})
+
+SM.panel = panel
+
+function SM.paint()
+    local c = panel.container
+    if not c then return end
+
+    local w = U.px(c.get_width and c:get_width() or c.width)
+    if w &lt; 60 then w = 260 end
+    local inner = w - PAD * 2
+
+    -- As many columns as fit, but capped: past four, extra width just makes more
+    -- narrow columns and the labels stay abbreviated forever. Cap it and the
+    -- columns get wider instead, which is what buys the full words.
+    local cols = math.max(1, math.min(4, math.floor(inner / MINCOL)))
+    local cw   = math.floor((inner - (cols - 1) * PAD) / cols)
+    local wide = cw &gt;= 150      -- room for "Constitution" rather than "Con"
+
+    local ci, hi, y = 0, 0, PAD
+
+    for _, g in ipairs(GROUPS) do
+        if CFG.groups[g.key] then
+            -- collect what's actually present before drawing a header for it
+            local rows = {}
+            for _, f in ipairs(g.fields) do
+                local v = get(f[1], f[2])
+                if v ~= nil then
+                    local maxv = f[5] and get(f[5], f[6]) or nil
+                    -- vitals shade by how much is left; a stat's max is a
+                    -- training ceiling, not a warning, so it stays plain
+                    local shade = (g.key == "vitals") and maxv
+                    rows[#rows + 1] = {
+                        label = wide and f[3] or f[4],
+                        value = pretty(f[1], f[2], v),
+                        col   = shade and vitalcol(v, maxv) or COL.val,
+                        max   = maxv and pretty(f[5], f[6], maxv) or nil,
+                    }
+                end
+            end
+
+            if #rows &gt; 0 then
+                hi = hi + 1
+                local h = head(hi)
+                h:move(PAD, y)
+                h:resize(inner, HDR_H)
+                h:setStyleSheet("background-color: transparent; border: 0px;")
+                h:echo(string.format(
+                    "&lt;span style='color:%s;font-size:8pt'&gt;%s&lt;/span&gt;"
+                    .. "&lt;span style='color:%s'&gt; %s&lt;/span&gt;",
+                    COL.hdr, g.title, COL.line,
+                    string.rep("_", math.max(4, math.floor(inner / 7) - #g.title - 1))))
+                h:show()
+                y = y + HDR_H
+
+                for i, r in ipairs(rows) do
+                    ci = ci + 1
+                    local col = (i - 1) % cols
+                    local l = cell(ci)
+                    l:move(PAD + col * (cw + PAD), y)
+                    l:resize(cw, ROW_H)
+                    l:setStyleSheet("background-color: transparent; border: 0px;")
+                    l:echo(string.format(
+                        "&lt;span style='color:%s;font-size:8pt'&gt;%s &lt;/span&gt;"
+                        .. "&lt;span style='color:%s;font-size:8pt'&gt;%s&lt;/span&gt;"
+                        .. "&lt;span style='color:%s;font-size:8pt'&gt;%s&lt;/span&gt;",
+                        COL.label, r.label, r.col, r.value,
+                        COL.label, r.max and ("/" .. r.max) or ""))
+                    l:show()
+                    if col == cols - 1 or i == #rows then y = y + ROW_H end
+                end
+                y = y + 2
+            end
+        end
+    end
+
+    for i = ci + 1, #cells do cells[i]:hide() end
+    for i = hi + 1, #heads do heads[i]:hide() end
+end
+
+---
+-- updates
+--
+-- One handler per message rather than a timer: GMCP arrives when something
+-- changed, so there is nothing to poll for.
+---
+
+local pending = false
+
+local function touch()
+    -- vitals fire on every tick in combat; coalesce so a busy fight doesn't
+    -- repaint the panel several times for one screenful
+    if pending then return end
+    pending = true
+    tempTimer(0.2, function() pending = false; SM.paint() end)
+end
+
+SM.touch = touch
+
+for _, ev in ipairs({ "gmcp.char.vitals", "gmcp.char.status", "gmcp.char.base",
+                      "gmcp.char.stats", "gmcp.char.maxstats", "gmcp.char.worth" }) do
+    local g = "aardkit_sm_" .. ev:gsub("%.", "_")
+    U.killhandler(_G[g])
+    _G[g] = registerAnonymousEventHandler(ev, "aardkit.statmon.touch")
+end
+
+---
+-- commands
+---
+
+function SM.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest):lower()
+
+    if verb == "" then
+        SM.paint()
+        panel:toggle()
+
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+        aardkit.panel.cmd("statmon " .. verb)
+
+    elseif verb == "on" or verb == "off" then
+        if CFG.groups[rest] == nil then
+            U.warn("Groups: vitals, char, stats, combat, worth")
+        else
+            CFG.groups[rest] = (verb == "on")
+            U.save("statmon", CFG)
+            SM.paint()
+            U.ok("Stats: " .. rest .. " " .. verb .. ".")
+        end
+
+    elseif verb == "status" then
+        local rows = {}
+        for _, g in ipairs(GROUPS) do
+            local n = 0
+            for _, f in ipairs(g.fields) do if get(f[1], f[2]) ~= nil then n = n + 1 end end
+            rows[#rows + 1] = { g.key, (CFG.groups[g.key] and "on " or "off")
+                .. "  " .. n .. " of " .. #g.fields .. " sent by the MUD" }
+        end
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "stats", "toggle the panel" }
+        rows[#rows + 1] = { "stats on|off &lt;group&gt;", "show or hide a group" }
+        rows[#rows + 1] = { "stats dock|embed|show|hide", "panel placement" }
+        U.help("Stat Monitor", rows)
+
+    else
+        U.warn("stats [status | on|off &lt;group&gt; | dock|embed|show|hide]")
+    end
+end
+
+aardkit.register("stats", "character stats from GMCP, in a panel that reflows", SM.cmd)
+
+tempTimer(1, function() SM.paint() end)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
