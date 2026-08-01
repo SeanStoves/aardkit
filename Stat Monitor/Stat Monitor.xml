@@ -58,9 +58,21 @@ aardkit.statmon = aardkit.statmon or {}
 local SM = aardkit.statmon
 local U  = aardkit.util
 
-local CFG = U.load("statmon", {
-    groups = { vitals = true, char = true, stats = true, combat = true, worth = true },
-})
+local DEFAULT = {
+    hp = true, mana = true, moves = true,
+    level = true, tnl = true,
+    str = true, int = true, wis = true, dex = true, con = true, luck = true,
+    hr = true, dr = true, align = true, enemy = true,
+    qp = true, tp = true, gold = true, trains = true, pracs = true,
+}
+
+local function defaults()
+    local t = {}
+    for k, v in pairs(DEFAULT) do t[k] = v end
+    return t
+end
+
+local CFG = U.load("statmon", { show = defaults() })
 
 local ROW_H, PAD, HDR_H = 16, 4, 15
 local MINCOL = 118          -- narrower than this and the numbers collide
@@ -84,6 +96,12 @@ local COL = {
 -- blank beside it, so this can't claim a field Aardwolf stopped sending.
 --
 --   { subtable, key, long label, short label, max subtable, max key }
+--
+-- The key is the gmcp field name, which is also what 'stats on|off &lt;field&gt;'
+-- takes. The default set is the one the old statmon showed - the numbers you
+-- actually check. Name, race, class, clan, tier, remorts, per-level, bank,
+-- state and foe% are all here and all off until you ask, because a panel you
+-- have to hunt through is one you stop reading.
 --
 -- The maxes matter more than they look: a trained stat reads 'str 18/25', and
 -- without the max you can't tell a capped stat from one worth training. Field
@@ -222,14 +240,18 @@ function SM.paint()
     local cw   = math.floor((inner - (cols - 1) * PAD) / cols)
     local wide = cw &gt;= 150      -- room for "Constitution" rather than "Con"
 
+    local h = U.px(c.get_height and c:get_height() or c.height)
+    if h &lt; 40 then h = 260 end
+
     local ci, hi, y = 0, 0, PAD
+    local clipped = 0
 
     for _, g in ipairs(GROUPS) do
-        if CFG.groups[g.key] then
-            -- collect what's actually present before drawing a header for it
+        do
+            -- what's switched on AND actually arriving, before drawing a header
             local rows = {}
             for _, f in ipairs(g.fields) do
-                local v = get(f[1], f[2])
+                local v = CFG.show[f[2]] and get(f[1], f[2]) or nil
                 if v ~= nil then
                     local maxv = f[5] and get(f[5], f[6]) or nil
                     -- vitals shade by how much is left; a stat's max is a
@@ -242,6 +264,17 @@ function SM.paint()
                         max   = maxv and pretty(f[5], f[6], maxv) or nil,
                     }
                 end
+            end
+
+            -- Don't draw past the bottom edge. Labels are children of the
+            -- container but Geyser doesn't clip them, so anything laid out
+            -- below the frame just renders on top of whatever is behind the
+            -- panel - which is how the Worth block ended up floating over the
+            -- output. Count what wouldn't fit and say so instead.
+            local need = HDR_H + math.ceil(#rows / cols) * ROW_H
+            if #rows &gt; 0 and y + need &gt; h - ROW_H then
+                clipped = clipped + #rows
+                rows = {}
             end
 
             if #rows &gt; 0 then
@@ -279,6 +312,17 @@ function SM.paint()
         end
     end
 
+    if clipped &gt; 0 then
+        ci = ci + 1
+        local l = cell(ci)
+        l:move(PAD, math.min(y, h - ROW_H))
+        l:resize(inner, ROW_H)
+        l:setStyleSheet("background-color: transparent; border: 0px;")
+        l:echo(string.format("&lt;span style='color:%s;font-size:8pt'&gt;%d more - "
+            .. "make the panel taller, or 'stats off &amp;lt;field&amp;gt;'&lt;/span&gt;", COL.label, clipped))
+        l:show()
+    end
+
     for i = ci + 1, #cells do cells[i]:hide() end
     for i = hi + 1, #heads do heads[i]:hide() end
 end
@@ -313,6 +357,14 @@ end
 -- commands
 ---
 
+local function known(key)
+    for _, g in ipairs(GROUPS) do
+        for _, f in ipairs(g.fields) do
+            if f[2] == key then return f, g end
+        end
+    end
+end
+
 function SM.cmd(arg)
     local verb, rest = U.split_verb(arg)
     rest = U.trim(rest):lower()
@@ -325,31 +377,49 @@ function SM.cmd(arg)
         aardkit.panel.cmd("statmon " .. verb)
 
     elseif verb == "on" or verb == "off" then
-        if CFG.groups[rest] == nil then
-            U.warn("Groups: vitals, char, stats, combat, worth")
+        local f = known(rest)
+        if not f then
+            U.warn("No field '" .. rest .. "'. 'stats fields' lists them.")
         else
-            CFG.groups[rest] = (verb == "on")
+            CFG.show[rest] = (verb == "on") or nil
             U.save("statmon", CFG)
             SM.paint()
-            U.ok("Stats: " .. rest .. " " .. verb .. ".")
+            U.ok("Stats: " .. f[3] .. " " .. verb .. ".")
         end
 
-    elseif verb == "status" then
+    elseif verb == "reset" then
+        CFG.show = defaults()
+        U.save("statmon", CFG)
+        SM.paint()
+        U.ok("Stats: back to the default fields.")
+
+    elseif verb == "fields" then
         local rows = {}
         for _, g in ipairs(GROUPS) do
-            local n = 0
-            for _, f in ipairs(g.fields) do if get(f[1], f[2]) ~= nil then n = n + 1 end end
-            rows[#rows + 1] = { g.key, (CFG.groups[g.key] and "on " or "off")
-                .. "  " .. n .. " of " .. #g.fields .. " sent by the MUD" }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { g.title }
+            for _, f in ipairs(g.fields) do
+                local live = get(f[1], f[2]) ~= nil
+                rows[#rows + 1] = { "  " .. f[2],
+                    (CFG.show[f[2]] and "on " or "off") .. "  " .. f[3]
+                    .. (live and "" or "   (not being sent)") }
+            end
         end
         rows[#rows + 1] = { "" }
-        rows[#rows + 1] = { "stats", "toggle the panel" }
-        rows[#rows + 1] = { "stats on|off &lt;group&gt;", "show or hide a group" }
-        rows[#rows + 1] = { "stats dock|embed|show|hide", "panel placement" }
-        U.help("Stat Monitor", rows)
+        rows[#rows + 1] = { "stats on|off &lt;field&gt;", "add or drop one" }
+        rows[#rows + 1] = { "stats reset", "back to the default set" }
+        U.help("Stat Monitor fields", rows)
 
     else
-        U.warn("stats [status | on|off &lt;group&gt; | dock|embed|show|hide]")
+        U.help("Stat Monitor", {
+            { "stats", "toggle the panel" },
+            { "stats fields", "every field, what's on, what the MUD is sending" },
+            { "stats on|off &lt;field&gt;", "add one of the extras, or drop one you never read" },
+            { "stats reset", "back to the default set" },
+            { "stats dock|embed|show|hide", "panel placement" },
+            { "" },
+            { "Read-only. It draws what GMCP has already sent." },
+        })
     end
 end
 
