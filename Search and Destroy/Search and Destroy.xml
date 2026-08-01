@@ -99,6 +99,26 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>cp none</name>
+				<script>aardkit.snd.on_cp_none()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You are not currently on a campaign\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>cp done</name>
 				<script>aardkit.snd.on_cp_done()</script>
 				<triggerType>0</triggerType>
@@ -958,6 +978,17 @@ end
 -- follow would have opened the capture on their own anyway.
 function SD.on_cp_header()
     cp_start()
+end
+
+-- 'cp check' with nothing running answers "You are not currently on a
+-- campaign." and no target lines, which used to leave the capture armed for its
+-- full 12 seconds and the panel showing "nothing tracked" with no idea whether
+-- it had failed or you simply had no campaign. Say which.
+function SD.on_cp_none()
+    SD.targets.campaign = {}
+    SD.kind = "campaign"
+    cp_stop()
+    U.note("No campaign running. 'campaign request' at a questor starts one.")
 end
 
 -- 'quest request' answers in the questmaster's own voice, wrapped in tells and
@@ -2050,19 +2081,25 @@ function SD.paint()
 end
 
 -- ask the MUD to tell us again
+-- Echoed on purpose. You pressed a button and something got sent on your
+-- behalf, so you should be able to see WHICH - sending quietly means the only
+-- way to tell 'cp check' from 'cp info' is to recognise the reply's shape, and
+-- that is not a reasonable thing to ask of anyone.
 function SD.refresh(kind)
     kind = kind or SD.kind
+    local cmd
     if kind == "campaign" then
         SD.arm_campaign()          -- the reply carries no banner to arm on
-        -- 'cp check', not 'campaign check': check lists only what's still owed,
-        -- and 'cp check' is the form that appears 138 times in the logs. The
-        -- long form was never actually tried against the MUD.
-        send("cp check", false)
+        -- 'cp check', not 'cp info': check lists only what is still owed, which
+        -- is the whole point of the panel. 'cp check' is also the form with 138
+        -- hits in the logs; the long 'campaign check' was never tried.
+        cmd = "cp check"
     elseif kind == "quest" then
-        send("quest info", false)
+        cmd = "quest info"
     else
-        send("gquest info", false)
+        cmd = "gquest info"
     end
+    send(cmd, true)
 end
 
 U.killhandler(aardkit_snd_resize_handler)
