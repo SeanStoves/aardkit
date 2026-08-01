@@ -32,6 +32,7 @@ that every module here builds on. Without it nothing else loads.
 | `snd area [text]` | area list with level ranges and start rooms |
 | `snd keywords` | read 'area keyword' so runto works for unmapped areas |
 | `snd scan on|off` | record mobs from room descriptions while moving |
+| `snd rewrite on|off` | tidy 'cp check' into a clickable list (default on) |
 | `snd dock|embed|hide|show` | panel placement |
 
 Each has its own `help` with the full list.
@@ -54,6 +55,15 @@ Clicking a target walks you there and stops. If the area isn't in your map it fa
 back on the MUD's own `runto <keyword>`, which needs Aylor recall or a runprefix, and
 that is where it ends — nothing hunts or kills for you. Run `snd keywords` once to
 learn the area list.
+
+`cp check` gets swallowed and reprinted as a numbered list with a `[go]` and a
+`[hunt]` beside each mob — `[go]` runs the same walk chain as the panel's rows,
+`[hunt]` sends the MUD's own hunt skill. It reprints as a block rather than line by
+line because the MUD lists the same mob twice when it still owes two of them, and
+that only becomes knowable at the end. `hunt` wants one keyword rather than a whole
+name, so the link guesses one — leading article off, trailing 'of'/'bent on' phrase
+off, last word — and the tooltip shows what it will send. `snd rewrite off` leaves
+the MUD's own lines alone.
 
 ## Config
 

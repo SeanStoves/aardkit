@@ -614,6 +614,16 @@ function SD.cmd(arg)
     elseif verb == "area" or verb == "areas" then
         show_area(rest)
 
+    elseif verb == "rewrite" then
+        local v = U.trim(rest):lower()
+        if v == "on" or v == "off" then
+            SD.rewriting(v == "on")
+            U.ok("S&amp;D: campaign list rewritten " .. (v == "on" and "into a clickable block." or "no more - the MUD's own lines stand."))
+        else
+            U.warn("Usage: snd rewrite on|off   (currently "
+                .. (SD.rewriting() and "on" or "off") .. ")")
+        end
+
     elseif verb == "scan" then
         local v = U.trim(rest):lower()
         if v == "on" or v == "off" then
@@ -639,6 +649,7 @@ function SD.cmd(arg)
             { "snd area [text]",  "area list with level ranges and start rooms" },
             { "snd keywords",     "read 'area keyword' so runto works for unmapped areas" },
             { "snd scan on|off",  "record mobs from room descriptions as you go" },
+            { "snd rewrite on|off", "tidy 'cp check' into a clickable list" },
             { "" },
             { "Click a target in the panel to walk there. The commands are" },
             { "here for muscle memory; nobody has to learn them." },
@@ -660,14 +671,16 @@ aardkit.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
     The MUD tells you what to kill; this remembers it and looks up where it lives
     in the mob table the data layer already holds. That's the whole job.
 
-    Output formats below are the MUD's own, captured live 2026-08-01. An earlier
-    version of this file guessed them from another plugin's trigger patterns and
-    got them wrong, which is why nothing ever parsed:
+    Output formats below are the MUD's own, checked against 45 sessions of logs.
+    Earlier versions of this file took them from another plugin's triggers and
+    got them wrong twice over, which is why nothing ever parsed:
 
-        The targets for this campaign are:
-        * a bartering customer (Fellchantry)
-        * Yeti Hunting Party (Helegear Sea)
+        You still have to kill * a bartering customer (Fellchantry)     &lt;- cp check
+        Find and kill 1 * Islien (Unearthly Bonds)                      &lt;- cp info
         You have 6 days, 23 hours and 59 minutes left to finish this campaign.
+
+    The bare "* name (area)" an earlier version expected was the MUSHclient S&amp;D
+    plugin's rewrite of the first line, not anything the MUD ever sends.
 
         You are on a quest to slay Eldred the Wise!
         Eldred the Wise can be found in the vicinity of Training Room which
@@ -682,9 +695,9 @@ aardkit.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
         Congratulations, that was one of your CAMPAIGN mobs!
         Congratulations, that was one of the GLOBAL QUEST mobs!
 
-    The campaign rows are just "* name (area)", which is far too generic to leave
-    a trigger sitting on all session. So it arms on the header and releases on the
-    time-remaining line, with a timer in case that never lands.
+    The campaign rows carry their own prefix, so a permanent trigger is safe. The
+    first one opens the capture and the time-remaining line closes it, with a
+    timer behind that in case the block ever ends some way we haven't seen.
 ]]
 
 aardkit = aardkit or {}
@@ -775,10 +788,19 @@ end
 
 local cp_timer
 local capturing = false
+local gagged = false
+local print_block
+
+local TCFG = U.load("sndtargets", { rewrite = true })
 
 local function cp_stop()
+    local was = capturing
     capturing = false
     if cp_timer then killTimer(cp_timer); cp_timer = nil end
+    -- Only if we actually swallowed the lines, or a bare cp_stop would reprint
+    -- the last campaign out of nowhere.
+    if was and gagged and print_block then print_block() end
+    gagged = false
     if SD.paint then SD.paint() end
 end
 
@@ -788,17 +810,81 @@ local function cp_start()
     SD.targets.campaign = {}
     SD.kind = "campaign"
     capturing = true
+    gagged = false
     if cp_timer then killTimer(cp_timer) end
     cp_timer = tempTimer(12, cp_stop)
 end
 
 SD.arm_campaign = cp_start
 
+---
+-- rewriting the list
+--
+-- 'cp check' is fifteen lines of prose with the two things you actually want -
+-- which mob, and where it lives - buried in the middle of a sentence:
+--
+--   You still have to kill * a bartering customer (Fellchantry)
+--
+-- so the lines get swallowed and reprinted as a block you can act on:
+--
+--     1  a bartering customer        Fellchantry        [go] [hunt]
+--
+-- As a block and not line by line, because the count only becomes knowable at
+-- the end: the MUD prints the same mob twice when it still owes two, and there
+-- is no way to go back and amend a line already on screen.
+--
+-- [go] is the same walk chain the panel's rows use. [hunt] sends the MUD's own
+-- hunt skill. Neither chains into a kill - see the note on 'help policies7' in
+-- walk.lua.
+---
+
+-- 'hunt' wants one keyword, not a sentence. Drop a leading article, drop any
+-- trailing prepositional phrase, and take the last word - that lands on the
+-- noun most of the time, and without the phrase strip "a screaming ghost bent
+-- on vengeance" would go hunting for 'vengeance' instead of 'ghost'.
+--
+-- Still a guess. The tooltip shows exactly what will be sent, and if it's wrong
+-- you type 'ah &lt;keyword&gt;' yourself.
+local TAIL = { " bent on ", " of ", " in ", " from ", " with ", " on " }
+
+local function huntkey(name)
+    local s = name:gsub("^[Tt]he%s+", ""):gsub("^[Aa]n?%s+", "")
+    for _, sep in ipairs(TAIL) do
+        local cut = s:lower():find(sep, 1, true)
+        if cut then s = s:sub(1, cut - 1); break end
+    end
+    return (s:match("([%w'-]+)%s*$") or s):lower()
+end
+
+function print_block()
+    local t = list("campaign")
+    if #t == 0 then return end
+
+    U.out(string.format("\n&lt;#e0af68&gt;Campaign&lt;r&gt;  &lt;#8a93a8&gt;%d still to kill&lt;r&gt;", #t))
+    for i, e in ipairs(t) do
+        local key = huntkey(e.name)
+        U.out(string.format("\n&lt;#8a93a8&gt;%3d&lt;r&gt;  &lt;#c8d0dc&gt;%-36s&lt;r&gt; &lt;#7aa2f7&gt;%-30s&lt;r&gt;",
+            i, e.name .. ((e.qty or 1) &gt; 1 and (" x" .. e.qty) or ""), e.area))
+        U.outLink(" &lt;#3ad07a&gt;[go]&lt;r&gt;",
+            string.format("aardkit.snd.goto_target(%q, %d)", "campaign", i),
+            "Walk to " .. e.name)
+        U.outLink(" &lt;#e0af68&gt;[hunt]&lt;r&gt;",
+            string.format("aardkit.snd.hunt(%q)", key), "hunt " .. key)
+    end
+    echo("\n")
+end
+
 function SD.on_cp_target(name, area)
     if not capturing then cp_start() end
+    if TCFG.rewrite then deleteLine(); gagged = true end
     local e, isnew = add("campaign", name, area, 1)
     if e and not isnew then e.qty = (e.qty or 1) + 1 end
     if SD.paint then SD.paint() end
+end
+
+function SD.rewriting(v)
+    if v ~= nil then TCFG.rewrite = v and true or false; U.save("sndtargets", TCFG) end
+    return TCFG.rewrite
 end
 
 -- 'cp info' banner. Only useful as an early reset - the target lines that
