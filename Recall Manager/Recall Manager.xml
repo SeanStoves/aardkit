@@ -190,6 +190,8 @@ local panel = aardkit.panel.new({
         if RM.scrollreset then RM.scrollreset() end
         if RM.paint then RM.paint() end
     end,
+    -- laid out by hand, so it has to be told when the panel changes size
+    onresize = function() if aardkit.recall.paint then aardkit.recall.paint() end end,
 })
 
 RM.panel = panel

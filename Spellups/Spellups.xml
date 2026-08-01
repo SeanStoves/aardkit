@@ -824,6 +824,8 @@ local panel = aardkit.panel.new({
     x        = "20px",
     y        = "120px",
     fontSize = 9,
+    -- laid out by hand, so it has to be told when the panel changes size
+    onresize = function() if aardkit.spellup.paint then aardkit.spellup.paint() end end,
 })
 
 SP.panel = panel

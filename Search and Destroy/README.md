@@ -55,7 +55,8 @@ after 120 rooms.
 Clicking a target in the panel selects it and does nothing else; the buttons below
 act on it, one press per command — [hunt] asks the MUD which way it is, [attack]
 swings, [go] walks. Nothing chains into anything. When there are more targets
-than fit, the arrows page through them.
+than fit, the arrows page through them, and the whole panel reflows as you drag
+it - the buttons drop to two rows and the labels shorten rather than spilling out.
 
 [go] walks you there and stops. If the area isn't in your map it falls
 back on the MUD's own `runto <keyword>`, which needs Aylor recall or a runprefix, and

@@ -691,6 +691,7 @@ function P.new(spec)
     p.wrap       = spec.wrap
     p.consoleless = spec.consoleless
     p.onbuild    = spec.onbuild
+    p.onresize   = spec.onresize
     p.defmode    = spec.mode or DEFAULT_MODE
 
     p:_build()
@@ -699,6 +700,28 @@ function P.new(spec)
     P.reg[p.name] = p
     return p
 end
+
+---
+-- resize
+--
+-- Adjustable.Container raises AdjustableContainerRepositionFinish when you let
+-- go of a drag, and that is the only notice we get - there is no event while
+-- the mouse is still down. Anything that lays itself out by hand needs telling,
+-- or it keeps the geometry from before the drag and its widgets sit where the
+-- panel used to be.
+---
+
+function P.on_reposition(_, name)
+    for _, p in pairs(P.reg) do
+        if p.holder and p.holder.name == name and p.onresize then
+            pcall(p.onresize, p)
+        end
+    end
+end
+
+U.killhandler(aardkit_panel_resize_handler)
+aardkit_panel_resize_handler = registerAnonymousEventHandler(
+    "AdjustableContainerRepositionFinish", "aardkit.panel.on_reposition")
 
 -- everything of ours, above everything of theirs
 function P.raiseall()

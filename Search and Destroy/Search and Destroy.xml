@@ -1579,11 +1579,14 @@ local COL = {
 
 local KINDS = { "quest", "campaign", "gquest" }
 local LABEL = { quest = "Quest", campaign = "Campaign", gquest = "GQuest" }
+local SHORT = { quest = "Q", campaign = "CP", gquest = "GQ" }
 
 local panel = aardkit.panel.new({
     name = "snd", title = "Search &amp; Destroy",
     x = "10px", y = "560px", width = 380, height = 300,
     consoleless = true,
+    -- laid out by hand, so it has to be told when the panel changes size
+    onresize = function() if aardkit.snd.paint then aardkit.snd.paint() end end,
 })
 
 SD.panel = panel
@@ -1758,7 +1761,8 @@ function SD.paint()
         l:echo(string.format(
             "&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;"
             .. "&lt;span style='color:%s'&gt; %d/%d&lt;/span&gt;&lt;/center&gt;",
-            on and COL.text or COL.dim, LABEL[kind], COL.dim, done, total))
+            on and COL.text or COL.dim,
+            tw &lt; 76 and SHORT[kind] or LABEL[kind], COL.dim, done, total))
         l:show()
     end
 
@@ -1766,10 +1770,13 @@ function SD.paint()
     local top  = PAD * 2 + TAB_H
     local ph   = num(panel.container and (panel.container.get_height
                  and panel.container:get_height() or panel.container.height))
-    -- what's left once the tabs, the selection line and the button row are out
-    local chrome = top + SEL_H + BTN_H + PAD * 2
+    -- what's left once the tabs, the selection line and the buttons are out. The
+    -- buttons take two rows when the panel is too narrow for four across.
+    local iw0    = w - PAD * 2
+    local brows  = (math.floor((iw0 - PAD * 3) / 4) &gt;= 60) and 1 or 2
+    local chrome = top + SEL_H + BTN_H * brows + PAD * 2
     local listh  = math.max(ROW_H, ph - chrome)
-    local iw     = w - PAD * 2
+    local iw     = iw0
 
     local fits  = math.max(1, math.floor(listh / ROW_H))
     local first = math.min(math.max(1, SD.top[SD.kind] or 1), math.max(1, #t - fits + 1))
@@ -1788,12 +1795,20 @@ function SD.paint()
         l:setStyleSheet(style(on and COL.sel or COL.row, on and COL.accent or COL.border))
         local mark = e.killed and "\226\156\148" or (e.qty &gt; 1 and ("x" .. e.qty) or "\226\128\162")
         local col  = e.killed and COL.done or COL.text
+        -- roughly 7px a character at this size. The area goes first, then the
+        -- name gets cut, because knowing which mob beats knowing where.
+        local chars = math.max(8, math.floor((iw - PAD * 2) / 7) - 4)
+        local name  = e.name
         local where = (e.room and e.room ~= "" and e.room .. "  ") or ""
         where = where .. (e.area or "")
+        if #name + #where + 3 &gt; chars then
+            where = (#name + 12 &lt; chars) and where:sub(1, chars - #name - 4) or ""
+        end
+        if #name &gt; chars then name = name:sub(1, chars - 1) .. "\226\128\166" end
         l:echo(string.format(
             "&lt;span style='color:%s'&gt;&amp;nbsp;%s %s&lt;/span&gt;"
             .. "&lt;span style='color:%s'&gt; &amp;nbsp;%s%s&lt;/span&gt;",
-            col, mark, e.name, COL.dim, where,
+            col, mark, name, COL.dim, where,
             e.corpse and "  (corpse out)" or ""))
         l:show()
     end
@@ -1839,19 +1854,28 @@ function SD.paint()
 
     local by = top + listh + PAD + SEL_H
     local bw = math.floor((iw - PAD * 3) / 4)
+    -- Four across needs about 60px each to stay readable. Under that they go two
+    -- to a row, and under that the labels get short. Narrow is the case that
+    -- actually happens, because the panel is draggable and people make it small.
     local BTNS = {
-        { "hunt",   "hunt",     "aardkit.snd.on_hunt",    "Send 'hunt &lt;keyword&gt;' - the MUD points, you walk" },
-        { "attack", "attack",   "aardkit.snd.on_attack",  "Send 'kill &lt;keyword&gt;'" },
-        { "go",     "go",       "aardkit.snd.on_go",      "Walk to where this one was last seen" },
-        { "ref",    "re-check", "aardkit.snd.on_refresh", "Ask the MUD for the list again" },
+        { "hunt",   "hunt",     "hunt", "aardkit.snd.on_hunt",    "Send 'hunt &lt;keyword&gt;' - the MUD points, you walk" },
+        { "attack", "attack",   "kill", "aardkit.snd.on_attack",  "Send 'kill &lt;keyword&gt;'" },
+        { "go",     "go",       "go",   "aardkit.snd.on_go",      "Walk to where this one was last seen" },
+        { "ref",    "re-check", "\226\134\187", "aardkit.snd.on_refresh", "Ask the MUD for the list again" },
     }
+    local percol = (bw &gt;= 60) and 4 or 2
+    bw = math.floor((iw - PAD * (percol - 1)) / percol)
+    local terse = bw &lt; 52
+
     for i, b in ipairs(BTNS) do
         local live = (b[1] == "ref") or (aim ~= nil)
-        local l = button(b[1], b[2], b[3], PAD + (i - 1) * (bw + PAD), bw, by)
+        local col, row = (i - 1) % percol, math.floor((i - 1) / percol)
+        local l = button(b[1], b[2], b[4],
+            PAD + col * (bw + PAD), bw, by + row * BTN_H)
         l:setStyleSheet(style(COL.btn, live and COL.border or "#26304a"))
         l:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
-            live and COL.text or COL.dim, b[2]))
-        l:setToolTip(b[4])
+            live and COL.text or COL.dim, terse and b[3] or b[2]))
+        l:setToolTip(b[5])
         l:show()
     end
 end
