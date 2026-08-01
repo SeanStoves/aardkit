@@ -58,8 +58,8 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-				<name>cp target</name>
-				<script>solao.snd.on_cp_target(matches[2], matches[3], matches[4], matches[5])</script>
+				<name>cp end</name>
+				<script>solao.snd.cp_stop()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -71,7 +71,7 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>^You still have to kill (\d+) \* (.+?) \((.+?)(?: - (Dead))?\)$</string>
+					<string>^You have .* to finish this campaign\.$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -91,7 +91,7 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>^(?:Campaign cleared\.|CONGRATULATIONS! You have completed your campaign\.)$</string>
+					<string>^(?:Campaign cleared\.|CONGRATULATIONS! You have completed your campaign\.|You may now take another campaign\.)$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -111,7 +111,67 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>^Find and kill 1 \* (.+)$</string>
+					<string>^You are on a quest to slay (.+)!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest room</name>
+				<script>solao.snd.on_quest_room(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>can be found in the vicinity of (.+?) which\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest area</name>
+				<script>solao.snd.on_quest_area(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^is in the general area of (.+)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest done</name>
+				<script>solao.snd.on_quest_done()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^(?:You have completed your quest!|You are not currently on a quest\.)$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -475,16 +535,22 @@ solao.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
     The MUD tells you what to kill; this remembers it and looks up where it lives
     in the mob table the data layer already holds. That's the whole job.
 
-    Output formats are the MUD's, so they're facts rather than anyone's code:
+    Output formats below are the MUD's own, captured live 2026-08-01. An earlier
+    version of this file guessed them from another plugin's trigger patterns and
+    got them wrong, which is why nothing ever parsed:
 
         The targets for this campaign are:
-        You still have to kill 1 * a wharf rat (Aylor - Dead)
-        Find and kill 1 * a wharf rat
-        Kill at least 3 * a wharf rat.
+        * a bartering customer (Fellchantry)
+        * Yeti Hunting Party (Helegear Sea)
+        You have 6 days, 23 hours and 59 minutes left to finish this campaign.
 
-    "Dead" is the MUD saying the target is currently a corpse somewhere, not that
-    you killed it. It says so itself two lines later, and mistaking the two is an
-    easy way to skip a target you still owe.
+        You are on a quest to slay Eldred the Wise!
+        Eldred the Wise can be found in the vicinity of Training Room which
+        is in the general area of The Witches of Omen Tor.
+
+    The campaign rows are just "* name (area)", which is far too generic to leave
+    a trigger sitting on all session. So it arms on the header and releases on the
+    time-remaining line, with a timer in case that never lands.
 ]]
 
 solao = solao or {}
@@ -570,23 +636,45 @@ end
 -- parsing
 ---
 
+local cp_trig, cp_timer
+
+local function cp_stop()
+    if cp_trig then killTrigger(cp_trig); cp_trig = nil end
+    if cp_timer then killTimer(cp_timer); cp_timer = nil end
+    if SD.paint then SD.paint() end
+end
+
+SD.cp_stop = cp_stop
+
 function SD.on_cp_header()
     SD.targets.campaign = {}
     SD.kind = "campaign"
-end
-
-function SD.on_cp_target(qty, name, area, dead)
-    -- 'Dead' means there's a corpse, NOT that you've killed it. The MUD prints
-    -- that caveat itself; treating it as done skips targets you still owe.
-    local e = add("campaign", name, area, qty)
-    if e then e.corpse = (dead ~= nil and dead ~= "") end
-    if SD.paint then SD.paint() end
+    cp_stop()
+    cp_trig = tempRegexTrigger("^\\* (.+) \\((.+)\\)\\s*$", function()
+        add("campaign", matches[2], matches[3], 1)
+    end)
+    -- released by the "You have N days ... to finish" line; this is the backstop
+    cp_timer = tempTimer(10, cp_stop)
 end
 
 function SD.on_quest_target(name)
     SD.targets.quest = {}
     add("quest", name, "", 1)
     SD.kind = "quest"
+    if SD.paint then SD.paint() end
+end
+
+-- "&lt;mob&gt; can be found in the vicinity of &lt;room&gt; which"
+function SD.on_quest_room(room)
+    local e = list("quest")[1]
+    if e then e.room = U.trim(room or "") end
+    if SD.paint then SD.paint() end
+end
+
+-- "is in the general area of &lt;area&gt;."
+function SD.on_quest_area(area)
+    local e = list("quest")[1]
+    if e then e.area = U.trim(area or "") end
     if SD.paint then SD.paint() end
 end
 
@@ -781,9 +869,10 @@ function SD.paint()
         l:move(PAD, top + (i - 1) * ROW_H)
         l:resize(w - PAD * 2, ROW_H - 2)
         l:setStyleSheet(style(COL.row))
-        local mark = e.killed and "\u{2714}" or (e.qty &gt; 1 and ("x" .. e.qty) or "\u{2022}")
+        local mark = e.killed and "✔" or (e.qty &gt; 1 and ("x" .. e.qty) or "•")
         local col  = e.killed and COL.done or COL.text
-        local where = e.area ~= "" and e.area or (e.room or "")
+        local where = (e.room and e.room ~= "" and e.room .. "  ") or ""
+        where = where .. (e.area or "")
         l:echo(string.format(
             "&lt;span style='color:%s'&gt;&amp;nbsp;%s %s&lt;/span&gt;"
             .. "&lt;span style='color:%s'&gt; &amp;nbsp;%s%s&lt;/span&gt;",
@@ -804,13 +893,13 @@ function SD.paint()
     foot:setStyleSheet(style(COL.tab))
     if #t == 0 then
         foot:echo("&lt;center&gt;&lt;span style='color:" .. COL.dim
-            .. "'&gt;nothing tracked \u{2014} click to read your " .. LABEL[SD.kind]:lower()
+            .. "'&gt;nothing tracked — click to read your " .. LABEL[SD.kind]:lower()
             .. "&lt;/span&gt;&lt;/center&gt;")
     else
         foot:echo("&lt;center&gt;&lt;span style='color:" .. COL.dim .. "'&gt;"
             .. #t .. " left"
-            .. (#t &gt; avail and ("  \u{2022} " .. (#t - avail) .. " below") or "")
-            .. "  \u{2022} click to walk \u{2022} click here to re-check&lt;/span&gt;&lt;/center&gt;")
+            .. (#t &gt; avail and ("  • " .. (#t - avail) .. " below") or "")
+            .. "  • click to walk • click here to re-check&lt;/span&gt;&lt;/center&gt;")
     end
     foot:show()
 end
@@ -821,9 +910,9 @@ function SD.refresh(kind)
     if kind == "campaign" then
         send("campaign check", false)
     elseif kind == "quest" then
-        send("quest check", false)
+        send("quest info", false)
     else
-        send("gquest check", false)
+        send("gquest info", false)
     end
 end
 

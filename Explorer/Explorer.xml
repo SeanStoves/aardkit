@@ -477,7 +477,7 @@ function EX.collect(areaid)
         for dir, dest in pairs(exits) do
             if outdir(dir) then
                 -- real level change; note it rather than drawing a fake diagonal
-                ud[#ud + 1] = (dir == "up") and "\u{2191}" or "\u{2193}"
+                ud[#ud + 1] = (dir == "up") and "↑" or "↓"
             end
             -- an exit leaving the area is where you come in from
             if not mine[dest] then entrance = true end
