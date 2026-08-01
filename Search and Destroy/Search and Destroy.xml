@@ -607,7 +607,10 @@ function SD.on_quest_done()
     if SD.paint then SD.paint() end
 end
 
--- a kill line anywhere ticks off whatever matches
+-- Ticks a target off. NOT currently wired to a trigger: the MUD's per-target
+-- campaign kill line hasn't been captured live yet, and guessing the pattern
+-- would tick off the wrong things. Until it is, progress updates when you re-run
+-- the check, which is why the panel says so rather than showing a stale count.
 function SD.on_kill(name)
     name = U.trim(name or ""):lower()
     if name == "" then return end
@@ -804,11 +807,10 @@ function SD.paint()
             .. "'&gt;nothing tracked \u{2014} click to read your " .. LABEL[SD.kind]:lower()
             .. "&lt;/span&gt;&lt;/center&gt;")
     else
-        local done, total = SD.counts(SD.kind)
         foot:echo("&lt;center&gt;&lt;span style='color:" .. COL.dim .. "'&gt;"
-            .. done .. " of " .. total .. " down"
-            .. (#t &gt; avail and ("  \u{2022} " .. (#t - avail) .. " more") or "")
-            .. "  \u{2022} click a target to walk there&lt;/span&gt;&lt;/center&gt;")
+            .. #t .. " left"
+            .. (#t &gt; avail and ("  \u{2022} " .. (#t - avail) .. " below") or "")
+            .. "  \u{2022} click to walk \u{2022} click here to re-check&lt;/span&gt;&lt;/center&gt;")
     end
     foot:show()
 end

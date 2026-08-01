@@ -1,6 +1,6 @@
 # Session Log
 
-Session logging to <profile>-YYYYMMDD-HHmm, with timestamps.
+Session logging that starts on connect and names files `log/<profile>-YYYYMMDD-HHmm`, renaming stray logs into the same scheme.
 
 ## Install
 
@@ -20,9 +20,13 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `aardlog` | |
+| `aardlog` | status: auto-start, current file, directory, format |
+| `aardlog on|off` | start or stop logging this session |
+| `aardlog auto on|off` | log automatically on connect |
+| `aardlog list` | last 15 log files with sizes |
+| `aardlog tidy` | rename stray logs into the profile scheme |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

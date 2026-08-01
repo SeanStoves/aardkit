@@ -1246,6 +1246,10 @@ function SP.auto_blocked()
 end
 
 function SP.fire(manual)
+    -- Manual still can't send while you're flagged AFK. Everything else here is
+    -- pacing and can be overridden by typing the command, but that one gate is
+    -- the whole reason this module is inside Aardwolf's rules.
+    if solao.whopoll and solao.whopoll.afk then return false, "you're flagged AFK" end
     local why = not manual and SP.auto_blocked()
     if why then return false, why end
     lastfire = os.time()

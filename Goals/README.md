@@ -1,6 +1,6 @@
 # Goals
 
-Goal tracking off gmcp.char.worth, with announcements when one lands.
+Savings targets against the six currencies in `gmcp.char.worth` — qp, tp, gold, bank, trains, pracs — announced once the moment one is met, to your screen or a MUD channel.
 
 ## Install
 
@@ -20,9 +20,16 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `goal` | |
+| `goal` | progress bars for all goals, closest first |
+| `goal add <name> <amt> [type]` | save or update a goal |
+| `goal rm <name>` | delete one |
+| `goal <type>` | filter to qp/tp/gold/bank/trains/pracs |
+| `goal report` | send nearest unfinished goal to the channel |
+| `goal channel <name|echo>` | where announcements go |
+| `goal worth` | current holdings from gmcp.char.worth |
+| `goal clear yes` | delete every goal |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

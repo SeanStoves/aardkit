@@ -1,6 +1,6 @@
 # Player Tracker
 
-Remembers everyone your who sees: clan, level, title, last seen, searchable.
+Keeps a record of everyone your `who` sweeps see — clan, level/race/class, title and last-seen — searchable by name, title or clan.
 
 ## Install
 
@@ -20,10 +20,17 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `playertracker` | |
-| `pt` | |
+| `pt` | show/hide the panel |
+| `pt find <text>` | search name, title and clan across all records |
+| `pt filter <text>` | filter the panel list, blank clears |
+| `pt info <name>` | full record for one player |
+| `pt online` | list who counted as online |
+| `pt count` | tracked, online, average per sweep |
+| `pt export` | write players.csv |
+| `pt clear yes` | wipe the database |
+| `pt dock|embed` | panel placement |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

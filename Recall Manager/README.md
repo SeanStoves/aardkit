@@ -1,6 +1,6 @@
 # Recall Manager
 
-A panel of clickable buttons you build yourself. Each fires a list of commands; the grid reflows as you resize it.
+Clickable command buttons you define yourself — each fires a `|`-separated list of commands with `$var` substitution, tracks a use count, and can watch for an arrival line to show where you are. The grid reflows and scrolls as you resize the panel.
 
 ## Install
 
@@ -20,10 +20,20 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `recallmanager` | |
-| `rm` | |
+| `recallmanager` | show/hide the panel |
+| `rm <name>` | fire that button's commands |
+| `recallmanager add <name> <cmd|cmd>` | create a button |
+| `recallmanager edit <name> <cmd|cmd>` | replace its commands |
+| `recallmanager del <name>` | remove a button and its trigger |
+| `recallmanager at <name> <regex|off>` | arrival line that sets the At: field |
+| `recallmanager var <name> <value|off>` | define $name used inside commands |
+| `recallmanager vars` | list defined vars |
+| `recallmanager list` | print buttons, commands, counters |
+| `recallmanager reset` | zero the use counters |
+| `recallmanager factoryreset confirm` | wipe all buttons and vars |
+| `recallmanager show|hide|dock|embed` | panel placement |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

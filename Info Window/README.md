@@ -20,9 +20,13 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `infowin` | |
+| `infowin` | show/hide the panel |
+| `infowin buffer <n>` | scrollback lines, 10-5000 |
+| `infowin gag` | toggle gagging INFO from the main window |
+| `infowin clear` | empty the panel |
+| `infowin show|hide|dock|embed` | panel placement |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

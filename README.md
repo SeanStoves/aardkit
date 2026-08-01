@@ -15,19 +15,16 @@ and shared across your profiles.
 
 | Priority | Module | What it does |
 |---|---|---|
-| 1 | [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) | Shared foundation every other module builds on: the panel manager, output helpers, the command registry and the Aardwolf tag gag. |
-| 10 | [Session Log](Session%20Log/README.md) | Session logging to <profile>-YYYYMMDD-HHmm, with timestamps. |
-| 20 | [Map Import](Map%20Import/README.md) | Imports an Aardwolf MUSHclient mapper database into Mudlet's own map. |
-| 25 | [Vital Shortcuts](Vital%20Shortcuts/README.md) | Keyboard shortcuts for the things you type a hundred times a night. |
-| 26 | [ASCII Map](ASCII%20Map/README.md) | The MUD's own ASCII map in a panel of its own. |
+| 1 | [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) | Shared foundation every other module builds on: the panel manager, saved state under `<profile>/solao/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. |
+| 10 | [Session Log](Session%20Log/README.md) | Session logging that starts on connect and names files `log/<profile>-YYYYMMDD-HHmm`, renaming stray logs into the same scheme. |
 | 30 | [Info Window](Info%20Window/README.md) | Captures INFO: lines into their own panel, colours intact, and gags them from the main output. |
-| 40 | [Recall Manager](Recall%20Manager/README.md) | A panel of clickable buttons you build yourself. Each fires a list of commands; the grid reflows as you resize it. |
-| 45 | [Explorer](Explorer/README.md) | Gaardian-style SVG area maps generated from Mudlet's own map. Read-only. |
-| 50 | [Player Tracker](Player%20Tracker/README.md) | Remembers everyone your who sees: clan, level, title, last seen, searchable. |
-| 60 | [Loot Tracker](Loot%20Tracker/README.md) | A searchable database of everything you have looted, identified and sold. |
-| 65 | [Search and Destroy](Search%20and%20Destroy/README.md) | Quest, campaign and gquest target tracking. |
-| 80 | [Goals](Goals/README.md) | Goal tracking off gmcp.char.worth, with announcements when one lands. |
-| 85 | [Spellups](Spellups/README.md) | Watches your buffs and their durations, and types the MUD's own spellup when enough have dropped. It has no client-side caster on purpose. |
+| 40 | [Recall Manager](Recall%20Manager/README.md) | Clickable command buttons you define yourself — each fires a `|`-separated list of commands with `$var` substitution, tracks a use count, and can watch for an arrival line to show where you are. The grid reflows and scrolls as you resize the panel. |
+| 45 | [Explorer](Explorer/README.md) | Gaardian-style SVG area maps generated from Mudlet's own map data, one grid per z level, written to a folder you choose. It also dumps rooms and links as JSON. It reads the map and never moves you or changes it. |
+| 50 | [Player Tracker](Player%20Tracker/README.md) | Keeps a record of everyone your `who` sweeps see — clan, level/race/class, title and last-seen — searchable by name, title or clan. |
+| 60 | [Loot Tracker](Loot%20Tracker/README.md) | A searchable record of where items come from — which mob dropped it, which room object it was picked off, and which shops stock it and for how much — plus stat blocks read off any id or appraise box that scrolls past, with optional sync to a shared pool. |
+| 65 | [Search and Destroy](Search%20and%20Destroy/README.md) | A searchable mob and area database carried over from the MUSHclient plugin, plus a three-tab panel that reads your quest, campaign and gquest targets from the MUD and walks you to one when you click it. |
+| 80 | [Goals](Goals/README.md) | Savings targets against the six currencies in `gmcp.char.worth` — qp, tp, gold, bank, trains, pracs — announced once the moment one is met, to your screen or a MUD channel. |
+| 85 | [Spellups](Spellups/README.md) | Tracks what's on you, what's blocked by a recovery and why the last cast failed, from Aardwolf's spell tag stream. The autocaster only ever types the MUD's own `spellup` and lets the MUD pick the spells. Separate opt-in extras, all off by default, do send individual casts — totem, eye of vigilance and a pre-cast list for wraith form. |
 
 ## Credits
 

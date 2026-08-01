@@ -1,6 +1,6 @@
 # Solao Aardwolf Core
 
-Shared foundation every other module builds on: the panel manager, output helpers, the command registry and the Aardwolf tag gag.
+Shared foundation every other module builds on: the panel manager, saved state under `<profile>/solao/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag.
 
 ## Install
 
@@ -16,11 +16,22 @@ Shared foundation every other module builds on: the panel manager, output helper
 
 | Command | Does |
 |---|---|
-| `panel` | |
-| `solao` | |
-| `aardtags` | |
+| `solao` | lists core commands and every registered module |
+| `solao plugins` | names of loaded modules |
+| `solao probe` | reports which Mudlet Lua functions exist here |
+| `panel` | lists panels with mode and visibility |
+| `panel <name>` | toggles that panel |
+| `panel <name> show|hide` | shows or hides it |
+| `panel <name> dock|embed` | dockable window vs in-window container |
+| `panel <name> clear` | empties its buffer |
+| `panel raise` | raises panels above the stock module's GUI |
+| `panel save|load|reset` | write, reload or clear the saved layout |
+| `aardtags` | shows gag state and tag classifications |
+| `aardtags on|off` | turns the gag on or off |
+| `aardtags line|block|marker <tag>` | classify one tag yourself |
+| `aardtags forget <tag>` | drop a custom classification |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

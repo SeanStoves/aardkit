@@ -1,6 +1,6 @@
 # Loot Tracker
 
-A searchable database of everything you have looted, identified and sold.
+A searchable record of where items come from — which mob dropped it, which room object it was picked off, and which shops stock it and for how much — plus stat blocks read off any id or appraise box that scrolls past, with optional sync to a shared pool.
 
 ## Install
 
@@ -23,7 +23,7 @@ that every module here builds on. Without it nothing else loads.
 | `loot` | |
 | `bulk appraise` | |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 

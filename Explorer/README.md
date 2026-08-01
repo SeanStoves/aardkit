@@ -1,6 +1,6 @@
 # Explorer
 
-Gaardian-style SVG area maps generated from Mudlet's own map. Read-only.
+Gaardian-style SVG area maps generated from Mudlet's own map data, one grid per z level, written to a folder you choose. It also dumps rooms and links as JSON. It reads the map and never moves you or changes it.
 
 ## Install
 
@@ -20,9 +20,15 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `explore` | |
+| `explore` | repaint and toggle the panel |
+| `explore svg [area]` | write an SVG map, default current area |
+| `explore json [area]` | write rooms and links as JSON |
+| `explore all` | write an SVG for every area |
+| `explore list [filter]` | list areas with room counts |
+| `explore dir [path]` | show or set the output folder |
+| `explore show|hide|dock|embed` | panel placement |
 
-Every one of these has its own `help`; that's the authoritative list.
+Each has its own `help` with the full list.
 
 ## Config
 
