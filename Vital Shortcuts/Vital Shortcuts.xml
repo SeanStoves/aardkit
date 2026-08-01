@@ -13,14 +13,14 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>vitals</name>
-				<script>aard.vitals.cmd(matches[2] or "")</script>
+				<script>solao.vitals.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^vitals(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>vital report</name>
-				<script>aard.vitals.report(matches[2])</script>
+				<script>solao.vitals.report(matches[2])</script>
 				<command />
 				<packageName />
 				<regex>^(hp|hit|mn|mana|mv|moves)$</regex>
@@ -38,13 +38,13 @@
 				<name>vitalshortcuts</name>
 				<packageName />
 				<script>--[[
-    Vital Shortcuts — port of aard_vital_shortcuts (MUSHclient)
+    Vital Shortcuts — port of solao_vital_shortcuts (MUSHclient)
     Sean Stoves, 2026-07-31
 
     'hp', 'mana', 'mv' report where you're at to your channel, for grouping.
 
     This used to be a bigger plugin: it also drew hp/mana/moves gauges and a tick
-    countdown, replacing aard_statmon_gmcp, aard_health_bars_gmcp and
+    countdown, replacing solao_statmon_gmcp, solao_health_bars_gmcp and
     Aardwolf_Tick_Timer. The AardwolfMudlet module already does all of that (its
     'gui'/'vconfig'), so that half is gone and its display wins. What's left is
     the one thing the module doesn't cover.
@@ -53,11 +53,11 @@
     screen.
 ]]
 
-aard = aard or {}
-aard.vitals = aard.vitals or {}
+solao = solao or {}
+solao.vitals = solao.vitals or {}
 
-local V = aard.vitals
-local U = aard.util
+local V = solao.vitals
+local U = solao.util
 
 local CFG = U.load("vitals", { channel = "gtell" })
 
@@ -133,7 +133,7 @@ function V.cmd(arg)
     end
 end
 
-aard.register("vitals", "hp/mana/mv reporting to your channel", V.cmd)
+solao.register("vitals", "hp/mana/mv reporting to your channel", V.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

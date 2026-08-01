@@ -11,9 +11,9 @@ A panel of clickable buttons you build yourself. Each fires a list of commands; 
    other profiles.
 5. Save the profile (or restart).
 
-Needs [aardcore](../aardcore/README.md) installed first at priority 1 — it holds
-the shared `aard.util` / `aard.panel` / `aard.register` that every module here
-builds on. Without it nothing else loads.
+Needs [Solao Aardwolf Core](../Solao%20Aardwolf%20Core/README.md) installed first
+at priority 1 — it holds the shared `solao.util` / `solao.panel` / `solao.register`
+that every module here builds on. Without it nothing else loads.
 
 
 ## Commands
@@ -27,4 +27,4 @@ Every one of these has its own `help`; that's the authoritative list.
 
 ## Config
 
-Settings live in `<profile>/aard/recallmanager.lua`.
+Settings live in `<profile>/solao/recallmanager.lua`.

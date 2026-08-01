@@ -13,7 +13,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>aardmap</name>
-				<script>aard.mapimport.cmd(matches[2] or "")</script>
+				<script>solao.mapimport.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^aardmap(?:\s+(.*))?$</regex>
@@ -46,11 +46,11 @@
         aardmap save     - write the map to disk
 ]]
 
-aard = aard or {}
-aard.mapimport = aard.mapimport or {}
+solao = solao or {}
+solao.mapimport = solao.mapimport or {}
 
-local MI = aard.mapimport
-local U  = aard.util
+local MI = solao.mapimport
+local U  = solao.util
 
 local DATA = getMudletHomeDir() .. "/src/data/mapdata.txt"
 
@@ -398,10 +398,10 @@ function MI.on_connect()
     end
 end
 
-U.killhandler(aard_map_zoom_handler)
-aard_map_zoom_handler = registerAnonymousEventHandler("sysConnectionEvent", "aard.mapimport.on_connect")
+U.killhandler(solao_map_zoom_handler)
+solao_map_zoom_handler = registerAnonymousEventHandler("sysConnectionEvent", "solao.mapimport.on_connect")
 
-aard.register("aardmap", "MUSHclient mapper -&gt; Mudlet map import", MI.cmd)
+solao.register("aardmap", "MUSHclient mapper -&gt; Mudlet map import", MI.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

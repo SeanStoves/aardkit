@@ -13,7 +13,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>explore</name>
-				<script>aard.explorer.cmd(matches[2] or "")</script>
+				<script>solao.explorer.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^explores?(?:\s+(.*))?$</regex>
@@ -66,10 +66,10 @@
     bank, trainer, healer, guild, safe, maze - get corner letters and a legend.
 ]]
 
-aard = aard or {}
-aard.explorer = aard.explorer or {}
+solao = solao or {}
+solao.explorer = solao.explorer or {}
 
-local EX = aard.explorer
+local EX = solao.explorer
 
 local RW, RH = 140, 56          -- room box; Gaardian's 100 was too tight for
                                 -- one-line names once we stopped hand-editing them
@@ -386,15 +386,15 @@ end
     Read-only. It never moves you and never touches the map.
 ]]
 
-aard = aard or {}
-aard.explorer = aard.explorer or {}
+solao = solao or {}
+solao.explorer = solao.explorer or {}
 
-local EX = aard.explorer
-local U  = aard.util
+local EX = solao.explorer
+local U  = solao.util
 
 local CFG = U.load("explorer", { dir = "maps" })
 
-local panel = aard.panel.new({
+local panel = solao.panel.new({
     name = "explorer", title = "Explorer",
     x = "10px", y = "300px", width = 380, height = 260,
 })
@@ -685,7 +685,7 @@ function EX.cmd(arg)
         end
 
     elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
-        aard.panel.cmd("explorer " .. verb)
+        solao.panel.cmd("explorer " .. verb)
 
     else
         U.help("explore", {
@@ -703,7 +703,7 @@ function EX.cmd(arg)
     end
 end
 
-aard.register("explore", "area maps from the mapper, Gaardian style", EX.cmd)
+solao.register("explore", "area maps from the mapper, Gaardian style", EX.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

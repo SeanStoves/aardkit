@@ -3,7 +3,7 @@
 <MudletPackage version="1.001">
 	<TriggerPackage>
 		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-			<name>aardcore</name>
+			<name>solaocore</name>
 			<script />
 			<triggerType>0</triggerType>
 			<conditonLineDelta>0</conditonLineDelta>
@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>tag open</name>
-				<script>aard.tags.on_open(matches[2])</script>
+				<script>solao.tags.on_open(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>tag close</name>
-				<script>aard.tags.on_close(matches[2])</script>
+				<script>solao.tags.on_close(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -62,28 +62,28 @@
 	<TimerPackage />
 	<AliasPackage>
 		<AliasGroup isActive="yes" isFolder="yes">
-			<name>aardcore</name>
+			<name>solaocore</name>
 			<script />
 			<command />
 			<packageName />
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>panel</name>
-				<script>aard.panel.cmd(matches[2] or "")</script>
+				<script>solao.panel.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^panel(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
-				<name>aard</name>
-				<script>aard.cmd(matches[2] or "")</script>
+				<name>solao</name>
+				<script>solao.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
-				<regex>^aard(?:\s+(.*))?$</regex>
+				<regex>^solao(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>aardtags</name>
-				<script>aard.tags.cmd(matches[2] or "")</script>
+				<script>solao.tags.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^aardtags(?:\s+(.*))?$</regex>
@@ -93,7 +93,7 @@
 	<ActionPackage />
 	<ScriptPackage>
 		<ScriptGroup isActive="yes" isFolder="yes">
-			<name>aardcore</name>
+			<name>solaocore</name>
 			<packageName />
 			<script />
 			<eventHandlerList />
@@ -101,24 +101,24 @@
 				<name>00_util</name>
 				<packageName />
 				<script>--[[
-    aard core utils
+    solao core utils
     Sean Stoves, 2026-07-31
     Shared helpers for the ported MUSHclient plugins.
 ]]
 
-aard = aard or {}
-aard.version = "1.0.0"
+solao = solao or {}
+solao.version = "1.0.0"
 
 local U = {}
-aard.util = U
+solao.util = U
 
 ---
 -- paths
 ---
 
--- everything we persist lives under &lt;profile&gt;/aard/
+-- everything we persist lives under &lt;profile&gt;/solao/
 function U.datadir()
-    local d = getMudletHomeDir() .. "/aard"
+    local d = getMudletHomeDir() .. "/solao"
     if not io.exists(d) then lfs.mkdir(d) end
     return d
 end
@@ -133,7 +133,7 @@ end
 
 function U.save(key, tbl)
     local ok, err = pcall(table.save, U.datafile(key .. ".lua"), tbl)
-    if not ok then aard.util.err("save " .. key .. ": " .. tostring(err)) end
+    if not ok then solao.util.err("save " .. key .. ": " .. tostring(err)) end
     return ok
 end
 
@@ -249,7 +249,7 @@ function U.unevery(key)
     U.timers[key] = (U.timers[key] or 0) + 1      -- orphans any tick in flight
 end
 
-local TAG = "&lt;#7aa2f7&gt;[&lt;#e94560&gt;aard&lt;#7aa2f7&gt;]&lt;r&gt; "
+local TAG = "&lt;#7aa2f7&gt;[&lt;#e94560&gt;solao&lt;#7aa2f7&gt;]&lt;r&gt; "
 
 function U.note(msg)
     U.out("\n" .. TAG .. "&lt;#c8d0dc&gt;" .. msg .. "&lt;r&gt;")
@@ -394,7 +394,7 @@ end
 				<name>10_panel</name>
 				<packageName />
 				<script>--[[
-    aard panel manager
+    solao panel manager
     Sean Stoves, 2026-07-31
 
     Every ported plugin that used to draw a MUSHclient miniwindow gets one of
@@ -411,11 +411,11 @@ end
     so a panel comes back the way you left it.
 ]]
 
-aard = aard or {}
-aard.panel = aard.panel or {}
+solao = solao or {}
+solao.panel = solao.panel or {}
 
-local P = aard.panel
-local U = aard.util
+local P = solao.panel
+local U = solao.util
 
 P.reg   = P.reg or {}      -- name -&gt; panel
 P.state = P.state or {}    -- name -&gt; {mode=, hidden=}
@@ -631,7 +631,7 @@ function Panel:raise()
 end
 
 function Panel:cecho(s)
-    if self.console then aard.util.outw(self.console.name, s) end
+    if self.console then solao.util.outw(self.console.name, s) end
 end
 
 function Panel:echo(s)
@@ -777,7 +777,7 @@ load_state()
 
 -- Mudlet saves UserWindow geometry itself; this covers the embedded ones
 -- and our mode/visibility bookkeeping.
-function aard.panel.on_exit()
+function solao.panel.on_exit()
     if Adjustable and Adjustable.Container and Adjustable.Container.saveAll then
         pcall(Adjustable.Container.saveAll)
     end
@@ -789,20 +789,20 @@ function aard.panel.on_exit()
     save_state()
 end
 
-U.killhandler(aard_panel_exit_handler)
-aard_panel_exit_handler = registerAnonymousEventHandler("sysExitEvent", "aard.panel.on_exit")
+U.killhandler(solao_panel_exit_handler)
+solao_panel_exit_handler = registerAnonymousEventHandler("sysExitEvent", "solao.panel.on_exit")
 
 -- The AardwolfMudlet GUI assembles itself on a timer after load and lands on
 -- top of us — that's how a panel ends up buried under the chat tabs. Raising
 -- once at script time is too early, so do it again once it has settled.
-function aard.panel.on_connect()
+function solao.panel.on_connect()
     -- the module's GUI assembles on its own timers and can land on top after
     -- any one of ours, so try at several points rather than guessing one
     for _, t in ipairs({ 3, 8, 15, 30 }) do tempTimer(t, P.raiseall) end
 end
 
-U.killhandler(aard_panel_connect_handler)
-aard_panel_connect_handler = registerAnonymousEventHandler("sysConnectionEvent", "aard.panel.on_connect")
+U.killhandler(solao_panel_connect_handler)
+solao_panel_connect_handler = registerAnonymousEventHandler("sysConnectionEvent", "solao.panel.on_connect")
 </script>
 				<eventHandlerList />
 			</Script>
@@ -810,37 +810,37 @@ aard_panel_connect_handler = registerAnonymousEventHandler("sysConnectionEvent",
 				<name>20_cmd</name>
 				<packageName />
 				<script>--[[
-    aard top-level command
+    solao top-level command
     Sean Stoves, 2026-07-31
 ]]
 
-aard = aard or {}
-local U = aard.util
+solao = solao or {}
+local U = solao.util
 
--- plugins register themselves here so 'aard' can list what's loaded
-aard.plugins = aard.plugins or {}
+-- plugins register themselves here so 'solao' can list what's loaded
+solao.plugins = solao.plugins or {}
 
-function aard.register(name, desc, cmd)
-    aard.plugins[name] = { desc = desc, cmd = cmd }
+function solao.register(name, desc, cmd)
+    solao.plugins[name] = { desc = desc, cmd = cmd }
 end
 
-function aard.cmd(arg)
+function solao.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
     if verb == "" or verb == "help" or verb == "?" then
         local rows = {
-            { "aard",        "this list" },
-            { "aard plugins", "what's loaded" },
-            { "aard probe",   "which Mudlet functions actually exist here" },
+            { "solao",        "this list" },
+            { "solao plugins", "what's loaded" },
+            { "solao probe",   "which Mudlet functions actually exist here" },
             { "panel",       "manage the docked/embedded windows" },
         }
         local names = {}
-        for n in pairs(aard.plugins) do names[#names + 1] = n end
+        for n in pairs(solao.plugins) do names[#names + 1] = n end
         table.sort(names)
         for _, n in ipairs(names) do
-            rows[#rows + 1] = { n, aard.plugins[n].desc }
+            rows[#rows + 1] = { n, solao.plugins[n].desc }
         end
-        U.help("aard " .. aard.version, rows)
+        U.help("solao " .. solao.version, rows)
 
     elseif verb == "probe" then
         -- Mudlet's Lua-side API isn't greppable in the binary, so ask the
@@ -867,7 +867,7 @@ function aard.cmd(arg)
 
     elseif verb == "plugins" then
         local names = {}
-        for n in pairs(aard.plugins) do names[#names + 1] = n end
+        for n in pairs(solao.plugins) do names[#names + 1] = n end
         table.sort(names)
         if #names == 0 then
             U.note("Nothing registered.")
@@ -876,8 +876,8 @@ function aard.cmd(arg)
         end
 
     else
-        local p = aard.plugins[verb]
-        if p and p.cmd then p.cmd(rest) else U.warn("Unknown: aard " .. verb) end
+        local p = solao.plugins[verb]
+        if p and p.cmd then p.cmd(rest) else U.warn("Unknown: solao " .. verb) end
     end
 end
 </script>
@@ -911,11 +911,11 @@ end
     game text.
 ]]
 
-aard = aard or {}
-aard.tags = aard.tags or {}
+solao = solao or {}
+solao.tags = solao.tags or {}
 
-local T = aard.tags
-local U = aard.util
+local T = solao.tags
+local U = solao.util
 
 -- the payload IS the tag; nothing to keep
 local LINE = {
@@ -1081,7 +1081,7 @@ function T.cmd(arg)
     end
 end
 
-aard.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
+solao.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>spellheaders</name>
-				<script>aard.spellup.on_spellheaders()</script>
+				<script>solao.spellup.on_spellheaders()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>recoveries</name>
-				<script>aard.spellup.on_recoveries()</script>
+				<script>solao.spellup.on_recoveries()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -59,7 +59,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>affon</name>
-				<script>aard.spellup.on_affon(matches[2], matches[3])</script>
+				<script>solao.spellup.on_affon(matches[2], matches[3])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -79,7 +79,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>affoff</name>
-				<script>aard.spellup.on_affoff(matches[2])</script>
+				<script>solao.spellup.on_affoff(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -99,7 +99,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>sfail</name>
-				<script>aard.spellup.on_sfail(matches[2], matches[3], matches[4], matches[5])</script>
+				<script>solao.spellup.on_sfail(matches[2], matches[3], matches[4], matches[5])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -119,7 +119,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>recon</name>
-				<script>aard.spellup.on_recon(matches[2], matches[3])</script>
+				<script>solao.spellup.on_recon(matches[2], matches[3])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -139,7 +139,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>recoff</name>
-				<script>aard.spellup.on_recoff(matches[2])</script>
+				<script>solao.spellup.on_recoff(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -159,7 +159,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>skillgain</name>
-				<script>aard.spellup.on_skillgain(matches[2], matches[3])</script>
+				<script>solao.spellup.on_skillgain(matches[2], matches[3])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -179,7 +179,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>class change</name>
-				<script>aard.spellup.on_classchange()</script>
+				<script>solao.spellup.on_classchange()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -199,7 +199,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>remort done</name>
-				<script>aard.spellup.on_remort()</script>
+				<script>solao.spellup.on_remort()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -219,7 +219,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>died</name>
-				<script>aard.spellup.on_death()</script>
+				<script>solao.spellup.on_death()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -239,7 +239,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>totem placed</name>
-				<script>aard.spellup.on_totem_placed(matches[2])</script>
+				<script>solao.spellup.on_totem_placed(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -259,7 +259,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>totem attacked</name>
-				<script>aard.spellup.on_totem_attacked(matches[2])</script>
+				<script>solao.spellup.on_totem_attacked(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -279,7 +279,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>totem killed</name>
-				<script>aard.spellup.on_totem_killed(matches[2])</script>
+				<script>solao.spellup.on_totem_killed(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -299,7 +299,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>totem expired</name>
-				<script>aard.spellup.on_totem_expired()</script>
+				<script>solao.spellup.on_totem_expired()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -319,7 +319,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>eye message</name>
-				<script>aard.spellup.on_eye_msg(matches[2])</script>
+				<script>solao.spellup.on_eye_msg(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -339,7 +339,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>eye closed</name>
-				<script>aard.spellup.on_eye_closed()</script>
+				<script>solao.spellup.on_eye_closed()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -359,7 +359,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>eye removed</name>
-				<script>aard.spellup.on_eye_removed(matches[2])</script>
+				<script>solao.spellup.on_eye_removed(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -379,7 +379,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>aff header</name>
-				<script>aard.spellup.on_affheader()</script>
+				<script>solao.spellup.on_affheader()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -409,14 +409,14 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>spellup</name>
-				<script>aard.spellup.cmd(matches[2] or "")</script>
+				<script>solao.spellup.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^spellups?(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>hsp</name>
-				<script>aard.spellup.cmd(matches[2] or "")</script>
+				<script>solao.spellup.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^hsp(?:\s+(.*))?$</regex>
@@ -452,11 +452,11 @@
     that fires the same list blind.
 ]]
 
-aard = aard or {}
-aard.spellup = aard.spellup or {}
+solao = solao or {}
+solao.spellup = solao.spellup or {}
 
-local SP = aard.spellup
-local U  = aard.util
+local SP = solao.spellup
+local U  = solao.util
 
 local CFG = U.load("spellups", {
     warn30 = true, warn10 = true, channel = "echo",
@@ -815,7 +815,7 @@ end
 -- panel
 ---
 
-local panel = aard.panel.new({
+local panel = solao.panel.new({
     name     = "spellups",
     title    = "Spellups",
     width    = 300,
@@ -1160,18 +1160,18 @@ do
     if n &gt; 0 then U.note("Spellups: " .. n .. " skills from cache.") end
 end
 
-U.killhandler(aard_spellup_login_handler)
-aard_spellup_login_handler = registerAnonymousEventHandler("gmcp.char.status", "aard.spellup.on_login")
+U.killhandler(solao_spellup_login_handler)
+solao_spellup_login_handler = registerAnonymousEventHandler("gmcp.char.status", "solao.spellup.on_login")
 
-U.killhandler(aard_spellup_disc_handler)
-aard_spellup_disc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "aard.spellup.on_disconnect")
+U.killhandler(solao_spellup_disc_handler)
+solao_spellup_disc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "solao.spellup.on_disconnect")
 
 U.every("spelluptick", 1, function()
     SP.tick()
     if panel:visible() then SP.paint() end
 end)
 
-aard.register("spellup", "tracks what's on you and why casts fail", SP.cmd)
+solao.register("spellup", "tracks what's on you and why casts fail", SP.cmd)
 </script>
 				<eventHandlerList />
 			</Script>
@@ -1197,11 +1197,11 @@ aard.register("spellup", "tracks what's on you and why casts fail", SP.cmd)
     configurable — Aardwolf allows assist tools but not unattended automation.
 ]]
 
-aard = aard or {}
-aard.spellup = aard.spellup or {}
+solao = solao or {}
+solao.spellup = solao.spellup or {}
 
-local SP = aard.spellup
-local U  = aard.util
+local SP = solao.spellup
+local U  = solao.util
 
 local AC = U.load("spellauto", {
     on        = true,
@@ -1237,7 +1237,7 @@ end
 -- why it isn't firing, or nil if nothing's stopping it
 function SP.auto_blocked()
     if not AC.on then return "switched off" end
-    if aard.whopoll and aard.whopoll.afk then return "you're flagged AFK" end
+    if solao.whopoll and solao.whopoll.afk then return "you're flagged AFK" end
     if os.time() &lt; backoff then return "backing off (" .. (backoff - os.time()) .. "s)" end
     if fighting() and not AC.combat then return "in combat" end
     local wait = AC.cooldown - (os.time() - lastfire)
@@ -1354,11 +1354,11 @@ U.every("spellauto", 5, SP.autotick)
     you're flagged AFK, never faster than the pacing interval.
 ]]
 
-aard = aard or {}
-aard.spellup = aard.spellup or {}
+solao = solao or {}
+solao.spellup = solao.spellup or {}
 
-local SP = aard.spellup
-local U  = aard.util
+local SP = solao.spellup
+local U  = solao.util
 
 local EX = U.load("spellextras", {
     totem = { on = false, kind = nil, autocast = false, announce = true },
@@ -1379,7 +1379,7 @@ end
 
 -- shared gate: nothing here sends while you're away
 local function may_send()
-    if aard.whopoll and aard.whopoll.afk then return false end
+    if solao.whopoll and solao.whopoll.afk then return false end
     return true
 end
 

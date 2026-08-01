@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>info capture</name>
-				<script>aard.infowin.capture()</script>
+				<script>solao.infowin.capture()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -49,7 +49,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>infowin</name>
-				<script>aard.infowin.cmd(matches[2] or "")</script>
+				<script>solao.infowin.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^infowin(?:\s+(.*))?$</regex>
@@ -75,15 +75,15 @@
     so we eat that too.
 ]]
 
-aard = aard or {}
-aard.infowin = aard.infowin or {}
+solao = solao or {}
+solao.infowin = solao.infowin or {}
 
-local IW = aard.infowin
-local U  = aard.util
+local IW = solao.infowin
+local U  = solao.util
 
 local CFG = U.load("infowin", { buffer = 100, gag = true })
 
-local panel = aard.panel.new({
+local panel = solao.panel.new({
     name     = "info",
     title    = "INFO",
     width    = 460,

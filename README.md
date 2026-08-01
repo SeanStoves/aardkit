@@ -3,8 +3,9 @@
  Mudlet modules for the [Aardwolf](https://www.aardwolf.com/) MUD.
 
 Each module lives in its own folder with a README. They share a small core, so
-**install [aardcore](aardcore/README.md) first at priority 1** — without it the
-others have no `aard.util`, `aard.panel` or `aard.register` to load against.
+**install [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) first at
+priority 1** — without it the others have no `solao.util`, `solao.panel` or
+`solao.register` to load against.
 
 Install any of them with **Toolbox → Module Manager → Install** and set the
 priority listed in its README. Tick **Sync** to have edits saved back to the file
@@ -14,7 +15,7 @@ and shared across your profiles.
 
 | Priority | Module | What it does |
 |---|---|---|
-| 1 | [aardcore](aardcore/README.md) | Shared foundation every other module builds on: the panel manager, output helpers, the command registry and the Aardwolf tag gag. |
+| 1 | [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) | Shared foundation every other module builds on: the panel manager, output helpers, the command registry and the Aardwolf tag gag. |
 | 10 | [Session Log](Session%20Log/README.md) | Session logging to <profile>-YYYYMMDD-HHmm, with timestamps. |
 | 20 | [Map Import](Map%20Import/README.md) | Imports an Aardwolf MUSHclient mapper database into Mudlet's own map. |
 | 25 | [Vital Shortcuts](Vital%20Shortcuts/README.md) | Keyboard shortcuts for the things you type a hundred times a night. |

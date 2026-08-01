@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>map start</name>
-				<script>aard.asciimap.on_start()</script>
+				<script>solao.asciimap.on_start()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>map end</name>
-				<script>aard.asciimap.on_end()</script>
+				<script>solao.asciimap.on_end()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -69,7 +69,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>asciimap</name>
-				<script>aard.asciimap.cmd(matches[2] or "")</script>
+				<script>solao.asciimap.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^asciimap(?:\s+(.*))?$</regex>
@@ -109,11 +109,11 @@
     this arrive — we just don't use its display.
 ]]
 
-aard = aard or {}
-aard.asciimap = aard.asciimap or {}
+solao = solao or {}
+solao.asciimap = solao.asciimap or {}
 
-local AM = aard.asciimap
-local U  = aard.util
+local AM = solao.asciimap
+local U  = solao.util
 
 local CFG = U.load("asciimap", { on = true, hidetheirs = true, auto = true })
 
@@ -121,7 +121,7 @@ local CFG = U.load("asciimap", { on = true, hidetheirs = true, auto = true })
 -- panel
 ---
 
-local panel = aard.panel.new({
+local panel = solao.panel.new({
     name     = "map",
     title    = "ASCII Map",
     width    = 260,
@@ -324,17 +324,17 @@ end
 -- boot
 ---
 
-U.killhandler(aard_asciimap_handler)
-aard_asciimap_handler = registerAnonymousEventHandler("sysConnectionEvent", "aard.asciimap.on_connect")
+U.killhandler(solao_asciimap_handler)
+solao_asciimap_handler = registerAnonymousEventHandler("sysConnectionEvent", "solao.asciimap.on_connect")
 
-U.killhandler(aard_asciimap_room_handler)
-aard_asciimap_room_handler = registerAnonymousEventHandler("gmcp.room.info", "aard.asciimap.on_room")
+U.killhandler(solao_asciimap_room_handler)
+solao_asciimap_room_handler = registerAnonymousEventHandler("gmcp.room.info", "solao.asciimap.on_room")
 
 tempTimer(3, function() wrap(); AM.hidetheirs() end)
 
 if not CFG.on then panel:hide() else placeholder() end
 
-aard.register("asciimap", "Aardwolf's ASCII map, in our own panel", AM.cmd)
+solao.register("asciimap", "Aardwolf's ASCII map, in our own panel", AM.cmd)
 </script>
 				<eventHandlerList />
 			</Script>
