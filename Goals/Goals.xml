@@ -13,7 +13,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>goal</name>
-				<script>solao.goals.cmd(matches[2] or "")</script>
+				<script>aardkit.goals.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^goals?(?:\s+(.*))?$</regex>
@@ -46,11 +46,11 @@
     the thing is the entire point, and having to remember to ask defeats it.
 ]]
 
-solao = solao or {}
-solao.goals = solao.goals or {}
+aardkit = aardkit or {}
+aardkit.goals = aardkit.goals or {}
 
-local G = solao.goals
-local U = solao.util
+local G = aardkit.goals
+local U = aardkit.util
 
 -- Aardwolf's own currencies, as gmcp.char.worth reports them.
 -- alias -&gt; {gmcp field, display}
@@ -318,10 +318,10 @@ end
 -- boot
 ---
 
-U.killhandler(solao_goals_handler)
-solao_goals_handler = registerAnonymousEventHandler("gmcp.char.worth", "solao.goals.on_worth")
+U.killhandler(aardkit_goals_handler)
+aardkit_goals_handler = registerAnonymousEventHandler("gmcp.char.worth", "aardkit.goals.on_worth")
 
-solao.register("goals", "savings goals, announced when met", G.cmd)
+aardkit.register("goals", "savings goals, announced when met", G.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

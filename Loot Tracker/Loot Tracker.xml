@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>corpse loot</name>
-				<script>solao.loot.on_loot(matches[2], matches[3])</script>
+				<script>aardkit.loot.on_loot(matches[2], matches[3])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>shop stock</name>
-				<script>solao.loot.on_shop(matches[2], matches[3], matches[4])</script>
+				<script>aardkit.loot.on_shop(matches[2], matches[3], matches[4])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -59,7 +59,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>room gather</name>
-				<script>solao.loot.on_get(matches[2], matches[3])</script>
+				<script>aardkit.loot.on_get(matches[2], matches[3])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -79,7 +79,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>invitem</name>
-				<script>solao.loot.on_invitem(matches[2])</script>
+				<script>aardkit.loot.on_invitem(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -99,7 +99,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>id box start</name>
-				<script>solao.loot.on_id_start(matches[2])</script>
+				<script>aardkit.loot.on_id_start(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -129,14 +129,14 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>loot</name>
-				<script>solao.loot.cmd(matches[2] or "")</script>
+				<script>aardkit.loot.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^loot(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>bulk appraise</name>
-				<script>solao.loot.bulk_appraise(matches[2], matches[3])</script>
+				<script>aardkit.loot.bulk_appraise(matches[2], matches[3])</script>
 				<command />
 				<packageName />
 				<regex>^appraise\s+(\d+)\s*-\s*(\d+)\s*$</regex>
@@ -162,13 +162,13 @@
     init.lua goes through it. Same columns, same keys — a converted SolaoLoot.db
     drops straight in.
 
-    Mudlet writes this to &lt;profile&gt;/Database_aardloot.db.
+    Mudlet writes this to &lt;profile&gt;/Database_aardkitloot.db.
 ]]
 
-solao = solao or {}
-solao.loot = solao.loot or {}
+aardkit = aardkit or {}
+aardkit.loot = aardkit.loot or {}
 
-local LT = solao.loot
+local LT = aardkit.loot
 
 LT.STAT_COLS = {
     "str", "intel", "wis", "dex", "con", "luck",
@@ -214,11 +214,11 @@ local function stats_sheet()
     return t
 end
 
--- Take the handle db:create hands back rather than assuming db.solaoloot exists.
+-- Take the handle db:create hands back rather than assuming db.aardkitloot exists.
 -- The first run proved that assumption wrong: the tables and indexes were built
--- correctly but db.solaoloot was nil, so every consumer read as "not loaded".
+-- correctly but db.aardkitloot was nil, so every consumer read as "not loaded".
 -- Whatever the reason, the return value is the thing we were actually given.
-local ok, handle = pcall(db.create, db, "solaoloot", {
+local ok, handle = pcall(db.create, db, "aardkitloot", {
     loot = {
         item       = "",
         item_color = "",
@@ -265,7 +265,7 @@ local ok, handle = pcall(db.create, db, "solaoloot", {
 LT.dbh  = ok and handle or nil
 LT.dberr = (not ok) and tostring(handle) or nil
 
--- Resolved on use, not at load. Grabbing db.solaoloot.&lt;sheet&gt; here means one bad
+-- Resolved on use, not at load. Grabbing db.aardkitloot.&lt;sheet&gt; here means one bad
 -- moment during db:create leaves LT.t nil forever, and every consumer then reads
 -- as "Loot Tracker isn't loaded" with no way back short of a restart. Going
 -- through __index makes the lookup retry each time instead.
@@ -273,7 +273,7 @@ LT.dberr = (not ok) and tostring(handle) or nil
 -- db.&lt;name&gt; path, and retry on every access rather than caching a nil
 LT.t = setmetatable({}, {
     __index = function(_, k)
-        local d = LT.dbh or (db and db.solaoloot)
+        local d = LT.dbh or (db and db.aardkitloot)
         return d and d[k] or nil
     end,
 })
@@ -308,11 +308,11 @@ LT.STAT_TEXT = {
       - async.doAsyncRemoteRequest -&gt; Mudlet's getHTTP/postHTTP + sys*HttpDone
 ]]
 
-solao = solao or {}
-solao.loot = solao.loot or {}
+aardkit = aardkit or {}
+aardkit.loot = aardkit.loot or {}
 
-local LT = solao.loot
-local U  = solao.util
+local LT = aardkit.loot
+local U  = aardkit.util
 local T  = LT.t
 
 local API_URL = "https://api.aardwolf.muds.fyi"
@@ -593,7 +593,7 @@ end
 
 function LT.queue_autoid(item)
     if not CFG.autoid or item == "" then return end
-    if solao.whopoll and solao.whopoll.afk then return end
+    if aardkit.whopoll and aardkit.whopoll.afk then return end
     if have_full_id(item) then return end
     autoid_q[#autoid_q + 1] = item
     -- deferred a tick: the {invitem} carrying the serial can land after "You get"
@@ -798,7 +798,7 @@ local function appraise_tick(gen)
         U.ok("Loot Tracker: bulk appraise done (" .. appraise_n .. " sent).")
         return
     end
-    if solao.whopoll and solao.whopoll.afk then
+    if aardkit.whopoll and aardkit.whopoll.afk then
         U.warn("Loot Tracker: you're flagged AFK - bulk appraise stopped (" .. (#appraise_q + 1) .. " left).")
         appraise_q = {}
         return
@@ -1166,7 +1166,7 @@ end
 
 local function do_export(fn)
     fn = U.trim(fn)
-    if fn == "" then fn = "SolaoLoot-share.json" end
+    if fn == "" then fn = "aardkit-loot-share.json" end
     local path = U.datafile(fn)
     local f = io.open(path, "w")
     if not f then U.err("Loot Tracker: can't write " .. path); return end
@@ -1371,7 +1371,7 @@ end
 -- boot
 ---
 
-solao.register("loot", "item/mob/shop provenance database", LT.cmd)
+aardkit.register("loot", "item/mob/shop provenance database", LT.cmd)
 </script>
 				<eventHandlerList />
 			</Script>
@@ -1392,11 +1392,11 @@ solao.register("loot", "item/mob/shop provenance database", LT.cmd)
     fragment one player across many accounts.
 ]]
 
-solao = solao or {}
-solao.loot = solao.loot or {}
+aardkit = aardkit or {}
+aardkit.loot = aardkit.loot or {}
 
-local LT = solao.loot
-local U  = solao.util
+local LT = aardkit.loot
+local U  = aardkit.util
 local T  = LT.t
 
 local API_URL = "https://api.aardwolf.muds.fyi"
@@ -1446,10 +1446,10 @@ local function handle_err(event, a, b)
     h.fail(a)
 end
 
-if solao_loot_http_handlers then
-    for _, id in ipairs(solao_loot_http_handlers) do U.killhandler(id) end
+if aardkit_loot_http_handlers then
+    for _, id in ipairs(aardkit_loot_http_handlers) do U.killhandler(id) end
 end
-solao_loot_http_handlers = {
+aardkit_loot_http_handlers = {
     registerAnonymousEventHandler("sysPostHttpDone",  handle_done),
     registerAnonymousEventHandler("sysGetHttpDone",   handle_done),
     registerAnonymousEventHandler("sysPostHttpError", handle_err),

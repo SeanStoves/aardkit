@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>consider line</name>
-				<script>solao.con.on_line()</script>
+				<script>aardkit.con.on_line()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -49,7 +49,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>xcon</name>
-				<script>solao.con.cmd(matches[2] or "")</script>
+				<script>aardkit.con.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^xcon(?:\s+(.*))?$</regex>
@@ -101,11 +101,11 @@
     Mushclient-Consider, which is GPL-3.0; see CREDITS.md.
 ]]
 
-solao = solao or {}
-solao.con = solao.con or {}
+aardkit = aardkit or {}
+aardkit.con = aardkit.con or {}
 
-local C = solao.con
-local U = solao.util
+local C = aardkit.con
+local U = aardkit.util
 
 local CFG = U.load("consider", { on = true })
 
@@ -199,7 +199,7 @@ function C.cmd(arg)
     end
 end
 
-solao.register("xcon", "tidies what 'con all' says about the room", C.cmd)
+aardkit.register("xcon", "tidies what 'con all' says about the room", C.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

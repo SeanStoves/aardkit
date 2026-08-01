@@ -13,14 +13,14 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>recallmanager</name>
-				<script>solao.recall.cmd(matches[2] or "")</script>
+				<script>aardkit.recall.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^recallmanager(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>rm</name>
-				<script>solao.recall.cmd(matches[2])</script>
+				<script>aardkit.recall.cmd(matches[2])</script>
 				<command />
 				<packageName />
 				<regex>^rm\s+(.*)$</regex>
@@ -48,11 +48,11 @@
     with command stacking on, a typed ';' gets split before the plugin sees it.
 ]]
 
-solao = solao or {}
-solao.recall = solao.recall or {}
+aardkit = aardkit or {}
+aardkit.recall = aardkit.recall or {}
 
-local RM = solao.recall
-local U  = solao.util
+local RM = aardkit.recall
+local U  = aardkit.util
 
 local ROW_H  = 22
 local FOOT_H = 34
@@ -173,7 +173,7 @@ end
 -- ui
 ---
 
-local panel = solao.panel.new({
+local panel = aardkit.panel.new({
     name        = "recall",
     title       = "Recall Manager",
     width       = 220,
@@ -242,7 +242,7 @@ end
 
 local function label(i)
     if pool[i] then return pool[i] end
-    local name = "solao_rm_btn" .. panel.gen .. "_" .. i
+    local name = "aardkit_rm_btn" .. panel.gen .. "_" .. i
     local l = Geyser.Label:new({
         name = name, x = 0, y = 0, width = 10, height = ROW_H - 3,
     }, panel.container)
@@ -261,7 +261,7 @@ local function label(i)
             "background-color: %s; border: 1px solid %s; border-radius: 2px;", COL.btn, COL.border))
     end)
     -- Geyser has no wheel wrapper; go at the underlying label directly
-    pcall(setLabelWheelCallback, name, "solao.recall.on_wheel")
+    pcall(setLabelWheelCallback, name, "aardkit.recall.on_wheel")
     pool[i] = l
     return l
 end
@@ -296,13 +296,13 @@ function RM.paint()
     for i = slot + 1, #pool do pool[i]:hide() end
 
     if not foot then
-        local fname = "solao_rm_foot" .. panel.gen
+        local fname = "aardkit_rm_foot" .. panel.gen
         foot = Geyser.Label:new({
             name = fname, x = GAP, y = "-" .. FOOT_H .. "px",
             width = "96%", height = FOOT_H - 2,
         }, panel.container)
         foot:setStyleSheet("background-color: rgba(0,0,0,0); border: 0px;")
-        pcall(setLabelWheelCallback, fname, "solao.recall.on_wheel")
+        pcall(setLabelWheelCallback, fname, "aardkit.recall.on_wheel")
     end
 
     local body
@@ -547,10 +547,10 @@ RM.paint()
 -- reflow when the panel is dragged to a new size, and when the window changes
 U.every("recallsize", 0.5, RM.checksize)
 
-U.killhandler(solao_recall_resize_handler)
-solao_recall_resize_handler = registerAnonymousEventHandler("sysWindowResizeEvent", "solao.recall.paint")
+U.killhandler(aardkit_recall_resize_handler)
+aardkit_recall_resize_handler = registerAnonymousEventHandler("sysWindowResizeEvent", "aardkit.recall.paint")
 
-solao.register("recall", "clickable travel/recall buttons", RM.cmd)
+aardkit.register("recall", "clickable travel/recall buttons", RM.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

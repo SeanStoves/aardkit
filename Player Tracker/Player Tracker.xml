@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>who row</name>
-				<script>solao.pt.on_who(line)</script>
+				<script>aardkit.pt.on_who(line)</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>who footer</name>
-				<script>solao.pt.who_done(tonumber(matches[2]))</script>
+				<script>aardkit.pt.who_done(tonumber(matches[2]))</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -59,7 +59,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>clan login</name>
-				<script>solao.pt.clan_login(matches[2])</script>
+				<script>aardkit.pt.clan_login(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -79,7 +79,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>clan logout</name>
-				<script>solao.pt.clan_logout(matches[2])</script>
+				<script>aardkit.pt.clan_logout(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -109,14 +109,14 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>playertracker</name>
-				<script>solao.pt.cmd(matches[2] or "")</script>
+				<script>aardkit.pt.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^playertracker(?:\s+(.*))?$</regex>
 			</Alias>
 			<Alias isActive="yes" isFolder="no">
 				<name>pt</name>
-				<script>solao.pt.cmd(matches[2] or "")</script>
+				<script>aardkit.pt.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^pt(?:\s+(.*))?$</regex>
@@ -150,11 +150,11 @@
     machinery is gone.
 ]]
 
-solao = solao or {}
-solao.pt = solao.pt or {}
+aardkit = aardkit or {}
+aardkit.pt = aardkit.pt or {}
 
-local PT = solao.pt
-local U  = solao.util
+local PT = aardkit.pt
+local U  = aardkit.util
 
 local CFG = U.load("playertracker", {
     players  = {},              -- name:lower -&gt; rec
@@ -369,7 +369,7 @@ end
 -- ui
 ---
 
-local panel = solao.panel.new({
+local panel = aardkit.panel.new({
     name     = "players",
     title    = "Player Tracker",
     width    = 320,
@@ -393,7 +393,7 @@ function PT.paint()
 
     if filter ~= "" then
         U.outw(c.name, "&lt;#8a93a8&gt;Filter: &lt;#e0af68&gt;" .. filter .. "&lt;r&gt; ")
-        U.outLinkw(c.name, "&lt;#f7768e&gt;[clear]&lt;r&gt;", [[solao.pt.setfilter("")]], "Clear the filter", true)
+        U.outLinkw(c.name, "&lt;#f7768e&gt;[clear]&lt;r&gt;", [[aardkit.pt.setfilter("")]], "Clear the filter", true)
         U.outw(c.name, "\n")
     end
     U.outw(c.name, "&lt;#3a4a6b&gt;" .. string.rep("-", 40) .. "&lt;r&gt;\n")
@@ -407,7 +407,7 @@ function PT.paint()
             U.outw(c.name, on and "&lt;#3ad07a&gt;*&lt;r&gt; " or "&lt;#666666&gt;*&lt;r&gt; ")
             U.outLinkw(c.name,
                 (on and "&lt;#e0e0e0&gt;" or "&lt;#8a93a8&gt;") .. r.name .. "&lt;r&gt;",
-                string.format("solao.pt.info(%q)", r.name),
+                string.format("aardkit.pt.info(%q)", r.name),
                 "Full record for " .. r.name, true)
             if r.clan and r.clan ~= "" then
                 U.outw(c.name, " &lt;#66ccff&gt;(" .. r.clan .. ")&lt;r&gt;")
@@ -567,7 +567,7 @@ function PT.cmd(arg)
 end
 
 PT.paint()
-solao.register("pt", "who-sweep player database", PT.cmd)
+aardkit.register("pt", "who-sweep player database", PT.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

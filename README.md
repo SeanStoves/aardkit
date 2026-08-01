@@ -1,11 +1,11 @@
-# aardwolf-mudlet-plugins
+# Aardkit
 
  Mudlet modules for the [Aardwolf](https://www.aardwolf.com/) MUD.
 
 Each module lives in its own folder with a README. They share a small core, so
-**install [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) first at
-priority 1** — without it the others have no `solao.util`, `solao.panel` or
-`solao.register` to load against.
+**install [Aardkit Core](Aardkit%20Core/README.md) first at
+priority 1** — without it the others have no `aardkit.util`, `aardkit.panel` or
+`aardkit.register` to load against.
 
 Install any of them with **Toolbox → Module Manager → Install** and set the
 priority listed in its README. Tick **Sync** to have edits saved back to the file
@@ -15,7 +15,7 @@ and shared across your profiles.
 
 | Priority | Module | What it does |
 |---|---|---|
-| 1 | [Solao Aardwolf Core](Solao%20Aardwolf%20Core/README.md) | Shared foundation every other module builds on: the panel manager, saved state under `<profile>/solao/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. |
+| 1 | [Aardkit Core](Aardkit%20Core/README.md) | Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. |
 | 10 | [Session Log](Session%20Log/README.md) | Session logging that starts on connect and names files `log/<profile>-YYYYMMDD-HHmm`, renaming stray logs into the same scheme. |
 | 30 | [Info Window](Info%20Window/README.md) | Captures INFO: lines into their own panel, colours intact, and gags them from the main output. |
 | 40 | [Recall Manager](Recall%20Manager/README.md) | Clickable command buttons you define yourself — each fires a `|`-separated list of commands with `$var` substitution, tracks a use count, and can watch for an arrival line to show where you are. The grid reflows and scrolls as you resize the panel. |

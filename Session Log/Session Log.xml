@@ -13,7 +13,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>aardlog</name>
-				<script>solao.sessionlog.cmd(matches[2] or "")</script>
+				<script>aardkit.sessionlog.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^aardlog(?:\s+(.*))?$</regex>
@@ -56,11 +56,11 @@
     for it to do.
 ]]
 
-solao = solao or {}
-solao.sessionlog = solao.sessionlog or {}
+aardkit = aardkit or {}
+aardkit.sessionlog = aardkit.sessionlog or {}
 
-local L = solao.sessionlog
-local U = solao.util
+local L = aardkit.sessionlog
+local U = aardkit.util
 
 local CFG = U.load("logging", { auto = true })
 
@@ -221,16 +221,16 @@ end
 -- boot
 ---
 
-if solao_log_handlers then
-    for _, id in ipairs(solao_log_handlers) do U.killhandler(id) end
+if aardkit_log_handlers then
+    for _, id in ipairs(aardkit_log_handlers) do U.killhandler(id) end
 end
-solao_log_handlers = {
-    registerAnonymousEventHandler("sysConnectionEvent", "solao.sessionlog.on_connect"),
-    registerAnonymousEventHandler("sysExitEvent", "solao.sessionlog.stop"),
+aardkit_log_handlers = {
+    registerAnonymousEventHandler("sysConnectionEvent", "aardkit.sessionlog.on_connect"),
+    registerAnonymousEventHandler("sysExitEvent", "aardkit.sessionlog.stop"),
 }
 
 L.normalise(true)
-solao.register("sessionlog", "session logging to &lt;profile&gt;-YYYYMMDD-HHmm", L.cmd)
+aardkit.register("sessionlog", "session logging to &lt;profile&gt;-YYYYMMDD-HHmm", L.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

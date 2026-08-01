@@ -11,8 +11,8 @@ Rewrites what `con all` tells you about the room: verdict first and colour-coded
    other profiles.
 5. Save the profile (or restart).
 
-Needs [Solao Aardwolf Core](../Solao%20Aardwolf%20Core/README.md) installed first
-at priority 1 — it holds the shared `solao.util` / `solao.panel` / `solao.register`
+Needs [Aardkit Core](../Aardkit%20Core/README.md) installed first
+at priority 1 — it holds the shared `aardkit.util` / `aardkit.panel` / `aardkit.register`
 that every module here builds on. Without it nothing else loads.
 
 
@@ -27,4 +27,4 @@ Each has its own `help` with the full list.
 
 ## Config
 
-Settings live in `<profile>/solao/consider.lua`.
+Settings live in `<profile>/aardkit/consider.lua`.

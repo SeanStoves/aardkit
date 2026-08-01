@@ -19,7 +19,7 @@
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>coords</name>
-				<script>solao.vid.on_coords(matches[2], matches[3], matches[4])</script>
+				<script>aardkit.vid.on_coords(matches[2], matches[3], matches[4])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -39,7 +39,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>no coords</name>
-				<script>solao.vid.on_nocoords()</script>
+				<script>aardkit.vid.on_nocoords()</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -69,7 +69,7 @@
 			<regex />
 			<Alias isActive="yes" isFolder="no">
 				<name>vid</name>
-				<script>solao.vid.cmd(matches[2] or "")</script>
+				<script>aardkit.vid.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
 				<regex>^vid(?:blain)?(?:\s+(.*))?$</regex>
@@ -112,11 +112,11 @@
     clean move corrects it and the correction sticks.
 ]]
 
-solao = solao or {}
-solao.vid = solao.vid or {}
+aardkit = aardkit or {}
+aardkit.vid = aardkit.vid or {}
 
-local VB = solao.vid
-local U  = solao.util
+local VB = aardkit.vid
+local U  = aardkit.util
 
 local CFG = U.load("vidblain", {
     show   = "coordareas",   -- coordareas | always | off  (when to fill the panel)
@@ -131,7 +131,7 @@ VB.zone, VB.x, VB.y = nil, nil, nil
 
 -- Consoleless: the title carries the reading, so there's nothing to put in a
 -- body. Small enough to tuck anywhere, and the panel manager remembers where.
-local panel = solao.panel.new({
+local panel = aardkit.panel.new({
     name = "coords", title = "Location: -",
     x = "10px", y = "620px", width = 210, height = 34,
     consoleless = true,
@@ -318,7 +318,7 @@ function VB.cmd(arg)
         CFG.target = nil; U.save("vidblain", CFG); U.ok("Target cleared.")
 
     elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show2" then
-        solao.panel.cmd("coords " .. verb:gsub("2", ""))
+        aardkit.panel.cmd("coords " .. verb:gsub("2", ""))
 
     elseif verb == "show" then
         if rest == "off" or rest == "always" or rest == "coordareas" then
@@ -357,15 +357,15 @@ local DIRS = {
     e = "east", east = "east", w = "west", west = "west",
 }
 
-U.killhandler(solao_vid_send)
-solao_vid_send = registerAnonymousEventHandler("sysDataSendRequest", "solao.vid.on_send")
+U.killhandler(aardkit_vid_send)
+aardkit_vid_send = registerAnonymousEventHandler("sysDataSendRequest", "aardkit.vid.on_send")
 
 function VB.on_send(_, cmd)
     local d = DIRS[U.trim(tostring(cmd or "")):lower()]
     if d then VB.on_move(d) end
 end
 
-solao.register("vid", "Vidblain coordinates and where you're heading", VB.cmd)
+aardkit.register("vid", "Vidblain coordinates and where you're heading", VB.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

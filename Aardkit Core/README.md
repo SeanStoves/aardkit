@@ -1,10 +1,10 @@
-# Solao Aardwolf Core
+# Aardkit Core
 
-Shared foundation every other module builds on: the panel manager, saved state under `<profile>/solao/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag.
+Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag.
 
 ## Install
 
-1. Download `Solao Aardwolf Core.xml`.
+1. Download `Aardkit Core.xml`.
 2. In Mudlet: **Toolbox → Module Manager → Install**, and pick the file.
 3. Set **Priority** to `1` so it loads in the right order.
 4. Tick **Sync** if you want changes saved back to the file and shared with your
@@ -16,9 +16,9 @@ Shared foundation every other module builds on: the panel manager, saved state u
 
 | Command | Does |
 |---|---|
-| `solao` | lists core commands and every registered module |
-| `solao plugins` | names of loaded modules |
-| `solao probe` | reports which Mudlet Lua functions exist here |
+| `aardkit` | lists core commands and every registered module |
+| `aardkit plugins` | names of loaded modules |
+| `aardkit probe` | reports which Mudlet Lua functions exist here |
 | `panel` | lists panels with mode and visibility |
 | `panel <name>` | toggles that panel |
 | `panel <name> show|hide` | shows or hides it |
@@ -35,4 +35,4 @@ Each has its own `help` with the full list.
 
 ## Config
 
-Settings live in `<profile>/solao/solaocore.lua`.
+Settings live in `<profile>/aardkit/aardkitcore.lua`.
