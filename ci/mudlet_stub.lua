@@ -12,7 +12,7 @@
 ]]
 
 -- Mudlet runs Lua 5.1, where unpack is a global
-unpack = unpack or table.unpack
+unpack = unpack or table.unpack   -- luajit-ok: 5.1 global first, table.unpack only on newer Lua
 
 local calls = {}
 local function note(name)
@@ -104,7 +104,13 @@ gmcp = { room = { info = { num = 1234, name = "Somewhere", zone = "midgaard" } }
 ---
 
 lfs = {
-  mkdir = function() return true end,
+  -- actually make it. Returning true without creating the directory meant every
+  -- save silently failed against a path that didn't exist, and the harness
+  -- blamed the code.
+  mkdir = function(d)
+    if os.execute('mkdir -p "' .. d .. '" 2>/dev/null') then return true end
+    return nil, "mkdir failed"
+  end,
   dir = function(d)
     local p = io.popen('ls -1 "'..d..'" 2>/dev/null')
     local t = {}
@@ -125,11 +131,50 @@ end
 -- table.save / table.load (Mudlet's persistence)
 ---
 
-local store = {}
-function table.save(path, tbl) store[path] = tbl end
+-- Real files, not an in-memory table keyed by path. The in-memory version
+-- couldn't model a rename, so it silently defeated U.save's atomic write - the
+-- data went to <path>.new and the load found nothing, and the harness reported
+-- a merge bug that was entirely the stub's.
+local function pickle(v, out, indent)
+    local t = type(v)
+    if t == "number" or t == "boolean" then
+        out[#out + 1] = tostring(v)
+    elseif t == "string" then
+        out[#out + 1] = string.format("%q", v)
+    elseif t == "table" then
+        out[#out + 1] = "{\n"
+        for k, val in pairs(v) do
+            out[#out + 1] = indent .. "  ["
+            pickle(k, out, indent .. "  ")
+            out[#out + 1] = "] = "
+            pickle(val, out, indent .. "  ")
+            out[#out + 1] = ",\n"
+        end
+        out[#out + 1] = indent .. "}"
+    else
+        out[#out + 1] = "nil"
+    end
+end
+
+function table.save(path, tbl)
+    local fh, msg = io.open(path, "w")
+    if not fh then return nil, msg end
+    local out = { "return " }
+    pickle(tbl, out, "")
+    fh:write(table.concat(out))
+    fh:close()
+end
+
 function table.load(path, tbl)
-    local src = store[path]
-    if not src then return false end
+    local fn = (loadstring or load)("return " .. (function()
+        local fh = io.open(path, "r")
+        if not fh then return "nil" end
+        local s = fh:read("*a"); fh:close()
+        return "(function() " .. s .. " end)()"
+    end)())
+    if not fn then return false end
+    local ok, src = pcall(fn)
+    if not ok or type(src) ~= "table" then return false end
     for k, v in pairs(src) do tbl[k] = v end
     return true
 end

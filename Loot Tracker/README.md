@@ -20,8 +20,27 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `loot` | |
-| `bulk appraise` | |
+| `loot` | row counts |
+| `loot item <text>` | where an item drops from (mob / zone / room) |
+| `loot mob <text>` | what a mob drops |
+| `loot shop <text>` | which shops natively stock an item |
+| `loot gathered <text>` | where a room resource is picked up |
+| `loot stats <text>` | stat block for an item |
+| `loot id <keyword>` | identify an item and store its stats |
+| `loot autoid on\|off` | auto-identify freshly looted gear |
+| `loot idnote on\|off` | confirm each stat capture on screen |
+| `loot here <keyword>` | get a room-floor spawn and record it |
+| `loot del <item> [roomid]` | remove matching rows |
+| `loot bags [add\|del <word>]` | container words ignored for gathers |
+| `loot flags [add\|del <word>]` | bonus-loot flags stripped from names |
+| `loot dedupe` | collapse variant rows already captured |
+| `appraise <a>-<b>` | appraise a range of shop list numbers, paced |
+| `loot appraise stop` | halt a running bulk appraise |
+| `loot recent` | last 15 things looted |
+| `loot export [file]` | dump the DB to a file to share |
+| `loot import <file>` | merge a shared export |
+| `loot api \| auth \| upload \| update \| resync yes` | shared-pool sync commands |
+| `loot clear loot\|shop\|gathered\|stats` | wipe a table |
 
 Each has its own `help` with the full list.
 

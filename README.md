@@ -15,7 +15,7 @@ and shared across your profiles.
 
 | Priority | Module | What it does |
 |---|---|---|
-| 1 | [Aardkit Core](Aardkit%20Core/README.md) | Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. |
+| 1 | [Aardkit Core](Aardkit%20Core/README.md) | Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. Also switches off the stock AardwolfMudlet aliases that would otherwise fight ours, with `aardkit stock` to flip any one of them back on. |
 | 10 | [Session Log](Session%20Log/README.md) | Session logging that starts on connect and names files `log/<profile>-YYYYMMDD-HHmm`, renaming stray logs into the same scheme. |
 | 30 | [Info Window](Info%20Window/README.md) | Captures INFO: lines into their own panel, colours intact, and gags them from the main output. |
 | 40 | [Recall Manager](Recall%20Manager/README.md) | Clickable command buttons you define yourself — each fires a `\|`-separated list of commands with `$var` substitution, tracks a use count, and can watch for an arrival line to show where you are. The grid reflows and scrolls as you resize the panel. |

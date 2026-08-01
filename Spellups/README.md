@@ -28,6 +28,7 @@ that every module here builds on. Without it nothing else loads.
 | `spellup sync` | read 'aff' to learn what is already running |
 | `spellup auto` | autocast status and settings |
 | `spellup auto on\|off` | enable or disable autocast |
+| `spellup auto combat` | toggle firing while in combat |
 | `spellup auto <n>` | fire once n spellups are down |
 | `spellup auto cooldown <s>` | minimum seconds between fires |
 | `spellup now` | send 'spellup' now; still blocked while AFK |

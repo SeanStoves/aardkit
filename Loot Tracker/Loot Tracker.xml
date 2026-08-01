@@ -215,56 +215,95 @@ local function stats_sheet()
     return t
 end
 
+local LOOT_SHEET = {
+    item       = "",
+    item_color = "",
+    mob        = "",
+    zone       = "",
+    roomid     = 0,
+    room       = "",
+    count      = 1,
+    last_seen  = 0,
+    synced     = 0,
+    _index     = { "item", "mob", "synced" },
+    _unique    = { { "item", "mob" } },
+}
+local SHOP_STOCK_SHEET = {
+    item       = "",
+    item_color = "",
+    keeper     = "",
+    zone       = "",
+    roomid     = 0,
+    room       = "",
+    price      = 0,
+    level      = 0,
+    last_seen  = 0,
+    synced     = 0,
+    _index     = { "item", "synced" },
+    _unique    = { { "item", "roomid" } },
+}
+local GATHERED_SHEET = {
+    item       = "",
+    item_color = "",
+    source     = "",
+    zone       = "",
+    roomid     = 0,
+    room       = "",
+    count      = 1,
+    last_seen  = 0,
+    synced     = 0,
+    _index     = { "item", "synced" },
+    _unique    = { { "item", "source", "roomid" } },
+}
+local ITEM_STATS_SHEET = stats_sheet()
+
 -- Take the handle db:create hands back rather than assuming db.aardkitloot exists.
 -- The first run proved that assumption wrong: the tables and indexes were built
 -- correctly but db.aardkitloot was nil, so every consumer read as "not loaded".
 -- Whatever the reason, the return value is the thing we were actually given.
 local ok, handle = pcall(db.create, db, "aardkitloot", {
-    loot = {
-        item       = "",
-        item_color = "",
-        mob        = "",
-        zone       = "",
-        roomid     = 0,
-        room       = "",
-        count      = 1,
-        last_seen  = 0,
-        synced     = 0,
-        _index     = { "item", "mob", "synced" },
-        _unique    = { { "item", "mob" } },
-    },
-    shop_stock = {
-        item       = "",
-        item_color = "",
-        keeper     = "",
-        zone       = "",
-        roomid     = 0,
-        room       = "",
-        price      = 0,
-        level      = 0,
-        last_seen  = 0,
-        synced     = 0,
-        _index     = { "item", "synced" },
-        _unique    = { { "item", "roomid" } },
-    },
-    gathered = {
-        item       = "",
-        item_color = "",
-        source     = "",
-        zone       = "",
-        roomid     = 0,
-        room       = "",
-        count      = 1,
-        last_seen  = 0,
-        synced     = 0,
-        _index     = { "item", "synced" },
-        _unique    = { { "item", "source", "roomid" } },
-    },
-    item_stats = stats_sheet(),
+    loot       = LOOT_SHEET,
+    shop_stock = SHOP_STOCK_SHEET,
+    gathered   = GATHERED_SHEET,
+    item_stats = ITEM_STATS_SHEET,
 })
 
 LT.dbh  = ok and handle or nil
 LT.dberr = (not ok) and tostring(handle) or nil
+
+-- known columns per sheet, keyed for a fast whitelist check -- used to filter
+-- attacker/clanmate-supplied JSON objects (pool sync, file import) down to
+-- real columns before they ever reach db:add, since db:_sql_fields does not
+-- escape column names
+local function col_set(spec)
+    local out = {}
+    for k in pairs(spec) do
+        if k ~= "_index" and k ~= "_unique" then out[k] = true end
+    end
+    return out
+end
+
+LT.COLS = {
+    loot       = col_set(LOOT_SHEET),
+    shop_stock = col_set(SHOP_STOCK_SHEET),
+    gathered   = col_set(GATHERED_SHEET),
+    item_stats = col_set(ITEM_STATS_SHEET),
+}
+
+-- sync order for the pooled API + file share -- one copy, init.lua and api.lua
+-- both used to redeclare this and its pending_of/pending_all helpers by hand
+LT.SHARE_ORDER = { "loot", "shop_stock", "gathered", "item_stats" }
+
+function LT.pending_of(name)
+    local r = db:fetch(LT.t[name], db:eq(LT.t[name].synced, 0))
+    return r and #r or 0
+end
+
+function LT.pending_all()
+    local n = 0
+    for _, t in ipairs(LT.SHARE_ORDER) do n = n + LT.pending_of(t) end
+    return n
+end
 
 -- Resolved on use, not at load. Grabbing db.aardkitloot.&lt;sheet&gt; here means one bad
 -- moment during db:create leaves LT.t nil forever, and every consumer then reads
@@ -1109,7 +1148,7 @@ end
 -- share: export/import a JSON dump, and the pooled API
 ---
 
-local SHARE_ORDER = { "loot", "shop_stock", "gathered", "item_stats" }
+local SHARE_ORDER = LT.SHARE_ORDER   -- one copy, declared in db.lua
 
 local function serialize_db()
     local data, rows = {}, 0
@@ -1138,12 +1177,26 @@ local function merge_dump(text, from_pool)
     local added, seen = 0, 0
     for _, name in ipairs(SHARE_ORDER) do
         local sheet, arr = T[name], data[name]
-        if type(arr) == "table" then
+        local cols = LT.COLS and LT.COLS[name]
+        if type(arr) == "table" and cols then
             for _, o in ipairs(arr) do
                 if type(o) == "table" and o.item then
-                    o.synced = flag
-                    local ok2 = pcall(db.add, db, sheet, o)   -- unique index rejects dupes
-                    if ok2 then added = added + 1 end
+                    -- Same whitelist the pool path uses, and for the same reason:
+                    -- db:_sql_fields quotes column names without escaping them, so
+                    -- a key straight out of parsed JSON is SQL injection. This file
+                    -- arrives from a clanmate, which is no more trusted than the
+                    -- pool server - 'loot import' is the other door into the same
+                    -- room and it was left open.
+                    local row = {}
+                    for k, v in pairs(o) do
+                        if cols[k] then row[k] = v end
+                    end
+                    row.synced = flag
+                    -- db:add returns nil,msg on a unique-index rejection rather than
+                    -- erroring, so pcall alone always reports success -- check the
+                    -- actual return to tell a real dupe-reject from an actual insert
+                    local ok2, added2 = pcall(db.add, db, sheet, row)
+                    if ok2 and added2 then added = added + 1 end
                     seen = seen + 1
                 end
             end
@@ -1152,16 +1205,8 @@ local function merge_dump(text, from_pool)
     return added, seen
 end
 
-local function pending_of(name)
-    local r = db:fetch(T[name], db:eq(T[name].synced, 0))
-    return r and #r or 0
-end
-
-local function pending_all()
-    local n = 0
-    for _, t in ipairs(SHARE_ORDER) do n = n + pending_of(t) end
-    return n
-end
+local pending_of  = LT.pending_of
+local pending_all = LT.pending_all
 
 local function do_export(fn)
     fn = U.trim(fn)
@@ -1384,12 +1429,14 @@ aardkit.register("loot", "item/mob/shop provenance database", LT.cmd)
 
     MUSHclient used async.doAsyncRemoteRequest with a status code in the callback.
     Mudlet gives us postHTTP/getHTTP plus sys*HttpDone / sys*HttpError events, and
-    the error path doesn't hand back a status. So the 401 rule becomes: if a
-    request fails while we hold a key, re-auth ONCE and retry ONCE.
+    the error path doesn't hand back a status - a 500, a timeout and a genuinely
+    dead key all arrive looking identical.
 
-    That single-retry cap is the important part. Every /auth mints a NEW account
-    (the name can come back with a -2 suffix), so careless re-registration would
-    fragment one player across many accounts.
+    That matters more than it sounds. Every /auth mints a NEW account (the name
+    comes back with a -2 suffix), so treating one failed request as "the key is
+    dead" would fragment a player across accounts on nothing worse than the
+    server having a bad minute. So: only after REAUTH_AFTER consecutive failures
+    do we accept the key is gone, and then it re-auths once and retries once.
 ]]
 
 aardkit = aardkit or {}
@@ -1400,7 +1447,7 @@ local U  = aardkit.util
 local T  = LT.t
 
 local API_URL = "https://api.aardwolf.muds.fyi"
-local SHARE_ORDER = { "loot", "shop_stock", "gathered", "item_stats" }
+local SHARE_ORDER = LT.SHARE_ORDER   -- one copy, declared in db.lua
 
 -- Upload in slices capped by BYTES, not row count. The MUSHclient version learned
 -- the hard way that a ~144KB body never arrived: past roughly one socket buffer
@@ -1512,35 +1559,55 @@ function LT.auth()
     end)
 end
 
--- request against /loot; one re-auth + one retry on failure, then give up
+-- sysPostHttpError/sysGetHttpError hand back no status code at all (confirmed --
+-- neither event carries one in Mudlet's own HTTP plumbing), so we can't tell a
+-- real 401 apart from a 500 or a dropped connection on the first failure alone.
+-- Require a few in a row before assuming the key is actually dead -- a single
+-- server hiccup is far more likely than an auth rejection, and wiping the key
+-- on every blip fragments the player across a fresh pool account each time.
+local REAUTH_AFTER = 3
+local fail_streak = 0
+
+-- request against /loot; one re-auth + one retry after REAUTH_AFTER consecutive
+-- failures, then give up
 local function loot_request(method, body, on_ok, retried)
     local url = API_URL .. "/loot"
     local headers = { ["x-api-key"] = key() }
     if body then headers["Content-Type"] = "application/json" end
 
+    local function ok_wrap(page)
+        fail_streak = 0
+        on_ok(page)
+    end
+
     local function fail(err)
-        if not retried and key() ~= "" then
+        fail_streak = fail_streak + 1
+        if not retried and key() ~= "" and fail_streak &gt;= REAUTH_AFTER then
             local name = U.charname()
             if not name or name == "" then
                 U.warn("Loot Tracker: request failed and no character name to re-auth with.")
                 return
             end
+            fail_streak = 0
             cfg().authkey = ""      -- discard the possibly-dead key first
             save()
-            U.note("Loot Tracker: request rejected, re-registering '" .. name .. "'...")
+            U.note("Loot Tracker: request rejected " .. REAUTH_AFTER .. "x in a row, re-registering '" .. name .. "'...")
             register(name, function(ok)
                 if ok then loot_request(method, body, on_ok, true)
                 else U.warn("Loot Tracker: sync aborted - couldn't get a valid key.") end
             end)
         else
+            -- A retry that fails has already had its one re-auth, so don't let
+            -- its count carry forward and shorten the run-up to the next one.
+            if retried then fail_streak = 0 end
             U.warn("Loot Tracker: sync failed (" .. tostring(err) .. "). Run it again to resume.")
         end
     end
 
     if method == "POST" then
-        post(url, body, headers, on_ok, fail)
+        post(url, body, headers, ok_wrap, fail)
     else
-        get(url, headers, on_ok, fail)
+        get(url, headers, ok_wrap, fail)
     end
 end
 
@@ -1556,16 +1623,8 @@ local function row_out(r)
     return o
 end
 
-local function pending_of(name)
-    local r = db:fetch(T[name], db:eq(T[name].synced, 0))
-    return r and #r or 0
-end
-
-local function pending_all()
-    local n = 0
-    for _, t in ipairs(SHARE_ORDER) do n = n + pending_of(t) end
-    return n
-end
+local pending_of  = LT.pending_of
+local pending_all = LT.pending_all
 
 -- The next unsynced slice of `name`, taking as many rows as fit in MAX_BODY.
 -- A sent row gets marked synced so it drops out of the next query - that's what
@@ -1659,11 +1718,24 @@ function LT.update()
         local added, seen = 0, 0
         for _, name in ipairs(SHARE_ORDER) do
             local arr = data[name]
-            if type(arr) == "table" then
+            local cols = LT.COLS and LT.COLS[name]
+            if type(arr) == "table" and cols then
                 for _, o in ipairs(arr) do
                     if type(o) == "table" and o.item then
-                        o.synced = 1        -- came from the pool; don't ship it back
-                        if pcall(db.add, db, T[name], o) then added = added + 1 end
+                        -- whitelist against the sheet's real columns -- the pool
+                        -- server hands back a parsed JSON object verbatim, and
+                        -- db:_sql_fields does not escape column names, so an
+                        -- unfiltered key here is SQL injection via the pool
+                        local row = {}
+                        for k, v in pairs(o) do
+                            if cols[k] then row[k] = v end
+                        end
+                        row.synced = 1      -- came from the pool; don't ship it back
+                        -- db:add returns nil,msg on a unique-index rejection rather than
+                        -- erroring, so pcall alone always looks like success -- check the
+                        -- actual return
+                        local ok3, added3 = pcall(db.add, db, T[name], row)
+                        if ok3 and added3 then added = added + 1 end
                         seen = seen + 1
                     end
                 end

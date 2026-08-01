@@ -711,6 +711,15 @@ local function sync_row()
     if line:find("special affects") or line:find("^You are affected by %d")
        or line:find("^You are not affected") then
         sync_stop()
+        -- 'aff' just told us everything that's actually up - anything else that's
+        -- a spellup is down, whether or not it's ever been cast this session. Without
+        -- this, downcount() only counts spells that have gone through an affon/affoff
+        -- cycle, so a fresh login sits under threshold forever even with nothing up.
+        for _, id in ipairs(SP.spellups()) do
+            if not SP.affect[id] and not SP.nope[id] then
+                SP.dropped[id] = SP.dropped[id] or os.time()
+            end
+        end
         U.ok("Spellups: synced " .. synced .. " running affect(s) from 'aff'.")
         return
     end
@@ -789,6 +798,8 @@ end
 -- expiry warnings
 ---
 
+local MARKS = { 30, 10 }   -- hoisted so this doesn't build a fresh table every spell, every tick
+
 function SP.tick()
     if not (CFG.warn30 or CFG.warn10) then return end
     for num in pairs(SP.affect) do
@@ -796,7 +807,7 @@ function SP.tick()
         if d then
             local s = SP.skills[num]
             warned[num] = warned[num] or {}
-            for _, mark in ipairs({ 30, 10 }) do
+            for _, mark in ipairs(MARKS) do
                 local want = (mark == 30 and CFG.warn30) or (mark == 10 and CFG.warn10)
                 if want and d &lt;= mark and not warned[num][mark] then
                     warned[num][mark] = true
@@ -832,7 +843,7 @@ SP.panel = panel
 
 -- MMM:SS, zero-padded so the column doesn't jitter as it counts down. The panel
 -- repaints every second, so this is a live clock, not a snapshot.
-function fmt(secs)
+local function fmt(secs)
     secs = math.max(0, math.floor(secs or 0))
     return string.format("%03d:%02d", math.floor(secs / 60), secs % 60)
 end
@@ -1156,7 +1167,13 @@ function SP.on_login()
     end)
 end
 
-function SP.on_disconnect() greeted = false end
+-- downcount() sums SP.dropped; leaving it alone across a disconnect means the
+-- moment you're back and U.playing() goes true, autocast fires off whatever
+-- debt was outstanding before you dropped, before 'aff' has re-synced anything
+function SP.on_disconnect()
+    greeted = false
+    SP.dropped = {}
+end
 
 do
     local n = SP.loadskills()
@@ -1240,6 +1257,7 @@ end
 -- why it isn't firing, or nil if nothing's stopping it
 function SP.auto_blocked()
     if not AC.on then return "switched off" end
+    if not U.playing() then return "not logged in" end   -- don't fire at the login prompt
     if aardkit.whopoll and aardkit.whopoll.afk then return "you're flagged AFK" end
     if os.time() &lt; backoff then return "backing off (" .. (backoff - os.time()) .. "s)" end
     if fighting() and not AC.combat then return "in combat" end

@@ -26,6 +26,7 @@ that every module here builds on. Without it nothing else loads.
 | `(panel) click a target` | selects it; the buttons below act on it |
 | `snd next` | walk to the first target listed |
 | `ah <mob>` | auto-hunt: follow the MUD's hunt skill to it |
+| `snd hunt <mob>` | same as `ah <mob>` — the alias just calls this |
 | `aha` | cancel the hunt |
 | `snd status` | row counts for mobs/areas/keywords, scan state |
 | `snd mob <kw>` | rooms a mob was seen in, clickable [go] |

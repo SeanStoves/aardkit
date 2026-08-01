@@ -1,6 +1,6 @@
 # Aardkit Core
 
-Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag.
+Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. Also switches off the stock AardwolfMudlet aliases that would otherwise fight ours, with `aardkit stock` to flip any one of them back on.
 
 ## Install
 
@@ -18,6 +18,8 @@ Shared foundation every other module builds on: the panel manager, saved state u
 |---|---|
 | `aardkit` | lists core commands and every registered module |
 | `aardkit plugins` | names of loaded modules |
+| `aardkit stock` | what we switch off in the stock AardwolfMudlet module |
+| `aardkit stock on\|off <alias>` | toggle one back on or off |
 | `aardkit probe` | reports which Mudlet Lua functions exist here |
 | `panel` | lists panels with mode and visibility |
 | `panel <name>` | toggles that panel |

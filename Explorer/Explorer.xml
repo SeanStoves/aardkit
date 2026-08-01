@@ -324,10 +324,16 @@ function EX.build_svg(title, levels, subtitle)
                 if f[name] then used.marks[ch] = true end
             end
         end
+        -- must match draw_level's rank()-collapsed indices, not raw room x/y - rank()
+        -- squeezes out empty rows/columns, so two rooms that are "far" on the raw grid
+        -- can end up adjacent post-collapse (and draw_level is what actually decides
+        -- whether a grey dot gets drawn)
+        local xi = rank(lv.rooms, "x")
+        local yi = rank(lv.rooms, "y")
         for _, l in ipairs(lv.links) do
             if l.door then used.door = true end
             local a, b = lv.rooms[l.from], lv.rooms[l.to]
-            if l.special or (a and b and (math.abs(a.x - b.x) &gt; 1 or math.abs(a.y - b.y) &gt; 1)) then
+            if l.special or (a and b and (math.abs(xi[a.x] - xi[b.x]) &gt; 1 or math.abs(yi[a.y] - yi[b.y]) &gt; 1)) then
                 used.far = true
             end
         end
@@ -480,8 +486,11 @@ function EX.collect(areaid)
                 -- real level change; note it rather than drawing a fake diagonal
                 ud[#ud + 1] = (dir == "up") and "↑" or "↓"
             end
-            -- an exit leaving the area is where you come in from
-            if not mine[dest] then entrance = true end
+            -- an exit leaving the area is where you come in from - check the actual area,
+            -- not just presence in mine[], since mine[] only holds rooms getRoomCoordinates
+            -- returned x for. An uncharted same-area room (e.g. an unmapped up/down floor)
+            -- would also be missing from mine[] and got misread as a false entrance
+            if getRoomArea(dest) ~= areaid then entrance = true end
         end
         table.sort(ud)
 

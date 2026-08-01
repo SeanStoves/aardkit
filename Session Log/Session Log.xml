@@ -107,9 +107,12 @@ function L.normalise(quiet)
     local moved, clashed = 0, 0
     for _, f in ipairs(lfs.dir and {} or {}) do end   -- placeholder; real walk below
 
+    local pfx = profile() .. "-"
     for f in lfs.dir(dir) do
         local stem, ext = f:match("^(.+)%.([%a]+)$")
-        if stem and (ext == "html" or ext == "txt") and not stem:find("^" .. profile() .. "%-") then
+        -- plain compare, not find() - profile() can have a hyphen in it (e.g. "Aardwolf-Solao"),
+        -- and splicing that into a pattern turns the embedded "-" into a lazy quantifier, not a literal dash
+        if stem and (ext == "html" or ext == "txt") and stem:sub(1, #pfx) ~= pfx then
             local want = target_name(stem)
             if want then
                 local from, to = dir .. "/" .. f, dir .. "/" .. want .. "." .. ext

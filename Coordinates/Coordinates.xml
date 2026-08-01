@@ -180,10 +180,15 @@ end
 
 local function learn(dx, dy, dir)
     local a = CFG.axis or {}
+    local newdir
     if (dir == "east" or dir == "west") and dx ~= 0 and dy == 0 then
-        a.xdir = (dx &gt; 0) == (dir == "east") and "east" or "west"
+        newdir = (dx &gt; 0) == (dir == "east") and "east" or "west"
+        if a.xdir == newdir then return end   -- already learned - don't hit disk on every step
+        a.xdir = newdir
     elseif (dir == "north" or dir == "south") and dy ~= 0 and dx == 0 then
-        a.ydir = (dy &gt; 0) == (dir == "north") and "north" or "south"
+        newdir = (dy &gt; 0) == (dir == "north") and "north" or "south"
+        if a.ydir == newdir then return end
+        a.ydir = newdir
     else
         return
     end
@@ -191,8 +196,20 @@ local function learn(dx, dy, dir)
     U.save("coords", CFG)
 end
 
+-- Ambiguity is sticky until a tag clears it. Toggling last.dir on truthiness
+-- only covered exactly two in-flight moves: a third arriving before any tag
+-- came back found it nil again, re-armed, and taught the axis from a direction
+-- that didn't produce that tag. Three in flight isn't exotic - the speedwalker
+-- sends a step every 0.25s regardless of whether the last one's tag has
+-- returned, so any lag over that stacks them up.
+--
+-- on_coords clears both when a tag lands, so this only has to refuse to guess.
 function CO.on_move(dir)
-    last.dir = dir
+    if last.dir ~= nil or last.muddled then
+        last.dir, last.muddled = nil, true
+    else
+        last.dir = dir
+    end
 end
 
 ---
@@ -208,7 +225,7 @@ function CO.on_coords(zone, x, y)
     if last.x and x and last.dir then
         learn(x - last.x, y - last.y, last.dir)
     end
-    last.x, last.y, last.dir = x, y, nil
+    last.x, last.y, last.dir, last.muddled = x, y, nil, false
 
     CO.zone, CO.x, CO.y = zone, x, y
     CO.stamp()
@@ -271,7 +288,9 @@ end
 function CO.stamp()
     -- 'off' used to save and then do nothing at all: the panel kept updating and
     -- the only way to be rid of it was 'panel coords hide'.
-    if CFG.show == "off" then panel:hide(); return end
+    -- panel:hide() saves panel state to disk unconditionally, so once it's
+    -- already hidden don't call it again on every single room move.
+    if CFG.show == "off" then if panel:visible() then panel:hide() end; return end
 
     if not inzone() then settitle("Location: -"); return end
     if CFG.show == "coordareas" and not invidblain() then
@@ -353,21 +372,36 @@ function CO.cmd(arg)
 
     else
         local x, y = arg:match("^%s*(%-?%d+)%s*,%s*(%-?%d+)%s*$")
+        local found
         if x then
-            CFG.target = { name = x .. "," .. y, x = tonumber(x), y = tonumber(y) }
+            found = { name = x .. "," .. y, x = tonumber(x), y = tonumber(y) }
         else
             local k = arg:lower()
-            for name, c in pairs(KNOWN) do
-                if name:find(k, 1, true) then
-                    CFG.target = { name = name, x = c[1], y = c[2] }
-                    break
+            if KNOWN[k] then
+                found = { name = k, x = KNOWN[k][1], y = KNOWN[k][2] }
+            else
+                -- substring fallback, but only when it's unambiguous - pairs()
+                -- iteration order over KNOWN isn't guaranteed, so a bare substring
+                -- match used to resolve to whichever name the hash visited first,
+                -- and something like 'r' matches 5 of the 6 names
+                local hits = {}
+                for name in pairs(KNOWN) do
+                    if name:find(k, 1, true) then hits[#hits + 1] = name end
+                end
+                if #hits &gt; 1 then
+                    table.sort(hits)
+                    U.warn("'" .. arg .. "' matches " .. table.concat(hits, ", ") .. " - be more specific.")
+                    return
+                elseif #hits == 1 then
+                    found = { name = hits[1], x = KNOWN[hits[1]][1], y = KNOWN[hits[1]][2] }
                 end
             end
         end
-        if not CFG.target or (x == nil and not CFG.target.name:find(arg:lower(), 1, true)) then
+        if not found then
             U.warn("Don't know '" .. arg .. "'. Try 'coord' for the list, or 'coord 11,8'.")
             return
         end
+        CFG.target = found
         U.save("coords", CFG)
         U.ok("Target " .. CFG.target.name .. " at " .. CFG.target.x .. "," .. CFG.target.y
             .. (CO.delta() and ("  -  " .. CO.delta()) or ""))

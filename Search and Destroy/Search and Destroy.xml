@@ -422,19 +422,8 @@ local T = SD.t
 -- capture (off by default; the trigger is disabled until 'snd scan on')
 ---
 
--- strip the transient status flags Aardwolf prefixes -- "(flying) a casanova"
-local function strip_flags(m)
-    local s = tostring(m or "")
-    while true do
-        local n = s:gsub("^%s*%b()%s*", "", 1)
-        if n == s then break end
-        s = n
-    end
-    return U.trim(s)
-end
-
 function SD.on_scan(mob)
-    mob = strip_flags(mob)
+    mob = U.strip_flags(mob)
     if mob == "" then return end
     local roomid, room, zone = U.room()
     if not roomid then return end
@@ -471,7 +460,7 @@ function SD.where(term)
     -- merge per mob name so one line covers every room it's been seen in
     local agg, order = {}, {}
     for _, r in ipairs(rows) do
-        local nm = strip_flags(r.mob)
+        local nm = U.strip_flags(r.mob)
         local a = agg[nm]
         if not a then
             a = { name = nm, zone = r.zone or "", room = r.room or "", ids = {}, seen = {}, cnt = 0 }
@@ -568,8 +557,10 @@ function SD.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
     if verb == "" then
-        SD.paint()
+        -- toggle first: SD.paint() now skips the work while the panel's
+        -- hidden, so painting before show() left stale content on screen
         SD.panel:toggle()
+        SD.paint()
 
     elseif verb == "status" then
         local m = db:fetch(T.mobs) or {}
@@ -744,10 +735,12 @@ function SD.locate(name)
     local n = U.trim(name or ""):lower()
     if n == "" then return nil end
 
-    local rows = T.mobs and db:fetch(T.mobs, db:like("mob", n)) or {}
+    -- db:like reads field.name off the column object. A bare string has no
+    -- .name, so this errored on every call and mob lookup never worked at all.
+    local rows = T.mobs and db:fetch(T.mobs, db:like(T.mobs.mob, n)) or {}
     if #rows == 0 then
         local bare = n:gsub("^an? ", ""):gsub("^the ", "")
-        rows = db:fetch(T.mobs, db:like("mob", "%" .. bare .. "%"))
+        rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. bare .. "%"))
     end
     if #rows == 0 then return nil end
 
@@ -807,11 +800,21 @@ end
 SD.cp_stop = cp_stop
 
 local function cp_start()
-    SD.targets.campaign = {}
     SD.kind = "campaign"
+    -- if a block is already mid-flight (some lines gagged/deleted already,
+    -- closing 'time remaining' line not in yet) a re-check hitting this again
+    -- - the panel's button, or 'cp info' banner firing while 'cp check' output
+    -- is still streaming - used to wipe the array out from under the capture
+    -- in progress and lose what it already swallowed. Just buy it more time
+    -- instead of clearing what's there.
+    if capturing then
+        if cp_timer then killTimer(cp_timer) end
+        cp_timer = tempTimer(12, cp_stop)
+        return
+    end
+    SD.targets.campaign = {}
     capturing = true
     gagged = false
-    if cp_timer then killTimer(cp_timer) end
     cp_timer = tempTimer(12, cp_stop)
 end
 
@@ -884,7 +887,9 @@ function SD.on_cp_target(name, area)
     if TCFG.rewrite then deleteLine(); gagged = true end
     local e, isnew = add("campaign", name, area, 1)
     if e and not isnew then e.qty = (e.qty or 1) + 1 end
-    if SD.paint then SD.paint() end
+    -- cp_stop() repaints once the block closes - a 'cp check' streams 10-15
+    -- lines, and painting on every single one is a full redraw of all 3 tabs
+    -- and every visible row for something the user can't even see mid-stream
 end
 
 function SD.rewriting(v)
@@ -953,16 +958,35 @@ end
 -- The congratulations line doesn't name what you killed, so read back up the
 -- buffer for the death line that came with it. Cheaper and more honest than
 -- re-sending 'campaign check' after every kill.
-local DEATH = { "^(.+) is DEAD!!$", "^(.+) is slain by .+!!$" }
+--
+-- Aardwolf has dozens of finishing-move flavor lines - "collapses as the life
+-- is hammered out of him", "the acidic venom flays X's skin from his bones",
+-- "the final deadly circle turns X into food for the worms" - and chasing all
+-- of them with regexes is a losing game. What we actually need is simpler:
+-- does one of the lines we just saw report a death AND name a mob we're still
+-- owed? That also dodges the level-up/skillgain spam XP dumps between the
+-- death line and the congratulations line - checked against the play logs
+-- that gap runs past 10 lines (level-up + 2 skill gains), so this looks back
+-- 30 instead of the 6 that missed it.
+local DEATH_MARK = { "is dead", "is slain by" }
 
 function SD.on_camp_kill(kind)
     local n = getLineNumber and getLineNumber()
     if not n then return end
-    local lines = getLines(math.max(0, n - 6), n) or {}
+    local lines = getLines(math.max(0, n - 30), n) or {}
     for i = #lines, 1, -1 do
-        for _, pat in ipairs(DEATH) do
-            local who = lines[i]:match(pat)
-            if who then SD.on_kill(who, kind); return end
+        local low = lines[i]:lower()
+        local isdeath = false
+        for _, m in ipairs(DEATH_MARK) do
+            if low:find(m, 1, true) then isdeath = true; break end
+        end
+        if isdeath then
+            for _, e in ipairs(list(kind)) do
+                if not e.killed and low:find(e.name:lower(), 1, true) then
+                    SD.on_kill(e.name, kind)
+                    return
+                end
+            end
         end
     end
 end
@@ -1041,6 +1065,7 @@ local CFG = U.load("sndhunt", { gap = 0.4, maxsteps = 120 })
 
 local trigs, mob, steps, lastdir = {}, nil, 0, nil
 local opening = false   -- mid door-open, so a stray 'You open' can't move us
+local rehunt_t   -- pending 0.4s re-hunt timer from step(), see SD.hunt_stop()
 
 local function untrig()
     for _, id in ipairs(trigs) do pcall(killTrigger, id) end
@@ -1059,6 +1084,10 @@ function SD.hunt_stop(why, good)
     if not mob then return end
     local m = mob
     untrig()
+    -- SD.hunt() reassigns mob to the NEW target right after this returns, and
+    -- the guard in step()'s timer only checks "if mob" - a stale timer from
+    -- the OLD hunt would still be armed and would fire "hunt &lt;new mob&gt;" early
+    if rehunt_t then killTimer(rehunt_t); rehunt_t = nil end
     mob, steps, lastdir, opening = nil, 0, nil, false
     if good then
         U.ok("Auto-hunt: found " .. m .. ".")
@@ -1080,7 +1109,9 @@ local function step(dir)
     end
     lastdir = dir
     send(dir, false)
-    tempTimer(CFG.gap, function()
+    if rehunt_t then killTimer(rehunt_t) end
+    rehunt_t = tempTimer(CFG.gap, function()
+        rehunt_t = nil
         if mob then send("hunt " .. mob, false) end
     end)
 end
@@ -1111,8 +1142,18 @@ function SD.hunt(name)
     arm([[^You are (?:almost )?certain that .+ is (north|south|east|west|up|down) from here\.$]],
         function() step(matches[2]) end)
 
-    -- arrived
-    arm([[^\w.+ is here!$]], function() SD.hunt_stop(nil, true) end)
+    -- arrived - anchored to the mob actually being hunted. The MUD prints an
+    -- "X is here!" line for every mob in the room, not just the one hunted -
+    -- grep the play logs and "A bandit is here!" turns up as an ordinary room
+    -- bystander with no hunt anywhere nearby - so this used to stop the hunt
+    -- on whatever mob happened to be co-located. Building a regex out of a
+    -- MUD-typed keyword risks apostrophes/parens in the name breaking the
+    -- pattern, so match the line generically and check the name ourselves.
+    arm([[^.+ is here!$]], function()
+        if matches[1] and matches[1]:lower():find(low, 1, true) then
+            SD.hunt_stop(nil, true)
+        end
+    end)
 
     -- Under 85% hunt skill the MUD hedges, and the direction it gives is a
     -- guess. Following a guess is how you end up three areas away.
@@ -1222,11 +1263,17 @@ local U  = aardkit.util
 
 local WCFG = U.load("sndwalk", { arrive = 45, where = 4, gap = 0.25 })
 
-local arrive_h, arrive_t, where_trigs, where_t
+local arrive_h, arrive_t, where_trigs, where_t, step_t
 
 local function drop_arrive()
     if arrive_h then U.killhandler(arrive_h); arrive_h = nil end
     if arrive_t then killTimer(arrive_t); arrive_t = nil end
+    -- the per-step send timers below were never tracked, so switching targets
+    -- (or walk_stop()) mid-walk left the old walk's queued moves live - they'd
+    -- fire later and get sent as if they belonged to whatever walk was current
+    -- at the time, since the guard inside only checked the shared arrive_h
+    for _, id in ipairs(step_t or {}) do pcall(killTimer, id) end
+    step_t = nil
 end
 
 local function drop_where()
@@ -1289,8 +1336,9 @@ function SD.walk(dest, cb, what)
 
     U.note("Walking " .. #steps .. " room(s) to " .. (what or U.rid(dest))
         .. " (" .. #cmds .. " command" .. (#cmds == 1 and "" or "s") .. ").")
+    step_t = {}
     for i, c in ipairs(cmds) do
-        tempTimer(WCFG.gap * (i - 1), function()
+        step_t[#step_t + 1] = tempTimer(WCFG.gap * (i - 1), function()
             if arrive_h then send(c, false) end   -- stops the moment we arrive
         end)
     end
@@ -1367,7 +1415,7 @@ function SD.area_room(areaname)
 
     local T = SD.t
     if T and T.area then
-        local rows = db:fetch(T.area, db:like("name", "%" .. areaname .. "%"))
+        local rows = db:fetch(T.area, db:like(T.area.name, "%" .. areaname .. "%"))
         for _, r in ipairs(rows or {}) do
             local s = tonumber(r.startRoom)
             if s and s &gt; 0 and roomExists(s) then return s, r.name end
@@ -1428,7 +1476,7 @@ end
 function SD.area_key(areaname)
     local T = SD.t
     if not (T and T.area) or not areaname or areaname == "" then return nil end
-    local rows = db:fetch(T.area, db:like("name", "%" .. areaname .. "%"))
+    local rows = db:fetch(T.area, db:like(T.area.name, "%" .. areaname .. "%"))
     for _, r in ipairs(rows or {}) do
         if r.key and r.key ~= "" then return r.key, r.name end
     end
@@ -1439,6 +1487,16 @@ end
 ---
 
 function SD.where(mob, cb)
+    -- mob is raw text the MUD printed back to us (targets.lua's add() only
+    -- U.trim()s it) and send() honours Mudlet's command separator, not just
+    -- ALIAS matching - a mob name that happened to contain it would smuggle a
+    -- second command in on the tail of 'where'. 'where' takes free text
+    -- ("kul tiras", "dirty old man") so unlike the hunt/kill buttons this
+    -- can't collapse to one keyword; just strip the separator itself.
+    local sep = getCommandSeparator and getCommandSeparator() or ";"
+    if sep ~= "" then mob = (mob or ""):gsub(sep:gsub("(%W)", "%%%1"), " ") end
+    mob = U.trim(mob)
+
     drop_where()
     where_trigs = {}
     local done = false
@@ -1586,29 +1644,47 @@ local KINDS = { "quest", "campaign", "gquest" }
 local LABEL = { quest = "Quest", campaign = "Campaign", gquest = "GQuest" }
 local SHORT = { quest = "Q", campaign = "CP", gquest = "GQ" }
 
+-- widget caches, declared ahead of panel.new() below so its onbuild closure
+-- closes over these locals and not globals of the same name
+local tabs, rows, foot = {}, {}, nil
+local seltxt, btns = nil, {}
+
 local panel = aardkit.panel.new({
     name = "snd", title = "Search &amp; Destroy",
     x = "10px", y = "560px", width = 380, height = 300,
     consoleless = true,
     -- laid out by hand, so it has to be told when the panel changes size
     onresize = function() if aardkit.snd.paint then aardkit.snd.paint() end end,
+    -- Panel:_build() swaps panel.container for a brand-new Geyser object on
+    -- every dock/embed switch, but tab_label/row_label/button below cache
+    -- their Labels by hand and were never told - a mode switch left them
+    -- pointing at widgets inside the OLD, now-hidden container, and paint()'s
+    -- "if not cached, make one" kept right on reusing the orphaned ones.
+    onbuild = function()
+        tabs, rows, btns, seltxt = {}, {}, {}, nil
+        if aardkit.snd.paint then aardkit.snd.paint() end
+    end,
 })
 
 SD.panel = panel
 
-local tabs, rows, foot = {}, {}, nil
-local seltxt, btns = nil, {}
-
 -- which row the buttons act on. Kept per tab so switching tabs and back doesn't
--- lose your place.
+-- lose your place. Keyed on the target's NAME, not its index - cp_start() and
+-- on_quest_target() wipe and rebuild SD.targets[kind] on every re-check, and
+-- the MUD doesn't promise the same order back, so an index picked before a
+-- refresh can point at a different mob after one. A name survives the rebuild.
 SD.aim = SD.aim or {}
 -- first visible row per tab; the list is a window onto the targets, not all of them
 SD.top = SD.top or {}
 
 function SD.aimed()
-    local i = SD.aim[SD.kind]
-    local e = i and (SD.targets[SD.kind] or {})[i]
-    if e then return e, i end
+    local nm = SD.aim[SD.kind]
+    if not nm then return nil end
+    for i, e in ipairs(SD.targets[SD.kind] or {}) do
+        if e.name == nm then return e, i end
+    end
+    -- the mob it pointed at is gone - killed, or fell out on a refresh
+    SD.aim[SD.kind] = nil
 end
 
 local function style(bg, border)
@@ -1616,13 +1692,10 @@ local function style(bg, border)
         "background-color: %s; border: 1px solid %s; border-radius: 3px;", bg, border or COL.border)
 end
 
-local function num(v)
-    return tonumber((tostring(v or "0"):gsub("px", ""))) or 0
-end
 
 local function width()
     local c = panel.container
-    local w = c and num(c.get_width and c:get_width() or c.width) or 360
+    local w = c and U.px(c.get_width and c:get_width() or c.width) or 360
     return w &lt; 60 and 360 or w
 end
 
@@ -1647,7 +1720,9 @@ function SD.on_rowclick(slot)
 end
 
 function SD.on_row(i)
-    SD.aim[SD.kind] = (SD.aim[SD.kind] == i) and nil or i
+    local e = (SD.targets[SD.kind] or {})[i]
+    if not e then return end
+    SD.aim[SD.kind] = (SD.aim[SD.kind] == e.name) and nil or e.name
     SD.paint()
 end
 
@@ -1716,9 +1791,6 @@ local function tab_label(i, kind)
     return tabs[i]
 end
 
--- Geyser.ScrollBox is a real scrolling container - children can sit past its
--- bottom edge and it scrolls to them - so every target gets a row and the list
--- stops being capped at whatever fits.
 -- Geyser.ScrollBox was tried here and is wrong for this: nested inside an
 -- Adjustable.Container it draws its scrollbar against the main window rather
 -- than the panel, and the rows and buttons land outside the frame. So the list
@@ -1750,6 +1822,7 @@ end
 
 function SD.paint()
     if not panel.container then return end
+    if not panel:visible() then return end   -- hidden panel, skip the Geyser work
     local w = width()
 
     local tw = math.floor((w - PAD * 4) / #KINDS)
@@ -1770,7 +1843,7 @@ function SD.paint()
 
     local t = SD.targets[SD.kind] or {}
     local top  = PAD * 2 + TAB_H
-    local ph   = num(panel.container and (panel.container.get_height
+    local ph   = U.px(panel.container and (panel.container.get_height
                  and panel.container:get_height() or panel.container.height))
     -- what's left once the tabs, the selection line and the buttons are out. The
     -- buttons take two rows when the panel is too narrow for four across.
@@ -1791,7 +1864,7 @@ function SD.paint()
         local e = t[i]
         slot = slot + 1
         local l = row_label(slot)
-        local on = (SD.aim[SD.kind] == i)
+        local on = (SD.aim[SD.kind] == e.name)
         l:move(PAD, top + (slot - 1) * ROW_H)
         l:resize(iw - PAD * 2, ROW_H - 2)
         l:setStyleSheet(style(on and COL.sel or COL.row, on and COL.accent or COL.border))

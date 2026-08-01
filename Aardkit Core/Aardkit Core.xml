@@ -118,9 +118,22 @@ aardkit.util = U
 ---
 
 -- everything we persist lives under &lt;profile&gt;/aardkit/
+--
+-- lfs.mkdir returns nil plus a message when it can't - a read-only profile, no
+-- permission - and we used to throw that away. Every save after it then failed
+-- too, and with U.save's old fail-open that was two silent failures stacked:
+-- nothing persisted all session and nothing said so. Say it once.
+local dirwarned = false
+
 function U.datadir()
     local d = getMudletHomeDir() .. "/aardkit"
-    if not io.exists(d) then lfs.mkdir(d) end
+    if not io.exists(d) then
+        local ok, err = lfs.mkdir(d)
+        if not ok and not io.exists(d) and not dirwarned then
+            dirwarned = true
+            U.err("can't create " .. d .. " (" .. tostring(err) .. ") - nothing will be saved this session")
+        end
+    end
     return d
 end
 
@@ -132,18 +145,35 @@ end
 -- persistence — one table per key, saved as a Lua chunk
 ---
 
--- table.save does NOT error when it can't open the file - it returns nil plus a
--- message (mudlet-lua/Other.lua). So pcall's ok flag says "didn't crash", not
--- "wrote", and a full disk or a read-only profile reported success while your
--- settings quietly went nowhere. Check what it actually returned.
+-- Two things were wrong here. table.save does NOT error when it can't open the
+-- file - it returns nil plus a message (mudlet-lua/Other.lua) - so pcall's ok
+-- flag said "didn't crash", not "wrote", and a read-only profile reported
+-- success while the settings went nowhere.
+--
+-- And it wrote in place. Write beside the real file, then rename over it. table.save opens the target
+-- with "w", which truncates first and writes after, so a crash or a full disk
+-- mid-write left a half-file - and since a half-file won't parse, the next load
+-- fell back to code defaults and you lost the lot. rename is atomic on the same
+-- filesystem, so the old file stands until the new one is complete.
 function U.save(key, tbl)
     local path = U.datafile(key .. ".lua")
+    local tmp  = path .. ".new"
+
     -- three outcomes: it raised (ok false, a is the error), it returned nil plus
     -- a message (ok true, b is the message), or it returned nothing and wrote.
-    local ok, a, b = pcall(table.save, path, tbl)
+    local ok, a, b = pcall(table.save, tmp, tbl)
     local why = (not ok and a) or b
+    if not why and not io.exists(tmp) then why = "wrote nothing" end
     if why then
+        os.remove(tmp)
         aardkit.util.err("save " .. key .. ": " .. tostring(why))
+        return false
+    end
+
+    local moved, rerr = os.rename(tmp, path)
+    if not moved then
+        os.remove(tmp)
+        aardkit.util.err("save " .. key .. ": " .. tostring(rerr))
         return false
     end
     return true
@@ -153,9 +183,37 @@ end
 -- truncated or half-written state file costs you the saved values, not the keys.
 -- Without this a bad file returns an empty table and the first plugin that does
 -- arithmetic on a config field dies at load time and takes itself out.
-function U.load(key, default)
+--
+-- The floor goes all the way down. It used to stop at the top level, so a nested
+-- default was replaced wholesale rather than filled in: once anything had saved
+-- 40_stock's { off = { ["runto rt"] = true } }, adding a second entry to that
+-- table in code did nothing for anyone who already had a state file, because
+-- their saved `off` overwrote the whole default including the new key.
+--
+-- Arrays are a deliberate exception. Merging a saved 3-item list over a 5-item
+-- default leaves items 4 and 5 showing through, which is never what a list
+-- means - if you removed two entries you want them gone.
+local function layer(base, over)
+    for k, v in pairs(over) do
+        if type(v) == "table" and type(base[k]) == "table" and #v == 0 and #base[k] == 0 then
+            layer(base[k], v)
+        else
+            base[k] = v
+        end
+    end
+    return base
+end
+
+local function clone(t)
     local out = {}
-    for k, v in pairs(default or {}) do out[k] = v end
+    for k, v in pairs(t or {}) do
+        out[k] = (type(v) == "table") and clone(v) or v
+    end
+    return out
+end
+
+function U.load(key, default)
+    local out = clone(default)
 
     local path = U.datafile(key .. ".lua")
     if not io.exists(path) then return out end
@@ -165,8 +223,58 @@ function U.load(key, default)
         U.warn("couldn't read " .. key .. ".lua - using defaults")
         return out
     end
-    for k, v in pairs(t) do out[k] = v end
-    return out
+    return layer(out, t)
+end
+
+-- Geyser hands geometry back as either a number or a "420px" string depending
+-- on which accessor you reach for, so every panel that lays itself out by hand
+-- needs this. snd/ui.lua and recallmanager both had their own identical copy.
+function U.px(v)
+    return tonumber((tostring(v or "0"):gsub("px", ""))) or 0
+end
+
+-- Aardwolf prefixes transient status flags onto a mob's short description -
+-- "(flying) (hidden) a casanova". Anything keying on the name has to take them
+-- off first, so this lives here rather than in whichever module needed it
+-- first: S&amp;D and SolaoBot had byte-identical copies and ship separately.
+function U.strip_flags(m)
+    local s = tostring(m or "")
+    while true do
+        local n = s:gsub("^%s*%b()%s*", "", 1)
+        if n == s then break end
+        s = n
+    end
+    return U.trim(s)
+end
+
+---
+-- gagging
+--
+-- Two gags that both match a line each call deleteLine() on it, and the second
+-- call doesn't hit the line that's already gone - it takes the one after. That
+-- is where the blank gaps come from, and it is not hypothetical: it happened
+-- inside 30_tags (the block catch-all and the closing-marker trigger both fire
+-- on '{/tag}'), and it happens across modules whenever whopoller's poll window
+-- overlaps anyone else's.
+--
+-- So nothing calls deleteLine directly any more. A line can be claimed once,
+-- and whoever gets there first owns it.
+---
+
+local gagged_line = nil
+
+function U.gag()
+    local n = U.has("getLineNumber") and getLineNumber() or nil
+    if n and n == gagged_line then return false end
+    gagged_line = n
+    deleteLine()
+    return true
+end
+
+-- has this line already been swallowed by someone else this cycle?
+function U.gagged()
+    local n = U.has("getLineNumber") and getLineNumber() or nil
+    return n ~= nil and n == gagged_line
 end
 
 ---
@@ -293,7 +401,17 @@ end
 -- a self-rearming tempTimer keyed on a generation counter is no more code.
 U.timers = U.timers or {}
 
+-- The generation counter is what lets U.unevery cancel a chain, but it also
+-- means a second caller using the same key silently stops the first: its tick
+-- sees a bumped generation and just doesn't rearm. Re-arming your OWN timer is
+-- the normal case, so only say something when the function is a different one.
+U.timerfn = U.timerfn or {}
+
 function U.every(key, secs, fn)
+    if U.timerfn[key] and U.timerfn[key] ~= fn and U.timers[key] then
+        U.warn("timer '" .. tostring(key) .. "' is already in use - the earlier one has stopped")
+    end
+    U.timerfn[key] = fn
     U.timers[key] = (U.timers[key] or 0) + 1
     local gen = U.timers[key]
     local function tick()
@@ -641,9 +759,19 @@ function Panel:setmode(mode)
     st(self.name).mode = mode
     self:_build()
 
-    -- the new console pulled the scrollback across in _build; drop the old shell
-    if oldcon then oldcon:hide() end
-    if oldholder then oldholder:hide() end
+    -- The new console pulled the scrollback across in _build, so the old shell
+    -- is finished. Hiding it only made it invisible - the Geyser objects, their
+    -- Mudlet windows and their click callbacks all stayed alive, so every
+    -- dock/embed toggle left another full widget tree behind for the session.
+    -- Geyser.Container:delete() is real (geyser/GeyserContainer.lua:388); pcall
+    -- it anyway because not every class inherits it.
+    local function drop(o)
+        if type(o) ~= "table" then return end
+        if type(o.delete) == "function" and pcall(function() o:delete() end) then return end
+        pcall(function() o:hide() end)
+    end
+    drop(oldcon)
+    drop(oldholder)
 
     if self:visible() then self:show() else self:hide() end
     save_state()
@@ -718,7 +846,10 @@ function P.new(spec)
     assert(spec and spec.name, "panel needs a name")
 
     local p = setmetatable({}, Panel)
-    p.name       = spec.name
+    -- P.get and the 'panel &lt;name&gt;' command both lower-case what they look up
+    -- (U.split_verb forces it), so a panel registered with any capital was
+    -- addressable by nothing. Normalise once, here.
+    p.name       = tostring(spec.name):lower()
     p.title      = spec.title or spec.name
     p.x          = spec.x or "10px"
     p.y          = spec.y or "40px"
@@ -734,6 +865,13 @@ function P.new(spec)
     p:_build()
     if st(p.name).hidden then p.holder:hide() end
 
+    -- Overwriting silently would strand the previous panel's widgets on screen
+    -- with nothing left holding a reference to hide them.
+    local prev = P.reg[p.name]
+    if prev and prev ~= p then
+        U.warn("panel '" .. p.name .. "' registered twice - the earlier one is being replaced")
+        if prev.holder then pcall(function() prev.holder:hide() end) end
+    end
     P.reg[p.name] = p
     return p
 end
@@ -904,6 +1042,13 @@ local U = aardkit.util
 aardkit.plugins = aardkit.plugins or {}
 
 function aardkit.register(name, desc, cmd)
+    -- Silently replacing would leave the first module registered, loaded, and
+    -- unreachable - its command answering as somebody else's.
+    local prev = aardkit.plugins[name]
+    if prev and prev.cmd ~= cmd then
+        aardkit.util.warn("two modules both registered '" .. tostring(name)
+            .. "' - the later one wins, the earlier is now unreachable")
+    end
     aardkit.plugins[name] = { desc = desc, cmd = cmd }
 end
 
@@ -1026,6 +1171,15 @@ local BLOCK = {
 -- and were still deleting the {/tag} line before the parser could see it, so its
 -- capture never closed. And the rows got deleteLine()'d twice, which is what
 -- left blank gaps in the output. One owner per block, all the way through.
+-- Which of these are corroborated: a sweep of 45 sessions (~90MB) shows only
+-- rdesc, coords, roomchars, invmon, affon, affoff, invitem, scan, skillgain,
+-- sfail, recon, recoff, bigmap, spellheaders and recoveries actually arriving.
+-- The rest - chan, tell, quest, mapstart, mapend, stat, statmon, exits,
+-- roomname, invdata, skills - are from Aardwolf's tag protocol and are off
+-- unless you turn them on in-game, so never having seen one is expected rather
+-- than evidence it isn't real. They stay: a classification that never fires
+-- costs nothing, and dropping them would break the first person who does enable
+-- one. Treat the uncorroborated ones as unverified if you change their kind.
 local OWNED = {
     spellheaders = true, recoveries = true, coords = true,
 }
@@ -1064,7 +1218,10 @@ end
 local function open_block(name)
     close_block()
     inblock = name
-    block_trig = tempRegexTrigger("^.*$", function() deleteLine() end)
+    -- U.gag, not deleteLine: this catch-all also matches the '{/name}' closing
+    -- marker, which T.on_close gags too. Two deletes on one line takes the line
+    -- after it as well, and that is the blank gap.
+    block_trig = tempRegexTrigger("^.*$", function() U.gag() end)
     -- if the closing marker never lands, let go rather than eating the session
     block_timer = tempTimer(6, function()
         if inblock then
@@ -1083,7 +1240,7 @@ function T.on_open(name)
     if not CFG.on then return end
     name = (name or ""):lower()
     if OWNED[name] then return end      -- its parser gags it
-    deleteLine()
+    U.gag()
     if kind(name) == "block" then open_block(name) end
     -- 'line' and 'marker' both just lose this one line
 end
@@ -1092,7 +1249,7 @@ end
 function T.on_close(name)
     if not CFG.on then return end
     if OWNED[(name or ""):lower()] then return end
-    deleteLine()
+    U.gag()
     if inblock and (name or ""):lower() == inblock then close_block() end
 end
 

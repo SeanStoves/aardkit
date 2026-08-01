@@ -42,11 +42,32 @@ local ENT = {
     lt = "<", gt = ">", amp = "&", quot = '"', apos = "'",
 }
 
+-- string.char(n % 256) truncated anything above Latin-1 into one mangled byte.
+-- Module .xml is UTF-8, so a numeric entity above 255 needs the real 2-4 byte
+-- UTF-8 sequence, not a modulo.
+local function utf8_enc(n)
+    if n < 0x80 then
+        return string.char(n)
+    elseif n < 0x800 then
+        return string.char(0xC0 + math.floor(n / 0x40),
+                            0x80 + n % 0x40)
+    elseif n < 0x10000 then
+        return string.char(0xE0 + math.floor(n / 0x1000),
+                            0x80 + math.floor(n / 0x40) % 0x40,
+                            0x80 + n % 0x40)
+    else
+        return string.char(0xF0 + math.floor(n / 0x40000),
+                            0x80 + math.floor(n / 0x1000) % 0x40,
+                            0x80 + math.floor(n / 0x40) % 0x40,
+                            0x80 + n % 0x40)
+    end
+end
+
 local function unescape(s)
     return (s:gsub("&(#?%w+);", function(e)
         if ENT[e] then return ENT[e] end
         local n = e:match("^#(%d+)$")
-        if n then return string.char(tonumber(n) % 256) end
+        if n then return utf8_enc(tonumber(n)) end
         return "&" .. e .. ";"
     end))
 end
@@ -95,9 +116,14 @@ for _, folder in ipairs(listdir(ROOT)) do
     local path = ROOT .. "/" .. folder .. "/" .. folder .. ".xml"
     local xml = slurp(path)
     if xml then
-        local prio = tonumber(xml:match("aardkit%-priority:%s*(%d+)"))
+        -- module.json, not the xml's own aardkit-priority comment: ticking Sync in
+        -- the Module Manager (which our own install steps tell you to do) hands the
+        -- .xml back to Mudlet's writer, and that writer drops XML comments on save.
+        -- A synced-back contribution would still have this file untouched.
+        local manifest = slurp(ROOT .. "/" .. folder .. "/module.json")
+        local prio = manifest and tonumber(manifest:match('"priority"%s*:%s*(%d+)'))
         if not prio then
-            print("FAIL  " .. folder .. "/" .. folder .. ".xml has no 'aardkit-priority' comment")
+            print("FAIL  " .. folder .. "/module.json missing or has no 'priority'")
             os.exit(1)
         end
         mods[#mods + 1] = { folder = folder, xml = xml, prio = prio }

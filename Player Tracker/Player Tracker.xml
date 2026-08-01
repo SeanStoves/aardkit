@@ -166,6 +166,18 @@ CFG.players  = CFG.players or {}
 CFG.avg      = CFG.avg or { sum = 0, n = 0 }
 CFG.last_who = CFG.last_who or 0
 
+-- age out ancient records once per boot rather than never -- this table only
+-- ever grew before, one row forever per name ever seen in a who
+local STALE_DAYS = 90
+local pruned = 0
+for k, r in pairs(CFG.players) do
+    if (r.seen or 0) &gt; 0 and (os.time() - r.seen) &gt; STALE_DAYS * 86400 then
+        CFG.players[k] = nil
+        pruned = pruned + 1
+    end
+end
+if pruned &gt; 0 then U.save("playertracker", CFG) end
+
 local view      = {}
 local filter    = ""
 local capturing = false
@@ -199,13 +211,6 @@ local function clan_full(t)
     return CLAN[t or ""] or ""
 end
 
-local function detect_clan(line)
-    for _, d in ipairs(DECOR) do
-        if line:find(d[1], 1, true) then return d[2] end
-    end
-    return ""
-end
-
 ---
 -- parse one who row
 ---
@@ -234,12 +239,16 @@ local function parse(line)
         end
     end
 
-    local clan = detect_clan(line)
-    local title = body
-    local cut
+    -- one pass over DECOR gets both the clan tag and where to cut the title --
+    -- used to be two separate scans (one against `line` for the tag, one
+    -- against `body` for the cut point), 44 find() calls per who-row for the
+    -- same marker
+    local title, clan, cut = body, "", nil
     for _, d in ipairs(DECOR) do
         local p = body:find(d[1], 1, true)
-        if p then cut = math.min(cut or 1e9, p) end
+        if p and (not cut or p &lt; cut) then
+            cut, clan = p, d[2]
+        end
     end
     if cut then title = U.trim(body:sub(1, cut - 1)) end
 
@@ -295,8 +304,14 @@ end
 function PT.who_done(n)
     capturing = false
     -- empty sweep: no row fired to advance the boundary, so do it here and age
-    -- everyone from the prior who to offline
-    if n == 0 then CFG.last_who = os.time() end
+    -- everyone from the prior who to offline. Nothing else in CFG changed, so
+    -- skip the disk write rather than serializing the whole (only ever growing)
+    -- player table for a timestamp bump nobody but is_online() reads back
+    if not n or n == 0 then
+        CFG.last_who = os.time()
+        PT.paint()
+        return
+    end
     if n and n &gt; 0 then
         CFG.avg.sum = CFG.avg.sum + n
         CFG.avg.n = CFG.avg.n + 1
@@ -384,6 +399,7 @@ PT.panel = panel
 
 function PT.paint()
     if not panel.console then return end
+    if not panel:visible() then return end   -- clan logins fire this constantly, skip the Geyser work while hidden
     build_view()
 
     local c = panel.console
@@ -508,6 +524,7 @@ function PT.cmd(arg)
 
     if verb == "" then
         panel:toggle()
+        if panel:visible() then PT.paint() end   -- repaint on show; who/clan events skip painting while hidden now
 
     elseif verb == "find" then
         do_find(rest)

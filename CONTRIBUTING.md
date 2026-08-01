@@ -21,14 +21,16 @@ newer Lua will happily pass code that is visibly broken.
 
 ## Adding a module
 
-Give it its own folder, `<Folder>/<Folder>.xml` and `<Folder>/README.md`, and
-put this comment on the second line of the XML:
+Give it its own folder: `<Folder>/<Folder>.xml`, `<Folder>/README.md`, and
+`<Folder>/module.json` with the Module Manager priority:
 
-    <!-- aardkit-priority: 55 -->
+    { "priority": 55 }
 
-That is the Module Manager priority, and CI loads modules in that order. Core is
-1 and everything leans on it. Without the comment the check fails rather than
-guessing.
+Core is 1 and everything leans on it. CI reads the load order from module.json,
+not the `<!-- aardkit-priority -->` comment in the XML — that comment is only
+there for a human glancing at the file, and Mudlet's own writer strips it the
+moment you tick **Sync**, which is a step our own install instructions tell you
+to take. Without module.json the check fails rather than guessing.
 
 ## Don't infer MUD output from another plugin
 

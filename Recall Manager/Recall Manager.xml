@@ -209,17 +209,12 @@ local MIN_W  = 120     -- narrower than this and we drop a column
 local GAP    = 4
 local offset = 0       -- first button index shown, for scrolling
 
-local function num(v)
-    -- the extra parens matter: gsub returns (string, count) and without them the
-    -- count lands in tonumber's *base* argument
-    return tonumber((tostring(v or "0"):gsub("px", ""))) or 0
-end
 
 local function metrics()
     local c = panel.container
     if not c then return 1, 1, 200, 200 end
-    local w = num(c.get_width and c:get_width() or c.width)
-    local h = num(c.get_height and c:get_height() or c.height)
+    local w = U.px(c.get_width and c:get_width() or c.width)
+    local h = U.px(c.get_height and c:get_height() or c.height)
     if w &lt; 40 then w = 200 end
     if h &lt; 40 then h = 200 end
     local cols = math.max(1, math.floor((w - GAP) / (MIN_W + GAP)))
@@ -332,8 +327,8 @@ local lastw, lasth = 0, 0
 function RM.checksize()
     local c = panel.container
     if not c then return end
-    local w = num(c.get_width and c:get_width() or c.width)
-    local h = num(c.get_height and c:get_height() or c.height)
+    local w = U.px(c.get_width and c:get_width() or c.width)
+    local h = U.px(c.get_height and c:get_height() or c.height)
     if w ~= lastw or h ~= lasth then
         lastw, lasth = w, h
         RM.paint()
