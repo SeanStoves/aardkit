@@ -944,7 +944,7 @@ local BLOCK = {
 -- capture never closed. And the rows got deleteLine()'d twice, which is what
 -- left blank gaps in the output. One owner per block, all the way through.
 local OWNED = {
-    spellheaders = true, recoveries = true,
+    spellheaders = true, recoveries = true, coords = true,
 }
 
 -- wrappers around text worth reading; hide only the markers

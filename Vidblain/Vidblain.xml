@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>vidblain</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>coords</name>
+				<script>solao.vid.on_coords(matches[2], matches[3], matches[4])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{coords\}(\d+),(-?\d+),(-?\d+)$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>no coords</name>
+				<script>solao.vid.on_nocoords()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{coords\}-1$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>vidblain</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>vid</name>
+				<script>solao.vid.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^vid(?:blain)?(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>vidblain</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>vidblain</name>
+				<packageName />
+				<script>--[[
+    Vidblain coordinates
+    Sean Stoves, 2026-08-01
+
+    Vidblain drops you somewhere random and the way out is a fixed coordinate:
+    the Zenith Trail to Omen Tor is at 11,8, Fury City at 11,26, and so on. The
+    MUD tells you where you are on every room, so put it where you'll see it.
+
+        Below the Basement Staircase
+        {coords}0,30,20
+
+    The tag is 'zone,x,y', or a bare '{coords}-1' outside a coordinate area. The
+    room name is the line immediately before it, so the number gets appended
+    there rather than printed on a line of its own.
+
+    Which way the axes run isn't documented anywhere I could find, so it isn't
+    guessed: move once and it works out for itself which axis east changes and
+    in which direction, then remembers. Until it has seen a move it reports the
+    raw difference without claiming a compass direction.
+]]
+
+solao = solao or {}
+solao.vid = solao.vid or {}
+
+local VB = solao.vid
+local U  = solao.util
+
+local CFG = U.load("vidblain", {
+    show   = "coordareas",   -- coordareas | always | off
+    marks  = {},             -- name -&gt; {x=,y=}
+    target = nil,
+    axis   = nil,            -- learned: { xdir = "east"|"west", ydir = "north"|"south" }
+})
+
+VB.zone, VB.x, VB.y = nil, nil, nil
+
+local last = { x = nil, y = nil, dir = nil }
+
+-- Aardwolf's own names for the places worth reaching, straight off 'speedwalks'
+local KNOWN = {
+    ["omen tor"] = { 11, 8 },  ["asherodan"] = { 10, 15 }, ["darklight"] = { 14, 23 },
+    ["imperial"] = { 23, 4 },  ["sendhia"]   = { 5, 6 },   ["fury"]      = { 11, 26 },
+}
+
+local function inzone()
+    return VB.zone ~= nil and VB.x ~= nil
+end
+
+local function vidblain()
+    local z = gmcp and gmcp.room and gmcp.room.info and gmcp.room.info.zone
+    return z == "vidblain"
+end
+
+---
+-- axis learning
+--
+-- One clean move teaches it: if east changed x by +1 then +x is east. Diagonals
+-- and anything that moved both axes are ignored - they'd teach it nothing.
+---
+
+local function learn(dx, dy, dir)
+    local a = CFG.axis or {}
+    if (dir == "east" or dir == "west") and dx ~= 0 and dy == 0 then
+        a.xdir = (dx &gt; 0) == (dir == "east") and "east" or "west"
+    elseif (dir == "north" or dir == "south") and dy ~= 0 and dx == 0 then
+        a.ydir = (dy &gt; 0) == (dir == "north") and "north" or "south"
+    else
+        return
+    end
+    CFG.axis = a
+    U.save("vidblain", CFG)
+end
+
+function VB.on_move(dir)
+    last.dir = dir
+end
+
+---
+-- the tag
+---
+
+function VB.on_coords(zone, x, y)
+    zone, x, y = tonumber(zone), tonumber(x), tonumber(y)
+
+    if last.x and x and last.dir then
+        learn(x - last.x, y - last.y, last.dir)
+    end
+    last.x, last.y, last.dir = x, y, nil
+
+    VB.zone, VB.x, VB.y = zone, x, y
+    VB.stamp()
+end
+
+function VB.on_nocoords()
+    VB.zone, VB.x, VB.y = nil, nil, nil
+    last.x, last.y = nil, nil
+end
+
+-- how far, and which way, to the active target
+function VB.delta()
+    local t = CFG.target
+    if not (t and inzone()) then return nil end
+    local dx, dy = t.x - VB.x, t.y - VB.y
+    if dx == 0 and dy == 0 then return "here" end
+
+    local a = CFG.axis
+    if not (a and a.xdir and a.ydir) then
+        return string.format("%+d,%+d", dx, dy)   -- honest until it has learned
+    end
+    local out = {}
+    if dx ~= 0 then
+        local way = (dx &gt; 0) and a.xdir or (a.xdir == "east" and "west" or "east")
+        out[#out + 1] = math.abs(dx) .. way:sub(1, 1)
+    end
+    if dy ~= 0 then
+        local way = (dy &gt; 0) and a.ydir or (a.ydir == "north" and "south" or "north")
+        out[#out + 1] = math.abs(dy) .. way:sub(1, 1)
+    end
+    return table.concat(out, " ")
+end
+
+---
+-- put it on the room name line
+---
+
+function VB.stamp()
+    if CFG.show == "off" or not inzone() then return end
+    if CFG.show == "coordareas" and not vidblain() then return end
+
+    local d = VB.delta()
+    local suffix = string.format("  [%d,%d]", VB.x, VB.y)
+    if d then suffix = suffix .. "  -&gt; " .. (CFG.target.name or "target") .. " " .. d end
+
+    -- The coords tag is its own line and the room name is the one before it, so
+    -- delete the tag and append to that line instead of printing a second one.
+    local ok = pcall(function()
+        local ln = getLineNumber()
+        deleteLine()
+        local prev = ln - 1
+        local txt = (getLines(prev, prev) or {})[1]
+        if not txt or txt == "" then error("no room name line") end
+        moveCursor(#txt, prev)
+        insertText(suffix)
+        moveCursorEnd()
+    end)
+    if not ok then
+        -- couldn't reach the line above; say it plainly rather than lose it
+        U.outw(nil, "")
+        U.note("Vidblain " .. VB.x .. "," .. VB.y .. (d and ("  -&gt; " .. d) or ""))
+    end
+end
+
+---
+-- commands
+---
+
+function VB.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    if verb == "" or verb == "status" then
+        local rows = {
+            { "here", inzone() and (VB.x .. "," .. VB.y .. "  (zone " .. VB.zone .. ")") or "no coordinates here" },
+            { "target", CFG.target and (CFG.target.name .. "  " .. CFG.target.x .. "," .. CFG.target.y) or "none" },
+            { "to go", VB.delta() or "-" },
+            { "axes", CFG.axis and ((CFG.axis.xdir or "?") .. " / " .. (CFG.axis.ydir or "?"))
+                      or "not learned yet - move once" },
+            { "show", CFG.show },
+            { "" },
+        }
+        for k, v in pairs(KNOWN) do rows[#rows + 1] = { "  " .. k, v[1] .. "," .. v[2] } end
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "vid &lt;name|x,y&gt;", "set the target and show the way" }
+        rows[#rows + 1] = { "vid clear", "drop the target" }
+        rows[#rows + 1] = { "vid show off|coordareas|always", "" }
+        U.help("Vidblain", rows)
+
+    elseif verb == "clear" then
+        CFG.target = nil; U.save("vidblain", CFG); U.ok("Target cleared.")
+
+    elseif verb == "show" then
+        if rest == "off" or rest == "always" or rest == "coordareas" then
+            CFG.show = rest; U.save("vidblain", CFG); U.ok("Coordinates: " .. rest .. ".")
+        else
+            U.warn("vid show off|coordareas|always")
+        end
+
+    else
+        local x, y = arg:match("^%s*(%-?%d+)%s*,%s*(%-?%d+)%s*$")
+        if x then
+            CFG.target = { name = x .. "," .. y, x = tonumber(x), y = tonumber(y) }
+        else
+            local k = arg:lower()
+            for name, c in pairs(KNOWN) do
+                if name:find(k, 1, true) then
+                    CFG.target = { name = name, x = c[1], y = c[2] }
+                    break
+                end
+            end
+        end
+        if not CFG.target or (x == nil and not CFG.target.name:find(arg:lower(), 1, true)) then
+            U.warn("Don't know '" .. arg .. "'. Try 'vid' for the list, or 'vid 11,8'.")
+            return
+        end
+        U.save("vidblain", CFG)
+        U.ok("Target " .. CFG.target.name .. " at " .. CFG.target.x .. "," .. CFG.target.y
+            .. (VB.delta() and ("  -  " .. VB.delta()) or ""))
+    end
+end
+
+-- Mudlet doesn't say which way you went, but it does say what you sent, and
+-- that's enough: one plain 'east' with a clean coordinate change teaches it.
+local DIRS = {
+    n = "north", north = "north", s = "south", south = "south",
+    e = "east", east = "east", w = "west", west = "west",
+}
+
+U.killhandler(solao_vid_send)
+solao_vid_send = registerAnonymousEventHandler("sysDataSendRequest", "solao.vid.on_send")
+
+function VB.on_send(_, cmd)
+    local d = DIRS[U.trim(tostring(cmd or "")):lower()]
+    if d then VB.on_move(d) end
+end
+
+solao.register("vid", "Vidblain coordinates and where you're heading", VB.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
