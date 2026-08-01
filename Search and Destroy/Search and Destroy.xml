@@ -119,6 +119,26 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest granted</name>
+				<script>aardkit.snd.on_quest_granted()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>tells you 'You have \d+ minutes to complete your quest\.'</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>quest target</name>
 				<script>aardkit.snd.on_quest_target(matches[2])</script>
 				<triggerType>0</triggerType>
@@ -903,7 +923,40 @@ function SD.on_cp_header()
     cp_start()
 end
 
+-- 'quest request' answers in the questmaster's own voice, wrapped in tells and
+-- word-wrapped wherever your screen happens to break:
+--
+--   Alex, the Taskmaster tells you 'Seek a flock of copper birds out somewhere in the vicinity'
+--   Alex, the Taskmaster tells you 'of Dark Pwyll which is in the general area'
+--   Alex, the Taskmaster tells you 'of Annwn.'
+--
+-- The mob, the room and the area are all in there, split across lines at points
+-- that move with your wrap setting. Matching that is a losing game. 'quest info'
+-- says the same thing in three fixed lines we already parse, so the grant just
+-- asks for it - and since the panel is about to show it, the answer is gagged.
+--
+-- Three questmasters appear in the logs (Alex the Taskmaster, Questor, Wolfie),
+-- so the trigger can't name one. The time-remaining line is the last thing every
+-- grant prints and it says the same words regardless of who said it.
+local autoq = false
+local autoq_t
+
+local function autoq_off()
+    autoq = false
+    if autoq_t then killTimer(autoq_t); autoq_t = nil end
+end
+
+function SD.on_quest_granted()
+    autoq_off()
+    autoq = true
+    -- if the reply never lands, stop gagging rather than eating quest lines
+    -- you typed for yourself later
+    autoq_t = tempTimer(6, autoq_off)
+    send("quest info", false)
+end
+
 function SD.on_quest_target(name)
+    if autoq then U.gag() end
     SD.targets.quest = {}
     add("quest", name, "", 1)
     SD.kind = "quest"
@@ -912,6 +965,7 @@ end
 
 -- "&lt;mob&gt; can be found in the vicinity of &lt;room&gt; which"
 function SD.on_quest_room(room)
+    if autoq then U.gag() end
     local e = list("quest")[1]
     if e then e.room = U.trim(room or "") end
     if SD.paint then SD.paint() end
@@ -919,9 +973,12 @@ end
 
 -- "is in the general area of &lt;area&gt;."
 function SD.on_quest_area(area)
+    if autoq then U.gag() end
+    autoq_off()          -- last line of the reply
     local e = list("quest")[1]
     if e then e.area = U.trim(area or "") end
     if SD.paint then SD.paint() end
+    if SD.panel then SD.panel:show() end
 end
 
 function SD.on_gq_target(qty, name, room)

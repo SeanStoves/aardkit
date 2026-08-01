@@ -268,31 +268,21 @@ end
 ---
 -- gagging
 --
--- Two gags that both match a line each call deleteLine() on it, and the second
--- call doesn't hit the line that's already gone - it takes the one after. That
--- is where the blank gaps come from, and it is not hypothetical: it happened
--- inside 30_tags (the block catch-all and the closing-marker trigger both fire
--- on '{/tag}'), and it happens across modules whenever whopoller's poll window
--- overlaps anyone else's.
+-- One choke point, so it's greppable and so the ownership rule has somewhere to
+-- live: a line belongs to whoever gags it first, and nobody should be arming a
+-- catch-all that overlaps someone else's marker.
 --
--- So nothing calls deleteLine directly any more. A line can be claimed once,
--- and whoever gets there first owns it.
+-- This deliberately does NOT try to detect a double-gag by line number. That
+-- was tried and it is worse than the problem: deleteLine() shifts every later
+-- line up, so the line AFTER a gagged one reports the same number, and an empty
+-- {roomchars} block - open and close adjacent, nothing between - had its close
+-- refused and leaked to the screen. Overlap gets solved where it happens, by
+-- not matching what someone else owns.
 ---
 
-local gagged_line = nil
-
 function U.gag()
-    local n = U.has("getLineNumber") and getLineNumber() or nil
-    if n and n == gagged_line then return false end
-    gagged_line = n
     deleteLine()
     return true
-end
-
--- has this line already been swallowed by someone else this cycle?
-function U.gagged()
-    local n = U.has("getLineNumber") and getLineNumber() or nil
-    return n ~= nil and n == gagged_line
 end
 
 ---
@@ -1241,10 +1231,10 @@ end
 local function open_block(name)
     close_block()
     inblock = name
-    -- U.gag, not deleteLine: this catch-all also matches the '{/name}' closing
-    -- marker, which T.on_close gags too. Two deletes on one line takes the line
-    -- after it as well, and that is the blank gap.
-    block_trig = tempRegexTrigger("^.*$", function() U.gag() end)
+    -- Everything except the closing marker, which T.on_close owns. Both used to
+    -- fire on '{/name}' and two deletes on one line takes the line after it as
+    -- well - that is where the blank gaps came from.
+    block_trig = tempRegexTrigger("^(?!\\{/).*$", function() U.gag() end)
     -- if the closing marker never lands, let go rather than eating the session
     block_timer = tempTimer(6, function()
         if inblock then
