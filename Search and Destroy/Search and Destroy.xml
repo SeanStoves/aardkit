@@ -482,8 +482,9 @@ function SD.walkto(roomid)
         return
     end
     if getPath(here, roomid) then
-        U.ok("Walking to " .. U.rid(roomid) .. " (" .. #speedWalkDir .. " steps).")
-        doSpeedWalk()
+        -- SD.walk sends the directions itself; doSpeedWalk() is the stock
+        -- module's override and it mangles this map into bare numbers
+        SD.walk(roomid, nil, U.rid(roomid))
     else
         U.warn("No path from " .. U.rid(here) .. " to " .. U.rid(roomid) .. ".")
     end
@@ -1032,6 +1033,13 @@ solao_snd_hunt_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
 
     Mudlet has no speedwalk-finished event, so arrival is detected off
     gmcp.room.info with a timeout behind it.
+
+    We do NOT call gotoRoom(). The AardwolfMudlet module overrides doSpeedWalk(),
+    and Mudlet's gotoRoom routes through that override - its buildSpeedWalk()
+    merges getRoomExits with getSpecialExitsSwap and then looks the merged keys up
+    in a short-direction table that doesn't have them, so on this map it sent bare
+    numbers ("3") instead of directions. getPath() fills speedWalkDir with the
+    direction names directly, so walk them ourselves and skip the whole problem.
 ]]
 
 solao = solao or {}
@@ -1040,7 +1048,7 @@ solao.snd = solao.snd or {}
 local SD = solao.snd
 local U  = solao.util
 
-local WCFG = U.load("sndwalk", { arrive = 45, where = 4 })
+local WCFG = U.load("sndwalk", { arrive = 45, where = 4, gap = 0.25 })
 
 local arrive_h, arrive_t, where_trigs, where_t
 
@@ -1075,8 +1083,21 @@ function SD.walk(dest, cb, what)
         if cb then cb() end
         return true
     end
-    if here and getPath and not getPath(here, dest) then
+    if not here then
+        U.warn("S&amp;D: Mudlet doesn't know which room you're in yet - move once and retry.")
+        return false
+    end
+    -- must actually run: speedWalkDir is whatever the LAST getPath left behind
+    if not getPath(here, dest) then
         U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
+        return false
+    end
+
+    -- getPath filled speedWalkDir for us; copy it before anything else can
+    local steps = {}
+    for i, d in ipairs(speedWalkDir or {}) do steps[i] = d end
+    if #steps == 0 then
+        U.warn("S&amp;D: no route to " .. (what or U.rid(dest)) .. ".")
         return false
     end
 
@@ -1093,7 +1114,12 @@ function SD.walk(dest, cb, what)
         U.warn("S&amp;D: gave up waiting to reach " .. (what or U.rid(dest)) .. ".")
     end)
 
-    gotoRoom(dest)
+    U.note("Walking " .. #steps .. " room(s) to " .. (what or U.rid(dest)) .. ".")
+    for i, d in ipairs(steps) do
+        tempTimer(WCFG.gap * i, function()
+            if arrive_h then send(d, false) end   -- stops the moment we arrive
+        end)
+    end
     return true
 end
 
