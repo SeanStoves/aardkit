@@ -58,6 +58,26 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>cp target</name>
+				<script>aardkit.snd.on_cp_target(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^(?:You still have to kill|Find and kill \d+) \* (.+) \((.+)\)\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>cp end</name>
 				<script>aardkit.snd.cp_stop()</script>
 				<triggerType>0</triggerType>
@@ -678,15 +698,17 @@ SD.kind    = SD.kind or "campaign"
 
 local function list(kind) return SD.targets[kind] or {} end
 
+-- second return says whether this was a new entry; 'cp check' prints one line
+-- per kill still owed, so the caller needs to tell a repeat from a first sight.
 local function add(kind, name, area, qty)
     name = U.trim(name or "")
     if name == "" then return end
     local t = list(kind)
     for _, e in ipairs(t) do
-        if e.name:lower() == name:lower() then return e end
+        if e.name:lower() == name:lower() then return e, false end
     end
     t[#t + 1] = { name = name, area = U.trim(area or ""), qty = tonumber(qty) or 1, killed = false }
-    return t[#t]
+    return t[#t], true
 end
 
 function SD.clear(kind)
@@ -730,38 +752,58 @@ end
 -- parsing
 ---
 
-local cp_trig, cp_timer
+-- What the MUD actually prints, checked against 920 'cp check' blocks in the
+-- MUSHclient logs:
+--
+--   cp check   You still have to kill * a baku (Aardwolf Zoological Park)
+--   cp info    Find and kill 1 * Islien (Unearthly Bonds)
+--
+-- The bare '* name (area)' this used to expect is the MUSHclient S&amp;D plugin's
+-- own rewrite of the first one, not the MUD - it gagged the line and reprinted
+-- it. Matching that meant campaign never captured a single target: 6206 of the
+-- real lines carry the prefix and none carry the bare form.
+--
+-- 'cp check' lists one line per kill still owed, so the same mob twice means a
+-- 2-kill target rather than a duplicate.
+--
+-- Neither shape carries a header, so the first target line opens the capture
+-- rather than us arming on a banner or on having sent the command. That way a
+-- 'cp check' you type yourself lands in the panel exactly like the button's.
+-- Closed by the time-remaining line, with a timer behind it in case the block
+-- ends some way we haven't seen.
+
+local cp_timer
+local capturing = false
 
 local function cp_stop()
-    if cp_trig then killTrigger(cp_trig); cp_trig = nil end
+    capturing = false
     if cp_timer then killTimer(cp_timer); cp_timer = nil end
     if SD.paint then SD.paint() end
 end
 
 SD.cp_stop = cp_stop
 
--- Campaign prints two different shapes and NEITHER carries a header, which is
--- what the first attempt armed on:
---
---   cp check       * a bartering customer (Fellchantry)
---   campaign info  Find and kill 1 * Islien (Unearthly Bonds)
---
--- So arm when we send the command rather than waiting to recognise a banner
--- that isn't there. Released by the time-remaining line, with a timer behind it.
-function SD.arm_campaign()
+local function cp_start()
     SD.targets.campaign = {}
     SD.kind = "campaign"
-    cp_stop()
-    cp_trig = tempRegexTrigger(
-        "^(?:\\* |Find and kill \\d+ \\* )(.+) \\((.+)\\)\\s*$", function()
-            add("campaign", matches[2], matches[3], 1)
-        end)
+    capturing = true
+    if cp_timer then killTimer(cp_timer) end
     cp_timer = tempTimer(12, cp_stop)
 end
 
--- kept because 'campaign check' on some paths does print it
+SD.arm_campaign = cp_start
+
+function SD.on_cp_target(name, area)
+    if not capturing then cp_start() end
+    local e, isnew = add("campaign", name, area, 1)
+    if e and not isnew then e.qty = (e.qty or 1) + 1 end
+    if SD.paint then SD.paint() end
+end
+
+-- 'cp info' banner. Only useful as an early reset - the target lines that
+-- follow would have opened the capture on their own anyway.
 function SD.on_cp_header()
-    SD.arm_campaign()
+    cp_start()
 end
 
 function SD.on_quest_target(name)
@@ -1585,7 +1627,10 @@ function SD.refresh(kind)
     kind = kind or SD.kind
     if kind == "campaign" then
         SD.arm_campaign()          -- the reply carries no banner to arm on
-        send("campaign check", false)
+        -- 'cp check', not 'campaign check': check lists only what's still owed,
+        -- and 'cp check' is the form that appears 138 times in the logs. The
+        -- long form was never actually tried against the MUD.
+        send("cp check", false)
     elseif kind == "quest" then
         send("quest info", false)
     else
