@@ -158,26 +158,6 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-				<name>quest done</name>
-				<script>solao.snd.on_quest_done()</script>
-				<triggerType>0</triggerType>
-				<conditonLineDelta>0</conditonLineDelta>
-				<mStayOpen>0</mStayOpen>
-				<mCommand />
-				<packageName />
-				<mFgColor>#ff0000</mFgColor>
-				<mBgColor>#ffff00</mBgColor>
-				<mSoundFile />
-				<colorTriggerFgColor>#000000</colorTriggerFgColor>
-				<colorTriggerBgColor>#000000</colorTriggerBgColor>
-				<regexCodeList>
-					<string>^(?:You have completed your quest!|You are not currently on a quest\.)$</string>
-				</regexCodeList>
-				<regexCodePropertyList>
-					<integer>1</integer>
-				</regexCodePropertyList>
-			</Trigger>
-			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>gq header</name>
 				<script>solao.snd.on_gq_header()</script>
 				<triggerType>0</triggerType>
@@ -252,6 +232,46 @@
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
 					<string>^Congratulations, that was one of the GLOBAL QUEST mobs!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest killed</name>
+				<script>solao.snd.on_quest_killed()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^QUEST: You have almost completed your QUEST!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest done</name>
+				<script>solao.snd.on_quest_done()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^(?:You inform .+ that you have completed your quest\.|You are not currently on a quest\.|QUEST: You have completed your QUEST!)$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -631,6 +651,8 @@ solao.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
         You are on a quest to slay Eldred the Wise!
         Eldred the Wise can be found in the vicinity of Training Room which
         is in the general area of The Witches of Omen Tor.
+        QUEST: You have almost completed your QUEST!        &lt;- target is down
+        You inform Alex, the Taskmaster that you have completed your quest.
 
         -----------------------------[ Quest Targets ]---------------------
         Kill at least 1 * a bored visitor (The Reception Area).
@@ -778,6 +800,14 @@ end
 function SD.on_cp_done()
     SD.targets.campaign = {}
     U.ok("Campaign complete.")
+    if SD.paint then SD.paint() end
+end
+
+-- "QUEST: You have almost completed your QUEST!" is the MUD saying the target is
+-- down and the questmaster is owed a visit - it is the closest thing a plain
+-- quest has to the campaign kill line, so use it as one.
+function SD.on_quest_killed()
+    for _, e in ipairs(list("quest")) do e.killed = true end
     if SD.paint then SD.paint() end
 end
 

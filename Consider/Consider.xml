@@ -166,7 +166,9 @@ function C.on_line()
     if not name or name == "" then return end
 
     deleteLine()
-    U.out(string.format("&lt;%s&gt;%-9s&lt;r&gt; &lt;#8a93a8&gt;%3s&lt;r&gt;  &lt;#c8d0dc&gt;%s&lt;r&gt;%s",
+    -- leading newline: deleteLine leaves the cursor mid-line, so without it each
+    -- mob concatenates onto the last one and the whole block reads as one line
+    U.out(string.format("\n&lt;%s&gt;%-9s&lt;r&gt; &lt;#8a93a8&gt;%3s&lt;r&gt;  &lt;#c8d0dc&gt;%s&lt;r&gt;%s",
         colour, label,
         lvl and (tonumber(lvl) &gt; 0 and ("+" .. lvl) or lvl) or "",
         name,
