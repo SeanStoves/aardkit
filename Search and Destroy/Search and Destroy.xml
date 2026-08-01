@@ -549,6 +549,9 @@ function SD.cmd(arg)
     elseif verb == "gq" or verb == "gquest" then
         SD.kind = "gquest"; SD.refresh("gquest"); SD.panel:show()
 
+    elseif verb == "keywords" or verb == "keys" then
+        SD.keywords()
+
     elseif verb == "hunt" then
         SD.hunt(rest)
 
@@ -592,6 +595,7 @@ function SD.cmd(arg)
             { "snd mob &lt;keyword&gt;", "where a mob has been seen (clickable [go])" },
             { "mobwhere &lt;kw&gt;",    "same thing, shorter" },
             { "snd area [text]",  "area list with level ranges and start rooms" },
+            { "snd keywords",     "read 'area keyword' so runto works for unmapped areas" },
             { "snd scan on|off",  "record mobs from room descriptions as you go" },
             { "" },
             { "Click a target in the panel to walk there. The commands are" },
@@ -1148,6 +1152,59 @@ function SD.area_room(areaname)
 end
 
 ---
+-- area keywords, straight from 'area keyword'
+--
+-- The mapper walks you to a ROOM. When we have no room in an area - never been
+-- there, or the import missed it - the MUD's own 'runto &lt;keyword&gt;' still works,
+-- so keep the keyword list. Captured rather than hardcoded: it's ~280 areas and
+-- it changes when areas are added.
+--
+--    150  170  130  chantry          Fellchantry
+---
+
+local key_trig, key_timer, key_n
+
+function SD.keys_stop()
+    if key_trig then killTrigger(key_trig); key_trig = nil end
+    if key_timer then killTimer(key_timer); key_timer = nil end
+    if key_n then U.ok("S&amp;D: learned " .. key_n .. " area keyword(s).") ; key_n = nil end
+end
+
+function SD.keywords()
+    local T = SD.t
+    if not (T and T.area) then U.warn("S&amp;D: no database."); return end
+    SD.keys_stop()
+    key_n = 0
+    U.note("S&amp;D: reading area keywords...")
+    key_trig = tempRegexTrigger([[^\s*(\d+)\s+(\d+)\s+(\d*)\s+(\S+)\s\s+(\S.*?)\s*$]],
+        function()
+            local minl, maxl, lock, k, name = matches[2], matches[3], matches[4], matches[5], matches[6]
+            local rows = db:fetch(T.area, db:eq(T.area.name, name))
+            if rows and rows[1] then
+                db:update(T.area, { key = k, minlvl = tonumber(minl), maxlvl = tonumber(maxl),
+                                    lock = tonumber(lock) or 0 }, db:eq(T.area.name, name))
+            else
+                db:add(T.area, { name = name, key = k, minlvl = tonumber(minl),
+                                 maxlvl = tonumber(maxl), lock = tonumber(lock) or 0,
+                                 startRoom = 0, noquest = "", vidblain = "", userKey = "" })
+            end
+            key_n = (key_n or 0) + 1
+        end)
+    key_timer = tempTimer(15, SD.keys_stop)
+    send("area keyword", false)
+end
+
+-- the keyword for an area name, if we've learned it
+function SD.area_key(areaname)
+    local T = SD.t
+    if not (T and T.area) or not areaname or areaname == "" then return nil end
+    local rows = db:fetch(T.area, db:like("name", "%" .. areaname .. "%"))
+    for _, r in ipairs(rows or {}) do
+        if r.key and r.key ~= "" then return r.key, r.name end
+    end
+end
+
+---
 -- ask the MUD where the mob is, right now, in this area
 ---
 
@@ -1207,8 +1264,21 @@ function SD.goto_target(kind, i)
     -- 3. only an area: get into it, then ask the MUD where the mob is
     local start, aname = SD.area_room(e.area)
     if not start then
-        U.warn("S&amp;D: don't know where '" .. e.name .. "' is"
-            .. (e.area ~= "" and (", and '" .. e.area .. "' isn't in the map") or "") .. ".")
+        -- Nothing in the map for that area, so fall back on the MUD's own runto.
+        -- It only works from Aylor recall unless you've set a runprefix, and it
+        -- stops there: no hunt, no kill. Chaining those together automatically is
+        -- botting and against the rules - see 'help policies7'.
+        local k, kn = SD.area_key(e.area)
+        if k then
+            U.note("Not in the map - sending 'runto " .. k .. "' ("
+                .. (kn or e.area) .. "). Needs Aylor recall or a runprefix.")
+            U.note("Then 'where " .. e.name .. "' yourself, or click again once you're there.")
+            send("runto " .. k, false)
+        else
+            U.warn("S&amp;D: don't know where '" .. e.name .. "' is"
+                .. (e.area ~= "" and (", and '" .. e.area .. "' isn't in the map") or "")
+                .. ".  Try 'snd keywords' to learn the area list.")
+        end
         return
     end
 
