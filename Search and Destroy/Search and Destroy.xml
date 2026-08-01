@@ -692,25 +692,6 @@ function SD.locate(name)
     return rows[1]
 end
 
--- walk there using Mudlet's own mapper; we are not writing a second speedwalker
-function SD.goto_target(kind, i)
-    local e = list(kind)[i]
-    if not e then U.warn("No target " .. tostring(i) .. " in " .. kind .. "."); return end
-
-    local row = SD.locate(e.name)
-    if not row or not row.roomid or row.roomid == 0 then
-        U.warn("Don't know where '" .. e.name .. "' lives."
-            .. (e.area ~= "" and ("  Area: " .. e.area) or ""))
-        return
-    end
-
-    e.room, e.roomid = row.room, row.roomid
-    U.ok("-&gt; " .. e.name .. "   " .. (row.room or "?") .. "  " .. U.rid(row.roomid))
-    local ok, err = pcall(gotoRoom, row.roomid)
-    if not ok then U.warn("Mapper wouldn't walk there: " .. tostring(err)) end
-    if SD.paint then SD.paint() end
-end
-
 -- first one still owed
 function SD.next_target(kind)
     for i, e in ipairs(list(kind)) do
@@ -1016,6 +997,245 @@ end
 U.killhandler(solao_snd_hunt_disc)
 solao_snd_hunt_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
     function() SD.hunt_stop() end)
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>snd/walk</name>
+				<packageName />
+				<script>--[[
+    Search &amp; Destroy — walking to a target
+    Sean Stoves, 2026-08-01
+
+    Clicking a target should just get you there. What that takes depends on how
+    much we already know, so it's a chain that stops as soon as it can:
+
+      1. know the exact room  -&gt;  walk straight to it
+      2. know a room NAME     -&gt;  look it up in the map, prefer the target's area
+      3. know only the area   -&gt;  walk to the area's start room, then ask the MUD
+                                  'where &lt;mob&gt;', and walk to whatever it names
+
+    Step 3 is the one that matters, and it's why S&amp;D kept a start room per area:
+    the mapper can't run you to an area, only to a room, so you need one room in
+    that area to aim at first. Our area table carries those already.
+
+    'where' only reports the room the mob is in right now and only works inside
+    the area, which is exactly why it comes after the move rather than before.
+
+        where huge cat
+        a huge cat                     Kittens' playroom
+        There is no viper around here.
+
+    Mudlet has no speedwalk-finished event, so arrival is detected off
+    gmcp.room.info with a timeout behind it.
+]]
+
+solao = solao or {}
+solao.snd = solao.snd or {}
+
+local SD = solao.snd
+local U  = solao.util
+
+local WCFG = U.load("sndwalk", { arrive = 45, where = 4 })
+
+local arrive_h, arrive_t, where_trigs, where_t
+
+local function drop_arrive()
+    if arrive_h then U.killhandler(arrive_h); arrive_h = nil end
+    if arrive_t then killTimer(arrive_t); arrive_t = nil end
+end
+
+local function drop_where()
+    for _, id in ipairs(where_trigs or {}) do pcall(killTrigger, id) end
+    where_trigs = nil
+    if where_t then killTimer(where_t); where_t = nil end
+end
+
+function SD.walk_stop()
+    drop_arrive(); drop_where()
+end
+
+---
+-- walk to a room id and call back on arrival
+---
+
+function SD.walk(dest, cb, what)
+    dest = tonumber(dest)
+    if not dest or not roomExists(dest) then
+        U.warn("S&amp;D: room " .. tostring(dest) .. " isn't in the map.")
+        return false
+    end
+
+    local here = getPlayerRoom and getPlayerRoom()
+    if here == dest then
+        if cb then cb() end
+        return true
+    end
+    if here and getPath and not getPath(here, dest) then
+        U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
+        return false
+    end
+
+    drop_arrive()
+    solao.snd.on_arrive = function()
+        if (getPlayerRoom and getPlayerRoom()) == dest then
+            drop_arrive()
+            if cb then cb() end
+        end
+    end
+    arrive_h = registerAnonymousEventHandler("gmcp.room.info", "solao.snd.on_arrive")
+    arrive_t = tempTimer(WCFG.arrive, function()
+        drop_arrive()
+        U.warn("S&amp;D: gave up waiting to reach " .. (what or U.rid(dest)) .. ".")
+    end)
+
+    gotoRoom(dest)
+    return true
+end
+
+---
+-- resolve a room NAME to an id, preferring the target's own area
+---
+
+function SD.find_room(name, areaname)
+    name = U.trim(name or "")
+    if name == "" then return nil end
+
+    local ok, hits = pcall(searchRoom, name)
+    if not ok or type(hits) ~= "table" then return nil end
+
+    local want
+    if areaname and areaname ~= "" then
+        for an, aid in pairs(getAreaTable and getAreaTable() or {}) do
+            if an:lower() == areaname:lower() or an:lower():find(areaname:lower(), 1, true) then
+                want = aid; break
+            end
+        end
+    end
+
+    local first
+    for k, v in pairs(hits) do
+        -- searchRoom's shape moved between Mudlet versions: sometimes
+        -- id -&gt; name, sometimes name -&gt; id. Take whichever side is a room.
+        local id = tonumber(k) or tonumber(v)
+        if id and roomExists(id) then
+            first = first or id
+            if want and getRoomArea(id) == want then return id end
+        end
+    end
+    return first
+end
+
+-- one room to aim at inside an area: our own start room, else anything in it
+function SD.area_room(areaname)
+    areaname = U.trim(areaname or "")
+    if areaname == "" then return nil end
+
+    local T = SD.t
+    if T and T.area then
+        local rows = db:fetch(T.area, db:like("name", "%" .. areaname .. "%"))
+        for _, r in ipairs(rows or {}) do
+            local s = tonumber(r.startRoom)
+            if s and s &gt; 0 and roomExists(s) then return s, r.name end
+        end
+    end
+
+    for an, aid in pairs(getAreaTable and getAreaTable() or {}) do
+        if an:lower() == areaname:lower() or an:lower():find(areaname:lower(), 1, true) then
+            for _, id in pairs(getAreaRooms(aid) or {}) do return id, an end
+        end
+    end
+end
+
+---
+-- ask the MUD where the mob is, right now, in this area
+---
+
+function SD.where(mob, cb)
+    drop_where()
+    where_trigs = {}
+    local done = false
+
+    local function finish(room)
+        if done then return end
+        done = true
+        drop_where()
+        cb(room)
+    end
+
+    -- "a huge cat                     Kittens' playroom"
+    where_trigs[#where_trigs + 1] = tempRegexTrigger(
+        [[^(\S.{0,28}?)\s\s+(\S.*?)\s*$]], function()
+            finish(matches[3])
+        end)
+    where_trigs[#where_trigs + 1] = tempRegexTrigger(
+        [[^There is no .+ around here\.$]], function() finish(nil) end)
+
+    where_t = tempTimer(WCFG.where, function() finish(nil) end)
+    send("where " .. mob, false)
+end
+
+---
+-- the click
+---
+
+function SD.goto_target(kind, i)
+    local t = SD.targets[kind] or {}
+    local e = t[i]
+    if not e then U.warn("No target " .. tostring(i) .. " in " .. kind .. "."); return end
+
+    SD.walk_stop()
+
+    -- 1. a room id we already know, from the mob database
+    local row = SD.locate(e.name)
+    if row and tonumber(row.roomid) and tonumber(row.roomid) &gt; 0 and roomExists(tonumber(row.roomid)) then
+        U.ok("-&gt; " .. e.name .. "   " .. (row.room or "?") .. "  " .. U.rid(row.roomid))
+        SD.walk(tonumber(row.roomid), nil, e.name)
+        return
+    end
+
+    -- 2. a room name, which quests hand us outright
+    if e.room and e.room ~= "" then
+        local id = SD.find_room(e.room, e.area)
+        if id then
+            U.ok("-&gt; " .. e.name .. "   " .. e.room .. "  " .. U.rid(id))
+            SD.walk(id, nil, e.name)
+            return
+        end
+    end
+
+    -- 3. only an area: get into it, then ask the MUD where the mob is
+    local start, aname = SD.area_room(e.area)
+    if not start then
+        U.warn("S&amp;D: don't know where '" .. e.name .. "' is"
+            .. (e.area ~= "" and (", and '" .. e.area .. "' isn't in the map") or "") .. ".")
+        return
+    end
+
+    U.note("-&gt; " .. (aname or e.area) .. ", then asking where " .. e.name .. " is...")
+    SD.walk(start, function()
+        SD.where(e.name, function(room)
+            if not room then
+                U.warn("S&amp;D: 'where' didn't find " .. e.name .. " in this area.")
+                return
+            end
+            e.room = room
+            local id = SD.find_room(room, e.area)
+            if not id then
+                U.note("S&amp;D: " .. e.name .. " is in '" .. room .. "' - not in the map, walk it yourself.")
+                if SD.paint then SD.paint() end
+                return
+            end
+            U.ok("-&gt; " .. e.name .. "   " .. room .. "  " .. U.rid(id))
+            if SD.paint then SD.paint() end
+            SD.walk(id, nil, e.name)
+        end)
+    end, aname or e.area)
+end
+
+U.killhandler(solao_snd_walk_disc)
+solao_snd_walk_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
+    function() SD.walk_stop() end)
 </script>
 				<eventHandlerList />
 			</Script>
