@@ -1389,7 +1389,9 @@ aardkit.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
     by name at runtime, so their file is untouched and a reinstall or update of
     theirs just gets disabled again next load.
 
-    Currently one entry, 'runto rt':
+    Two entries.
+
+    The alias 'runto rt':
 
       elseif string.match("the witches of omen tor omentor", matches[2]:lower())
         send("run 2s10e2n7e7n11e4n4e;enter hole")   --vidblain
@@ -1416,6 +1418,14 @@ aardkit.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
 
     Disabling their alias hands 'runto' back to the MUD, which is what it should
     have been doing.
+
+    And the trigger 'cp check', which fires on every "You still have to kill"
+    line - ours included - and the first time each session answers it by sending
+    'cp info' behind your back. 'cp info' lists every target including the ones
+    you have already killed, so a panel that had just been filled with the 13
+    you still owe gets replaced by all 15. It also does selectString/replace("")
+    on the line as it goes past, rewriting output we are in the middle of
+    parsing.
 ]==]
 
 aardkit = aardkit or {}
@@ -1424,11 +1434,15 @@ aardkit.stock = aardkit.stock or {}
 local S = aardkit.stock
 local U = aardkit.util
 
-local CFG = U.load("stock", { off = { ["runto rt"] = true } })
+local CFG = U.load("stock", {
+    off  = { ["runto rt"] = true },      -- aliases
+    trig = { ["cp check"] = true },      -- triggers
+})
 
 -- why each one is switched off, shown by 'aardkit stock'
 local WHY = {
     ["runto rt"] = "hardcodes someone else's speedwalks and leaks a 1/sec timer printing '3'",
+    ["cp check"] = "answers our 'cp check' by sending 'cp info', which lists the targets you have already killed",
 }
 
 -- disableAlias returns false when there's no alias by that name yet - it does
@@ -1438,11 +1452,30 @@ local WHY = {
 -- had failed. Take the real return, and keep retrying until it takes.
 local tries = 0
 
+-- Their trigger named 'cp check' fires on every "You still have to kill" line
+-- and, the first time each session, sends 'cp info' behind our backs:
+--
+--   selectString( "You still have to kill ", 1 )
+--   replace("")
+--   if not aard.cpLevel then
+--       aard.cpLevel = aard.cpLevel or 0
+--       send("cp info",false)
+--   end
+--
+-- 'cp info' lists every target including the ones you have already killed, so
+-- the panel that had just been filled with the 13 you still owe gets replaced
+-- by all 15. The replace("") mangles the line on the way past too.
 function S.apply()
     local n, missing = 0, {}
-    for name, want in pairs(CFG.off) do
+    for name, want in pairs(CFG.off or {}) do
         if want then
             local ok, done = pcall(disableAlias, name)
+            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
+        end
+    end
+    for name, want in pairs(CFG.trig or {}) do
+        if want then
+            local ok, done = pcall(disableTrigger, name)
             if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
         end
     end
@@ -1476,9 +1509,11 @@ function S.cmd(arg)
 
     if verb == "" or verb == "list" then
         local rows = {}
-        for name, want in pairs(CFG.off) do
-            rows[#rows + 1] = { name, (want and "disabled" or "left alone")
-                .. (WHY[name] and ("  - " .. WHY[name]) or "") }
+        for _, set in ipairs({ { CFG.off or {}, "alias" }, { CFG.trig or {}, "trigger" } }) do
+            for name, want in pairs(set[1]) do
+                rows[#rows + 1] = { name, set[2] .. ", " .. (want and "disabled" or "left alone")
+                    .. (WHY[name] and ("  - " .. WHY[name]) or "") }
+            end
         end
         table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
         rows[#rows + 1] = { "" }
@@ -1487,15 +1522,19 @@ function S.cmd(arg)
         U.help("Stock module", rows)
 
     elseif verb == "on" and rest ~= "" then
-        CFG.off[rest] = nil
+        CFG.off[rest], CFG.trig[rest] = nil, nil
         U.save("stock", CFG)
         pcall(enableAlias, rest)
+        pcall(enableTrigger, rest)
         U.ok("Left '" .. rest .. "' alone. Reload to be sure it's back.")
 
     elseif verb == "off" and rest ~= "" then
+        -- we don't know which kind it is, so switch off whichever answers
         CFG.off[rest] = true
+        CFG.trig[rest] = true
         U.save("stock", CFG)
         pcall(disableAlias, rest)
+        pcall(disableTrigger, rest)
         U.ok("Disabled '" .. rest .. "'.")
 
     else
