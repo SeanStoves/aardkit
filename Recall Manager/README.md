@@ -35,6 +35,13 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+It ships empty and knows nothing about Aardwolf's recalls or portals — no built-in
+destinations, no pathfinding, no map integration. The command separator is `|`, not `;`.
+The `At:` line is set optimistically on click and only corrected if you gave that
+button an `at` regex.
+
 ## Config
 
 Settings live in `<profile>/aardkit/recallmanager.lua`.

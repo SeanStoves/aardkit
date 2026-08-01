@@ -28,6 +28,12 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+Per-line timestamps come from a Mudlet Host setting, not from this module. There is
+no rotation, pruning or compression, and a rename that would clash is skipped rather
+than overwriting.
+
 ## Config
 
 Settings live in `<profile>/aardkit/logging.lua`.

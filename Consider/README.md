@@ -25,6 +25,11 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+It never sends `consider` for you — type `con all` yourself and this tidies the
+answer. The ranking and colours are ours; the verdict wording is the MUD's.
+
 ## Config
 
 Settings live in `<profile>/aardkit/consider.lua`.

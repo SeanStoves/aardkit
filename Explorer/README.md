@@ -30,6 +30,12 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+Output is files you open elsewhere — nothing is drawn in the client. Rooms with no
+coordinates are skipped. Aggro and graffiti markers are Gaardian's own curation and
+aren't in mapper data, so they aren't rendered. It never moves you or edits the map.
+
 ## Config
 
 Settings live in `<profile>/aardkit/explorer.lua`.

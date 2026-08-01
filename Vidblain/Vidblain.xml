@@ -259,6 +259,10 @@ end
 ---
 
 function VB.stamp()
+    -- 'off' used to save and then do nothing at all: the panel kept updating and
+    -- the only way to be rid of it was 'panel coords hide'.
+    if CFG.show == "off" then panel:hide(); return end
+
     if not inzone() then settitle("Location: -"); return end
     if CFG.show == "coordareas" and not vidblain() then
         settitle(string.format("Location: %d,%d", VB.x, VB.y))
@@ -299,7 +303,8 @@ function VB.cmd(arg)
         rows[#rows + 1] = { "vid &lt;name|x,y&gt;", "set the target and show the way" }
         rows[#rows + 1] = { "vid run", "send the run command for the straight line" }
         rows[#rows + 1] = { "vid clear", "drop the target" }
-        rows[#rows + 1] = { "vid show off|coordareas|always", "" }
+        rows[#rows + 1] = { "vid show off|coordareas|always", "when the panel has anything to say" }
+        rows[#rows + 1] = { "vid panel [show|hide|dock|embed]", "move it or put it away" }
         U.help("Vidblain", rows)
 
     elseif verb == "run" or verb == "go" then
@@ -317,12 +322,19 @@ function VB.cmd(arg)
     elseif verb == "clear" then
         CFG.target = nil; U.save("vidblain", CFG); U.ok("Target cleared.")
 
-    elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show2" then
-        aardkit.panel.cmd("coords " .. verb:gsub("2", ""))
+    -- 'vid panel &lt;verb&gt;' rather than 'vid dock' etc, because 'vid show' is already
+    -- the display mode and the two were colliding - the panel one was reachable
+    -- only as the undiscoverable 'vid show2'.
+    elseif verb == "panel" then
+        if rest == "" then rest = "toggle" end
+        aardkit.panel.cmd("coords " .. rest)
 
     elseif verb == "show" then
         if rest == "off" or rest == "always" or rest == "coordareas" then
-            CFG.show = rest; U.save("vidblain", CFG); U.ok("Coordinates: " .. rest .. ".")
+            CFG.show = rest; U.save("vidblain", CFG)
+            if rest ~= "off" then panel:show() end
+            VB.stamp()
+            U.ok("Coordinates: " .. rest .. ".")
         else
             U.warn("vid show off|coordareas|always")
         end

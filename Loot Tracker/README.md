@@ -25,6 +25,15 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+It does not track sales, gold, or your inventory, and has nothing to do with goals,
+quests or campaigns. `shop_stock` is what a shop natively stocks and asks for an item,
+not what you sold. Gold and player-corpse loot are skipped deliberately. Identify is
+mostly passive — it reads any id or appraise box that scrolls past, and only sends
+`id` itself when you ask or turn `autoid` on. `loot upload` sends rows to a shared
+pool and is manual.
+
 ## Config
 
 Settings live in `<profile>/aardkit/loottracker.lua`.

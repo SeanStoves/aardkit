@@ -32,6 +32,13 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+It only learns from `who` output, so records are as fresh as your last sweep — pair it
+with Who Poller if you want that automatic. Online means "appeared in the most recent
+sweep", not a live status. Clan detection is a fixed list of decorations; anything else
+records with a blank clan.
+
 ## Config
 
 Settings live in `<profile>/aardkit/playertracker.lua`.

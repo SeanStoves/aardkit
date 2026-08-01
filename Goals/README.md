@@ -31,6 +31,11 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+These are savings targets against your own currencies. Nothing to do with Aardwolf's
+quests or campaigns, and it doesn't track spending or history.
+
 ## Config
 
 Settings live in `<profile>/aardkit/goals.lua`.

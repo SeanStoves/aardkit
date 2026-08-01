@@ -36,6 +36,25 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+Targets tick off from the MUD's own "Congratulations, that was one of your CAMPAIGN
+mobs!" line, which doesn't name the mob — so it reads back up the buffer for the
+death line that came with it. Regular quests have no such line, so a quest target is
+cleared by re-running `snd quest`. The mob database ships empty: fill it with
+`snd scan on` or a migration.
+
+`ah <mob>` walks you room by room off the MUD's hunt skill, opening doors on the way.
+It stops rather than guessing: portals, warded rooms, a locked door with no key, and
+the three low-skill "the trail is confusing" readings all halt it, because under 85%
+hunt the direction is a guess. It never runs while you're flagged AFK and gives up
+after 120 rooms.
+
+Clicking a target walks you there and stops. If the area isn't in your map it falls
+back on the MUD's own `runto <keyword>`, which needs Aylor recall or a runprefix, and
+that is where it ends — nothing hunts or kills for you. Run `snd keywords` once to
+learn the area list.
+
 ## Config
 
 Settings live in `<profile>/aardkit/snd.lua`.

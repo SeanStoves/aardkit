@@ -37,6 +37,19 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Worth knowing
+
+The autocaster types `spellup` and nothing else — the MUD decides which spells,
+and it gates on mana, recoveries, nomagic rooms, sleeping and affects you already
+have far better than a client could. The totem, eye, aura and wraith extras are the
+exception: they do send individual commands, and all four ship off.
+
+Nothing sends while you're flagged AFK, including `spellup now`.
+
+`{affon}` only fires on a fresh cast, so the panel is blank at login until
+`spellup sync` reads `aff` — which it does automatically once a cached skill table
+exists.
+
 ## Config
 
 Settings live in `<profile>/aardkit/spellups.lua`.
