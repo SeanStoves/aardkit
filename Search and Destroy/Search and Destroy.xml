@@ -1038,8 +1038,16 @@ solao_snd_hunt_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
     and Mudlet's gotoRoom routes through that override - its buildSpeedWalk()
     merges getRoomExits with getSpecialExitsSwap and then looks the merged keys up
     in a short-direction table that doesn't have them, so on this map it sent bare
-    numbers ("3") instead of directions. getPath() fills speedWalkDir with the
-    direction names directly, so walk them ourselves and skip the whole problem.
+    numbers ("3") instead of directions.
+
+    Instead: getPath() fills speedWalkDir with direction names, and we hand those
+    to the MUD's own 'run' command as 'run 3n2e2s'. Per 'help run' that is better
+    than sending directions one at a time - less spam, the map keeps up, tells are
+    saved for replay, and the MUD aborts by itself after three failed moves.
+
+    'run' takes the six basic directions ONLY: no diagonals, no doors, no custom
+    exits. So the path is split into runs of basic directions with anything else
+    sent on its own, in order.
 ]]
 
 solao = solao or {}
@@ -1100,6 +1108,7 @@ function SD.walk(dest, cb, what)
         U.warn("S&amp;D: no route to " .. (what or U.rid(dest)) .. ".")
         return false
     end
+    local cmds = SD.compress(steps)
 
     drop_arrive()
     solao.snd.on_arrive = function()
@@ -1114,13 +1123,44 @@ function SD.walk(dest, cb, what)
         U.warn("S&amp;D: gave up waiting to reach " .. (what or U.rid(dest)) .. ".")
     end)
 
-    U.note("Walking " .. #steps .. " room(s) to " .. (what or U.rid(dest)) .. ".")
-    for i, d in ipairs(steps) do
-        tempTimer(WCFG.gap * i, function()
-            if arrive_h then send(d, false) end   -- stops the moment we arrive
+    U.note("Walking " .. #steps .. " room(s) to " .. (what or U.rid(dest))
+        .. " (" .. #cmds .. " command" .. (#cmds == 1 and "" or "s") .. ").")
+    for i, c in ipairs(cmds) do
+        tempTimer(WCFG.gap * (i - 1), function()
+            if arrive_h then send(c, false) end   -- stops the moment we arrive
         end)
     end
     return true
+end
+
+-- 'run' handles the six basic directions and nothing else, so fold consecutive
+-- basic steps into one 'run 3n2e2s' and leave everything else - diagonals, doors,
+-- portals, custom exits - as its own command, in order.
+local BASIC = { north = "n", south = "s", east = "e", west = "w", up = "u", down = "d" }
+
+function SD.compress(steps)
+    local out, buf = {}, {}
+
+    local function flush()
+        if #buf == 0 then return end
+        local parts, i = {}, 1
+        while i &lt;= #buf do
+            local d, n = buf[i], 1
+            while buf[i + n] == d do n = n + 1 end
+            parts[#parts + 1] = (n &gt; 1 and n or "") .. d
+            i = i + n
+        end
+        -- one hop is just the direction; 'run n' is noise
+        out[#out + 1] = (#buf == 1) and buf[1] or ("run " .. table.concat(parts))
+        buf = {}
+    end
+
+    for _, d in ipairs(steps) do
+        local b = BASIC[d]
+        if b then buf[#buf + 1] = b else flush(); out[#out + 1] = d end
+    end
+    flush()
+    return out
 end
 
 ---
