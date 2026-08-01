@@ -1,0 +1,37 @@
+name: modules
+
+# Runs against the .xml files a PR actually changes, not against src/, because
+# the .xml is what anyone installs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # LuaJIT, not lua5.4. Mudlet is LuaJIT 5.1 and the difference is not
+      # academic: a \u{2014} escape parses on 5.3+ and prints literally in the
+      # client, so a newer Lua passes code that is visibly broken in Mudlet.
+      - name: Install LuaJIT
+        run: sudo apt-get update && sudo apt-get install -y luajit
+
+      - name: Modules are well-formed XML
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          bad = 0
+          for f in sorted(glob.glob('*/*.xml')):
+              try:
+                  ET.parse(f)
+                  print('ok   ', f)
+              except ET.ParseError as e:
+                  print('FAIL ', f, e); bad = 1
+          sys.exit(bad)
+          PY
+
+      - name: Load every module and drive its aliases and triggers
+        run: luajit ci/harness.lua .
