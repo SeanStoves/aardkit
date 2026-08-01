@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>consider</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>consider line</name>
+				<script>solao.con.on_line()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>(?:No Problem!|snickers nervously\.|looks a little worried about the idea\.|should be a fair fight!|chuckles at the thought of you fighting|would crush you like a bug!|would dance on your grave!|would be easy, but is it even worth the work out\?|BEGONE FROM MY SIGHT)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>consider</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>xcon</name>
+				<script>solao.con.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^xcon(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>consider</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>consider</name>
+				<packageName />
+				<script>--[[
+    Consider
+    Sean Stoves, 2026-08-01
+
+    'con all' rates everything in the room, one line of prose per mob. Past
+    about three mobs that's a paragraph you have to read rather than glance at,
+    and the thing you actually want - can I take it - is buried at the end of
+    the sentence.
+
+    So the line gets rewritten where it stands: verdict first, colour-coded,
+    then the level difference, the name, and any flags.
+
+        -5 (Golden Aura) No Problem! A guard of the Burh is weak compared to you.
+        weak       -5  A guard of the Burh          (Golden Aura)
+
+    Aardwolf's verdicts, easiest to hardest. The MUD's own strings:
+
+        would be easy, but is it even worth the work out?
+        No Problem! ... is weak compared to you.
+        snickers nervously.
+        looks a little worried about the idea.
+        should be a fair fight!
+        chuckles at the thought of you fighting
+        would crush you like a bug!
+        would dance on your grave!
+        says 'BEGONE FROM MY SIGHT unworthy!'
+
+    'con all' prefixes the level difference; plain 'consider &lt;mob&gt;' doesn't, so
+    the number is optional. Flags are parenthesised before the verdict and there
+    can be more than one.
+
+    Written from that output and Aardwolf's own messages. Not a port of
+    Mushclient-Consider, which is GPL-3.0; see CREDITS.md.
+]]
+
+solao = solao or {}
+solao.con = solao.con or {}
+
+local C = solao.con
+local U = solao.util
+
+local CFG = U.load("consider", { on = true })
+
+-- label, colour, and the MUD wording that means it. Ranking is ours.
+local VERDICT = {
+    { "trivial",   "#5a7a5a", "would be easy, but is it even worth the work out%?" },
+    { "weak",      "#3ad07a", "No Problem!" },
+    { "nervous",   "#9ece6a", "snickers nervously%." },
+    { "worried",   "#c8d05a", "looks a little worried about the idea%." },
+    { "fair",      "#e0af68", "should be a fair fight!" },
+    { "hard",      "#e08a68", "chuckles at the thought of you fighting" },
+    { "crushing",  "#f7768e", "would crush you like a bug!" },
+    { "deadly",    "#e94560", "would dance on your grave!" },
+    { "no chance", "#b02a4a", "BEGONE FROM MY SIGHT" },
+}
+
+local NAME = {
+    "^No Problem!%s*(.-) is weak compared to you%.$",
+    "^(.-) would be easy",
+    "^(.-) snickers nervously",
+    "^(.-) looks a little worried",
+    "^(.-) should be a fair fight",
+    "^(.-) chuckles at the thought",
+    "^(.-) would crush you",
+    "^(.-) would dance on your grave",
+    "^(.-) says 'BEGONE",
+}
+
+function C.on_line()
+    if not CFG.on then return end
+
+    local line = U.trim(getCurrentLine() or "")
+    if line == "" then return end
+
+    local label, colour
+    for _, v in ipairs(VERDICT) do
+        if line:find(v[3]) then label, colour = v[1], v[2]; break end
+    end
+    if not label then return end
+
+    -- optional level difference, then any number of (flag) groups
+    local lvl, rest = line:match("^(%-?%d+)%s+(.*)$")
+    rest = rest or line
+
+    local flags = {}
+    while true do
+        local f, tail = rest:match("^%((.-)%)%s*(.*)$")
+        if not f then break end
+        flags[#flags + 1] = f
+        rest = tail
+    end
+
+    local name
+    for _, pat in ipairs(NAME) do
+        name = rest:match(pat)
+        if name and name ~= "" then break end
+    end
+    if not name or name == "" then return end
+
+    deleteLine()
+    U.out(string.format("&lt;%s&gt;%-9s&lt;r&gt; &lt;#8a93a8&gt;%3s&lt;r&gt;  &lt;#c8d0dc&gt;%s&lt;r&gt;%s",
+        colour, label,
+        lvl and (tonumber(lvl) &gt; 0 and ("+" .. lvl) or lvl) or "",
+        name,
+        #flags &gt; 0 and ("  &lt;#7aa2f7&gt;(" .. table.concat(flags, ") (") .. ")&lt;r&gt;") or ""))
+end
+
+function C.cmd(arg)
+    local verb = U.split_verb(arg)
+
+    if verb == "" or verb == "status" then
+        U.help("Consider", {
+            { "rewriting", CFG.on and "on" or "off" },
+            { "" },
+            { "xcon on | off", "rewrite the lines, or leave the MUD's own" },
+            { "" },
+            { "Type 'con all' at the MUD; this tidies the answer in place." },
+            { "Verdict first and colour-coded, because 'can I take it' is the" },
+            { "point and the MUD buries it at the end of the sentence." },
+        })
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on")
+        U.save("consider", CFG)
+        U.ok("Consider lines " .. (CFG.on and "rewritten." or "left as the MUD sends them."))
+
+    else
+        U.warn("xcon [on|off]")
+    end
+end
+
+solao.register("xcon", "tidies what 'con all' says about the room", C.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
