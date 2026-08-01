@@ -831,6 +831,7 @@ function solao.cmd(arg)
         local rows = {
             { "solao",        "this list" },
             { "solao plugins", "what's loaded" },
+            { "solao stock",        "what we switch off in the stock AardwolfMudlet module" },
             { "solao probe",   "which Mudlet functions actually exist here" },
             { "panel",       "manage the docked/embedded windows" },
         }
@@ -841,6 +842,9 @@ function solao.cmd(arg)
             rows[#rows + 1] = { n, solao.plugins[n].desc }
         end
         U.help("solao " .. solao.version, rows)
+
+    elseif verb == "stock" then
+        if solao.stock then solao.stock.cmd(rest) else U.warn("stock module handling isn't loaded.") end
 
     elseif verb == "probe" then
         -- Mudlet's Lua-side API isn't greppable in the binary, so ask the
@@ -1082,6 +1086,121 @@ function T.cmd(arg)
 end
 
 solao.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>40_stock</name>
+				<packageName />
+				<script>--[==[
+    Standing clear of the stock AardwolfMudlet module
+    Sean Stoves, 2026-08-01
+
+    A short list of things in aardwolf.xml that actively misbehave, switched off
+    so they stop interfering. Nothing here edits their package - we only disable
+    by name at runtime, so their file is untouched and a reinstall or update of
+    theirs just gets disabled again next load.
+
+    Currently one entry, 'runto rt':
+
+      elseif string.match("the witches of omen tor omentor", matches[2]:lower())
+        send("run 2s10e2n7e7n11e4n4e;enter hole")   --vidblain
+        tempTimer(1,[[aard.coordrun(15578)]])
+
+    It swallows every 'runto' and answers a handful of them with speedwalks
+    hardcoded to whoever wrote it, so 'runto omentor' sends someone else's
+    Vidblain route and the MUD answers "Invalid directions in command."
+
+    Then it calls aard.coordrun, which is worse:
+
+      function aard.coordrun(roomid)
+        if aard.state == 3 and ...areaName... == "vidblain" then
+          display(aard.state) ; gotoRoom(roomid)
+        else
+          display(aard.state)
+          aard.crun = tempTimer(1, function () aard.coordrun(roomid) end)
+        end
+      end
+
+    Anywhere but Vidblain that's an infinite loop printing aard.state - a bare
+    "3" every second, forever, with a fresh timer per 'runto' you type. Only the
+    newest is tracked in aard.crun, so the rest run until you reconnect.
+
+    Disabling their alias hands 'runto' back to the MUD, which is what it should
+    have been doing.
+]==]
+
+solao = solao or {}
+solao.stock = solao.stock or {}
+
+local S = solao.stock
+local U = solao.util
+
+local CFG = U.load("stock", { off = { ["runto rt"] = true } })
+
+-- why each one is switched off, shown by 'solao stock'
+local WHY = {
+    ["runto rt"] = "hardcodes someone else's speedwalks and leaks a 1/sec timer printing '3'",
+}
+
+function S.apply()
+    local n = 0
+    for name, want in pairs(CFG.off) do
+        if want then
+            local ok = pcall(disableAlias, name)
+            if ok then n = n + 1 end
+        end
+    end
+    -- their runaway timer, if one is already going. Only the newest is tracked
+    -- on their side, so anything older survives until you reconnect.
+    if aard and aard.crun then
+        pcall(killTimer, aard.crun)
+        aard.crun = nil
+    end
+    return n
+end
+
+function S.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    if verb == "" or verb == "list" then
+        local rows = {}
+        for name, want in pairs(CFG.off) do
+            rows[#rows + 1] = { name, (want and "disabled" or "left alone")
+                .. (WHY[name] and ("  - " .. WHY[name]) or "") }
+        end
+        table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "solao stock on &lt;alias&gt;", "let the module's alias run again" }
+        rows[#rows + 1] = { "solao stock off &lt;alias&gt;", "switch it off again" }
+        U.help("Stock module", rows)
+
+    elseif verb == "on" and rest ~= "" then
+        CFG.off[rest] = nil
+        U.save("stock", CFG)
+        pcall(enableAlias, rest)
+        U.ok("Left '" .. rest .. "' alone. Reload to be sure it's back.")
+
+    elseif verb == "off" and rest ~= "" then
+        CFG.off[rest] = true
+        U.save("stock", CFG)
+        pcall(disableAlias, rest)
+        U.ok("Disabled '" .. rest .. "'.")
+
+    else
+        U.warn("solao stock [list | on &lt;alias&gt; | off &lt;alias&gt;]")
+    end
+end
+
+-- Their package loads on its own schedule, so once at script time isn't enough:
+-- an alias they create after us would come back up enabled.
+S.apply()
+tempTimer(2, S.apply)
+
+U.killhandler(solao_stock_connect)
+solao_stock_connect = registerAnonymousEventHandler("sysConnectionEvent",
+    function() tempTimer(3, S.apply) end)
 </script>
 				<eventHandlerList />
 			</Script>
