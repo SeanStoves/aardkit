@@ -625,11 +625,21 @@ end
 
 local warned = {}   -- skillnum -&gt; { [30]=true, [10]=true }
 
-function SP.on_affon(num, secs)
+-- One way in, so no path can set an affect and forget to record that the spell
+-- lasts. That already happened once: the 'aff' sync set SP.affect directly, the
+-- panel filters on SP.hasdur, and a night vision with 37 minutes left showed as
+-- "Nothing running".
+function SP.mark(num, secs)
     num, secs = tonumber(num), tonumber(secs)
     if not num then return end
     if (secs or 0) &gt; 0 then SP.hasdur[num] = true end
     SP.affect[num] = os.time() + (secs or 0)
+end
+
+function SP.on_affon(num, secs)
+    num, secs = tonumber(num), tonumber(secs)
+    if not num then return end
+    SP.mark(num, secs)
     SP.failed[num] = nil
     SP.dropped[num] = nil
     warned[num] = nil
@@ -672,8 +682,7 @@ function SP.on_sfail(num, target, code, rec)
     -- "already affected" means it IS an affect, so it counts as one that lasts -
     -- but the 60s is a guess standing in until a real {affon} arrives.
     if code == 2 then
-        SP.hasdur[num] = true
-        SP.affect[num] = os.time() + 60
+        SP.mark(num, 60)
     end
 end
 
@@ -749,7 +758,9 @@ local function sync_row()
                    or (tonumber(a) * 60 + tonumber(b))
     local id = SP.byname[name:lower()]
     if id then
-        SP.affect[id] = os.time() + secs
+        -- 'aff' only ever lists things that are running with time left, so this
+        -- is as good a duration as an {affon}
+        SP.mark(id, secs)
         synced = synced + 1
     end
 end
