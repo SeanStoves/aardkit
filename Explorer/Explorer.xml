@@ -1,0 +1,714 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>explorer</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>explore</name>
+				<script>aard.explorer.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^explores?(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>explorer</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>explorer/svg</name>
+				<packageName />
+				<script>--[[
+    Explorer — SVG renderer
+    Sean Stoves, 2026-07-31
+
+    Draws area maps in the Gaardian house style, because that's the style every
+    Aardwolf player already reads fluently. Taken from maps.gaardian.com's own
+    renderer rather than eyeballed:
+
+      plain white box, black border stroke 2    normal room
+      green border stroke 5                     area entrance
+      red border stroke 2/4                     aggressive mobs (we can't know)
+      "PK" red bold 10px, bottom left           pk room
+      room NAME across the top, wrapped         not a room number
+      short bar across a link                   door
+
+    The important one is what Gaardian does NOT do: it never runs a line across
+    the map for a distant exit. It draws a stub with a link marker and only shows
+    the connector when you click it, because long diagonals turn a map into a
+    cat's cradle. Same here - stub, grey dot, and the full line fades in on hover
+    for anyone who opens the file in a browser.
+
+    Three departures, all deliberate:
+
+      * boxes are 140x56 rather than 100x60. Gaardian hand-edits names to fit;
+        we don't, so the box has to hold a real one.
+      * the room id sits under the name. Gaardian has no use for it, we do -
+        it's what you actually type at the MUD.
+      * Gaardian flattens an area onto one hand-placed grid. We have real z
+        coordinates, so each level gets its own. Up/down stop being a fudged
+        diagonal and become what they are.
+
+    Aggro and graffiti are hand-curated on Gaardian's side and aren't in mapper
+    data, so they're left out rather than invented. The flags we do have - shop,
+    bank, trainer, healer, guild, safe, maze - get corner letters and a legend.
+]]
+
+aard = aard or {}
+aard.explorer = aard.explorer or {}
+
+local EX = aard.explorer
+
+local RW, RH = 140, 56          -- room box; Gaardian's 100 was too tight for
+                                -- one-line names once we stopped hand-editing them
+local GAPX, GAPY = 34, 26       -- space between boxes for the connectors
+local MARGIN = 30
+
+local FLAGMARK = {
+    shop = "$", bank = "B", trainer = "T", healer = "H", guild = "G",
+    safe = "+", maze = "?",
+}
+
+local FLAGNAME = {
+    ["$"] = "shop", ["B"] = "bank", ["T"] = "trainer", ["H"] = "healer",
+    ["G"] = "guild", ["+"] = "safe", ["?"] = "maze",
+}
+
+local function esc(s)
+    return (tostring(s or ""):gsub("&amp;", "&amp;amp;"):gsub("&lt;", "&amp;lt;"):gsub("&gt;", "&amp;gt;")
+        :gsub('"', "&amp;quot;"):gsub("'", "&amp;#x27;"))
+end
+
+-- Greedy wrap at roughly the width Tahoma 12px gives us. Gaardian drops to 10px
+-- once a name runs past 39 characters; same rule here.
+local function wrap(name, maxchars)
+    local lines, cur = {}, ""
+    for word in tostring(name or ""):gmatch("%S+") do
+        if cur == "" then
+            cur = word
+        elseif #cur + 1 + #word &lt;= maxchars then
+            cur = cur .. " " .. word
+        else
+            lines[#lines + 1] = cur
+            cur = word
+        end
+        if #lines &gt;= 3 then break end
+    end
+    if cur ~= "" and #lines &lt; 4 then lines[#lines + 1] = cur end
+    return lines
+end
+
+local function flags_of(info)
+    local set = {}
+    for f in tostring(info or ""):gmatch("[^,%s]+") do set[f:lower()] = true end
+    return set
+end
+
+---
+-- one z-level -&gt; one &lt;g&gt;
+---
+
+-- Rank the coordinates actually in use instead of drawing the raw span. Areas
+-- are full of holes - Aardington's ground floor spans 14 columns for 8 occupied
+-- ones - and rendering the holes is what made the old maps mostly whitespace.
+-- Gaardian gets compactness by hand-placing every room; collapsing unused rows
+-- and columns is the automated equivalent. Order is preserved, so the map still
+-- reads true; only the empty space goes.
+local function rank(rooms, key)
+    local seen, vals = {}, {}
+    for _, r in pairs(rooms) do
+        if not seen[r[key]] then seen[r[key]] = true; vals[#vals + 1] = r[key] end
+    end
+    table.sort(vals)
+    local idx = {}
+    for i, v in ipairs(vals) do idx[v] = i - 1 end
+    return idx, #vals
+end
+
+local function draw_level(o, rooms, links, oy, label)
+    local xi, nx = rank(rooms, "x")
+    local yi, ny = rank(rooms, "y")
+    if nx == 0 then return oy, 0, 0 end
+
+    -- SVG y grows downward, the MUD's y grows north, so flip it
+    local function px(r) return MARGIN + xi[r.x] * (RW + GAPX) end
+    local function py(r) return oy + (ny - 1 - yi[r.y]) * (RH + GAPY) end
+
+    local w = MARGIN * 2 + nx * (RW + GAPX)
+    local h = ny * (RH + GAPY)
+
+    if label then
+        o[#o + 1] = string.format(
+            '&lt;text x="%d" y="%d" font-size="14" font-weight="bold" fill="#333"&gt;%s&lt;/text&gt;',
+            MARGIN, oy - 8, esc(label))
+    end
+
+    -- connectors first so the boxes sit on top of the line ends
+    for _, l in ipairs(links) do
+        local a, b = rooms[l.from], rooms[l.to]
+        if a and b then
+            local x1, y1 = px(a) + RW / 2, py(a) + RH / 2
+            local x2, y2 = px(b) + RW / 2, py(b) + RH / 2
+            local far = math.abs(xi[a.x] - xi[b.x]) &gt; 1 or math.abs(yi[a.y] - yi[b.y]) &gt; 1
+
+            if not far and not l.special then
+                o[#o + 1] = string.format(
+                    '&lt;line x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#000" stroke-width="2"/&gt;',
+                    x1, y1, x2, y2)
+                if l.door then
+                    -- short bar across the link, the way a door reads on paper
+                    local mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+                    local dx, dy = x2 - x1, y2 - y1
+                    local len = math.max(1, math.sqrt(dx * dx + dy * dy))
+                    local nx, ny = -dy / len * 7, dx / len * 7
+                    o[#o + 1] = string.format(
+                        '&lt;line x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#000" stroke-width="3"/&gt;',
+                        mx - nx, my - ny, mx + nx, my + ny)
+                end
+            else
+                -- Gaardian never runs a line across the map for a distant exit.
+                -- It draws a short stub with a link marker and only shows the
+                -- full connector once you click it, because long diagonals turn
+                -- a map into a cat's cradle. Same here: stub plus marker, and
+                -- the whole line fades in on hover for anyone who opens the file
+                -- in a browser. Static viewers just see the stubs.
+                o[#o + 1] = '&lt;g class="lk"&gt;'
+                o[#o + 1] = string.format(
+                    '&lt;line class="far" x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#f28c28" stroke-width="3"/&gt;',
+                    x1, y1, x2, y2)
+                local tip = esc(a.name .. "  &lt;-&gt;  " .. b.name
+                    .. (l.label and ("   (" .. l.label .. ")") or ""))
+                for _, e in ipairs({ { a, x1, y1, x2, y2 }, { b, x2, y2, x1, y1 } }) do
+                    local rr, sx, sy, tx, ty2 = e[1], e[2], e[3], e[4], e[5]
+                    local dx, dy = tx - sx, ty2 - sy
+                    local len = math.max(1, math.sqrt(dx * dx + dy * dy))
+                    dx, dy = dx / len, dy / len
+                    -- start at the box edge, not the middle
+                    local ex = sx + dx * (math.abs(dx) &gt; math.abs(dy) and RW / 2 or RH / 2)
+                    local ey = sy + dy * (math.abs(dx) &gt; math.abs(dy) and RW / 2 or RH / 2)
+                    o[#o + 1] = string.format(
+                        '&lt;line x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#000" stroke-width="2"/&gt;',
+                        ex, ey, ex + dx * 14, ey + dy * 14)
+                    o[#o + 1] = string.format(
+                        '&lt;circle cx="%.0f" cy="%.0f" r="5" fill="#bbb" stroke="#555" stroke-width="1"&gt;'
+                        .. '&lt;title&gt;%s&lt;/title&gt;&lt;/circle&gt;',
+                        ex + dx * 20, ey + dy * 20, tip)
+                end
+                if l.label then
+                    o[#o + 1] = string.format(
+                        '&lt;text x="%.0f" y="%.0f" font-size="9" fill="#8a4b00" text-anchor="middle"&gt;%s&lt;/text&gt;',
+                        (x1 + x2) / 2, (y1 + y2) / 2 - 3, esc(l.label))
+                end
+                o[#o + 1] = '&lt;/g&gt;'
+            end
+        end
+    end
+
+    for _, r in ipairs(EX.sorted(rooms)) do
+        local x, y = px(r), py(r)
+        local stroke, width = "#000", 2
+        if r.entrance then stroke, width = "#0a0", 5 end
+
+        o[#o + 1] = string.format(
+            '&lt;rect x="%d" y="%d" width="%d" height="%d" fill="#fff" stroke="%s" stroke-width="%d"&gt;'
+            .. '&lt;title&gt;%s  #%s%s&lt;/title&gt;&lt;/rect&gt;',
+            x, y, RW, RH, stroke, width,
+            esc(r.name), r.id, r.info ~= "" and ("  [" .. esc(r.info) .. "]") or "")
+
+        local fs = #tostring(r.name or "") &gt;= 39 and 10 or 12
+        local lines = wrap(r.name, fs == 10 and 26 or 22)
+        local ty = y + 16
+        for i, ln in ipairs(lines) do
+            o[#o + 1] = string.format(
+                '&lt;text x="%.0f" y="%.0f" font-size="%d" fill="#000" text-anchor="middle"&gt;%s&lt;/text&gt;',
+                x + RW / 2, ty + (i - 1) * (fs + 2), fs, esc(ln))
+        end
+
+        o[#o + 1] = string.format(
+            '&lt;text x="%.0f" y="%.0f" font-size="9" fill="#777" text-anchor="middle"&gt;%s&lt;/text&gt;',
+            x + RW / 2, y + RH - 5, r.id)
+
+        local f = flags_of(r.info)
+        if f.pk then
+            o[#o + 1] = string.format(
+                '&lt;text x="%d" y="%d" font-size="10" font-weight="bold" fill="#d00"&gt;PK&lt;/text&gt;',
+                x + 4, y + RH - 4)
+        end
+
+        local marks = {}
+        for name, ch in pairs(FLAGMARK) do
+            if f[name] then marks[#marks + 1] = ch end
+        end
+        table.sort(marks)
+        if #marks &gt; 0 then
+            o[#o + 1] = string.format(
+                '&lt;text x="%d" y="%d" font-size="10" fill="#0057b8" text-anchor="end"&gt;%s&lt;/text&gt;',
+                x + RW - 4, y + RH - 4, esc(table.concat(marks, " ")))
+        end
+
+        -- up/down are real levels now, so say where rather than drawing a fake
+        -- diagonal into another grid
+        if r.ud and r.ud ~= "" then
+            o[#o + 1] = string.format(
+                '&lt;text x="%d" y="%d" font-size="10" fill="#555" text-anchor="end"&gt;%s&lt;/text&gt;',
+                x + RW - 4, y + 12, esc(r.ud))
+        end
+    end
+
+    return oy + h + 40, w, h
+end
+
+---
+-- legend — only the flags this area actually uses
+---
+
+local function draw_legend(o, used, oy, w)
+    local items = {}
+    if used.entrance then items[#items + 1] = { "#0a0", "green box = area entrance" } end
+    if used.pk       then items[#items + 1] = { "#d00", "PK = player killing" } end
+    if used.door     then items[#items + 1] = { "#000", "bar across a link = door" } end
+    if used.far      then items[#items + 1] = { "#555", "grey dot = exit to a room elsewhere on the map (hover to trace it)" } end
+    for ch in pairs(used.marks or {}) do
+        items[#items + 1] = { "#0057b8", ch .. " = " .. (FLAGNAME[ch] or "?") }
+    end
+    if #items == 0 then return oy end
+
+    table.sort(items, function(a, b) return a[2] &lt; b[2] end)
+    o[#o + 1] = string.format(
+        '&lt;text x="%d" y="%d" font-size="12" font-weight="bold" fill="#333"&gt;Legend&lt;/text&gt;',
+        MARGIN, oy)
+    local y = oy + 16
+    for _, it in ipairs(items) do
+        o[#o + 1] = string.format(
+            '&lt;text x="%d" y="%d" font-size="11" fill="%s"&gt;%s&lt;/text&gt;', MARGIN, y, it[1], esc(it[2]))
+        y = y + 14
+    end
+    return y + 10
+end
+
+---
+-- entry point
+---
+
+-- levels: { [z] = { rooms = {id-&gt;room}, links = {..} } }
+function EX.build_svg(title, levels, subtitle)
+    local o, oy = {}, MARGIN + 40
+    local maxw = 600
+    local used = { marks = {} }
+
+    local zs = {}
+    for z in pairs(levels) do zs[#zs + 1] = z end
+    table.sort(zs, function(a, b) return a &gt; b end)   -- highest level first
+
+    local body = {}
+    for _, z in ipairs(zs) do
+        local lv = levels[z]
+        for _, r in pairs(lv.rooms) do
+            if r.entrance then used.entrance = true end
+            local f = flags_of(r.info)
+            if f.pk then used.pk = true end
+            for name, ch in pairs(FLAGMARK) do
+                if f[name] then used.marks[ch] = true end
+            end
+        end
+        for _, l in ipairs(lv.links) do
+            if l.door then used.door = true end
+            local a, b = lv.rooms[l.from], lv.rooms[l.to]
+            if l.special or (a and b and (math.abs(a.x - b.x) &gt; 1 or math.abs(a.y - b.y) &gt; 1)) then
+                used.far = true
+            end
+        end
+        local label = #zs &gt; 1 and ("Level " .. z) or nil
+        local ny, w = draw_level(body, lv.rooms, lv.links, oy, label)
+        oy, maxw = ny, math.max(maxw, w)
+    end
+
+    oy = draw_legend(body, used, oy, maxw)
+
+    o[#o + 1] = string.format(
+        '&lt;svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" '
+        .. 'font-family="Tahoma,Verdana,sans-serif"&gt;', maxw, oy, maxw, oy)
+    o[#o + 1] = '&lt;style&gt;.far{opacity:0}.lk:hover .far{opacity:1}'
+        .. '.lk:hover circle{fill:#f28c28}&lt;/style&gt;'
+    o[#o + 1] = string.format('&lt;rect width="%d" height="%d" fill="#fff"/&gt;', maxw, oy)
+    o[#o + 1] = string.format(
+        '&lt;text x="%d" y="%d" font-size="18" font-weight="bold" fill="#000"&gt;%s&lt;/text&gt;',
+        MARGIN, MARGIN, esc(title))
+    if subtitle then
+        o[#o + 1] = string.format(
+            '&lt;text x="%d" y="%d" font-size="11" fill="#666"&gt;%s&lt;/text&gt;',
+            MARGIN, MARGIN + 16, esc(subtitle))
+    end
+    for _, s in ipairs(body) do o[#o + 1] = s end
+    o[#o + 1] = '&lt;/svg&gt;'
+    return table.concat(o, "\n")
+end
+
+-- stable draw order so a re-export diffs cleanly in git
+function EX.sorted(rooms)
+    local out = {}
+    for _, r in pairs(rooms) do out[#out + 1] = r end
+    table.sort(out, function(a, b) return a.id &lt; b.id end)
+    return out
+end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>explorer</name>
+				<packageName />
+				<script>--[[
+    Explorer — area maps from Mudlet's own map
+    Sean Stoves, 2026-07-31
+
+    The MUSHclient version read the mapper's SQLite file and *inferred* room
+    positions by walking the exit graph, nudging boxes sideways whenever two
+    landed on the same square. It also treated up/down as a diagonal step, which
+    quietly folded every floor of a tower onto one plane. That's why its output
+    never looked like a real map.
+
+    Mudlet stores real coordinates, so none of that guessing is needed:
+    getRoomCoordinates gives x, y and z outright. Rooms go where they actually
+    are, and each z becomes its own grid instead of a fudge.
+
+    Read-only. It never moves you and never touches the map.
+]]
+
+aard = aard or {}
+aard.explorer = aard.explorer or {}
+
+local EX = aard.explorer
+local U  = aard.util
+
+local CFG = U.load("explorer", { dir = "maps" })
+
+local panel = aard.panel.new({
+    name = "explorer", title = "Explorer",
+    x = "10px", y = "300px", width = 380, height = 260,
+})
+
+EX.panel = panel
+
+local DIRDELTA = {
+    north = { 0, 1 }, south = { 0, -1 }, east = { 1, 0 }, west = { -1, 0 },
+    northeast = { 1, 1 }, northwest = { -1, 1 },
+    southeast = { 1, -1 }, southwest = { -1, -1 },
+}
+
+local function outdir(d)
+    return d == "up" or d == "down"
+end
+
+---
+-- map access
+---
+
+local function areas()
+    local t = getAreaTable and getAreaTable() or {}
+    local out = {}
+    for name, id in pairs(t) do out[#out + 1] = { name = name, id = id } end
+    table.sort(out, function(a, b) return a.name:lower() &lt; b.name:lower() end)
+    return out
+end
+
+-- partial match, current area when nothing's given
+function EX.resolve(want)
+    want = U.trim(want or "")
+    if want == "" then
+        local here = getPlayerRoom and getPlayerRoom()
+        local aid = here and getRoomArea and getRoomArea(here)
+        if not aid then return nil, "Can't tell what area you're in." end
+        for _, a in ipairs(areas()) do
+            if a.id == aid then return a end
+        end
+        return nil, "Area " .. tostring(aid) .. " isn't in the area table."
+    end
+    local lw = want:lower()
+    local hits = {}
+    for _, a in ipairs(areas()) do
+        if a.name:lower() == lw then return a end
+        if a.name:lower():find(lw, 1, true) then hits[#hits + 1] = a end
+    end
+    if #hits == 1 then return hits[1] end
+    if #hits == 0 then return nil, "No area matching '" .. want .. "'." end
+    local names = {}
+    for _, a in ipairs(hits) do names[#names + 1] = a.name end
+    return nil, #hits .. " areas match: " .. table.concat(names, ", ")
+end
+
+-- everything the renderer needs, grouped by z
+function EX.collect(areaid)
+    local ids = getAreaRooms and getAreaRooms(areaid) or {}
+    local mine, levels = {}, {}
+    local n = 0
+
+    for _, id in pairs(ids) do
+        local x, y, z = getRoomCoordinates(id)
+        if x then
+            mine[id] = { x = x, y = y, z = z or 0 }
+            n = n + 1
+        end
+    end
+    if n == 0 then return nil, 0 end
+
+    for id, p in pairs(mine) do
+        local z = p.z
+        levels[z] = levels[z] or { rooms = {}, links = {} }
+
+        local info = ""
+        if getRoomUserData then info = getRoomUserData(id, "info") or "" end
+
+        local ud = {}
+        local entrance = false
+        local exits = getRoomExits and getRoomExits(id) or {}
+
+        for dir, dest in pairs(exits) do
+            if outdir(dir) then
+                -- real level change; note it rather than drawing a fake diagonal
+                ud[#ud + 1] = (dir == "up") and "\u{2191}" or "\u{2193}"
+            end
+            -- an exit leaving the area is where you come in from
+            if not mine[dest] then entrance = true end
+        end
+        table.sort(ud)
+
+        levels[z].rooms[id] = {
+            id = id, x = p.x, y = p.y, info = info,
+            name = (getRoomName and getRoomName(id)) or ("#" .. id),
+            entrance = entrance,
+            ud = table.concat(ud, ""),
+        }
+    end
+
+    -- links, deduped, only between rooms on the same level
+    for id, p in pairs(mine) do
+        local lv = levels[p.z]
+        local doors = getDoors and getDoors(id) or {}
+        for dir, dest in pairs(getRoomExits and getRoomExits(id) or {}) do
+            local q = mine[dest]
+            if q and q.z == p.z and id &lt; dest and DIRDELTA[dir] then
+                lv.links[#lv.links + 1] = {
+                    from = id, to = dest,
+                    door = (doors[dir] or 0) &gt; 0 or nil,
+                }
+            end
+        end
+        -- special exits are the followable oddities; label them
+        local ok, sp = pcall(getSpecialExits, id)
+        if ok and type(sp) == "table" then
+            for dest, cmd in pairs(sp) do
+                local d = tonumber(dest)
+                if type(cmd) == "table" then cmd = next(cmd) end
+                if d and mine[d] and mine[d].z == p.z then
+                    lv.links[#lv.links + 1] = {
+                        from = math.min(id, d), to = math.max(id, d),
+                        special = true, label = tostring(cmd),
+                    }
+                end
+            end
+        end
+    end
+
+    return levels, n
+end
+
+---
+-- output
+---
+
+local function outdir_path()
+    local d = getMudletHomeDir() .. "/" .. (CFG.dir or "maps")
+    pcall(lfs.mkdir, d)
+    return d
+end
+
+local function safe(s)
+    return (tostring(s or "area"):gsub("[^%w%-]+", "_"):gsub("^_+", ""):gsub("_+$", ""))
+end
+
+local function write(path, body)
+    local fh, err = io.open(path, "w")
+    if not fh then return nil, tostring(err) end
+    fh:write(body)
+    fh:close()
+    return true
+end
+
+function EX.svg(want)
+    local a, err = EX.resolve(want)
+    if not a then U.warn(err); return end
+
+    local levels, n = EX.collect(a.id)
+    if not levels then
+        U.warn("'" .. a.name .. "' has no rooms with coordinates.")
+        return
+    end
+
+    local nz = 0
+    for _ in pairs(levels) do nz = nz + 1 end
+    local sub = n .. " rooms" .. (nz &gt; 1 and (", " .. nz .. " levels") or "")
+
+    local body = EX.build_svg(a.name, levels, sub)
+    local path = outdir_path() .. "/map_" .. safe(a.name) .. ".svg"
+    local ok, werr = write(path, body)
+    if not ok then U.err("Couldn't write " .. path .. ": " .. werr); return end
+
+    U.ok("Wrote " .. path .. "  (" .. sub .. ")")
+    EX.paint(a.name .. " -&gt; " .. sub)
+end
+
+function EX.json(want)
+    local a, err = EX.resolve(want)
+    if not a then U.warn(err); return end
+
+    local levels, n = EX.collect(a.id)
+    if not levels then U.warn("'" .. a.name .. "' has no rooms with coordinates."); return end
+
+    local dump = { area = a.name, id = a.id, rooms = {}, links = {} }
+    for z, lv in pairs(levels) do
+        for _, r in pairs(lv.rooms) do
+            dump.rooms[#dump.rooms + 1] = {
+                id = r.id, name = r.name, x = r.x, y = r.y, z = z, info = r.info,
+            }
+        end
+        for _, l in ipairs(lv.links) do
+            dump.links[#dump.links + 1] = {
+                from = l.from, to = l.to, door = l.door and true or nil,
+                special = l.special and true or nil, cmd = l.label,
+            }
+        end
+    end
+
+    local path = outdir_path() .. "/map_" .. safe(a.name) .. ".json"
+    local ok, werr = write(path, yajl.to_string(dump))
+    if not ok then U.err("Couldn't write " .. path .. ": " .. werr); return end
+    U.ok("Wrote " .. path .. "  (" .. n .. " rooms)")
+end
+
+function EX.all()
+    local list = areas()
+    U.note("Exporting " .. #list .. " areas - this writes a lot of files.")
+    local done, empty = 0, 0
+    for _, a in ipairs(list) do
+        local levels, n = EX.collect(a.id)
+        if levels then
+            local nz = 0
+            for _ in pairs(levels) do nz = nz + 1 end
+            local body = EX.build_svg(a.name, levels,
+                n .. " rooms" .. (nz &gt; 1 and (", " .. nz .. " levels") or ""))
+            if write(outdir_path() .. "/map_" .. safe(a.name) .. ".svg", body) then
+                done = done + 1
+            end
+        else
+            empty = empty + 1
+        end
+    end
+    U.ok("Wrote " .. done .. " maps to " .. outdir_path()
+        .. (empty &gt; 0 and ("  (" .. empty .. " areas had no coordinates)") or ""))
+end
+
+---
+-- panel
+---
+
+function EX.paint(last)
+    if not panel.console then return end
+    panel:clear()
+    local list = areas()
+    panel:cecho("&lt;#e94560&gt;Explorer&lt;r&gt;\n")
+    panel:cecho("&lt;#8a93a8&gt;" .. #list .. " areas in the map&lt;r&gt;\n\n")
+    local a = EX.resolve("")
+    if a then
+        local _, n = EX.collect(a.id)
+        panel:cecho("&lt;#c8d0dc&gt;Here: &lt;#3ad07a&gt;" .. a.name .. "&lt;r&gt; &lt;#8a93a8&gt;(" .. (n or 0) .. " rooms)&lt;r&gt;\n")
+    end
+    panel:cecho("&lt;#8a93a8&gt;Out: " .. outdir_path() .. "&lt;r&gt;\n")
+    if last then panel:cecho("\n&lt;#c8d0dc&gt;" .. last .. "&lt;r&gt;\n") end
+end
+
+---
+-- commands
+---
+
+function EX.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" then
+        EX.paint()
+        panel:toggle()
+
+    elseif verb == "svg" or verb == "map" then
+        EX.svg(rest)
+
+    elseif verb == "json" then
+        EX.json(rest)
+
+    elseif verb == "area" then
+        EX.svg(rest)
+
+    elseif verb == "all" then
+        EX.all()
+
+    elseif verb == "list" then
+        local filter = U.trim(rest):lower()
+        local rows, shown = {}, 0
+        for _, a in ipairs(areas()) do
+            if filter == "" or a.name:lower():find(filter, 1, true) then
+                local ids = getAreaRooms and getAreaRooms(a.id) or {}
+                local n = 0
+                for _ in pairs(ids) do n = n + 1 end
+                rows[#rows + 1] = { a.name, n .. " rooms" }
+                shown = shown + 1
+            end
+        end
+        if shown == 0 then U.note("No areas match '" .. filter .. "'.") else U.help("Areas", rows) end
+
+    elseif verb == "dir" then
+        local d = U.trim(rest)
+        if d == "" then
+            U.note("Maps go to " .. outdir_path())
+        else
+            CFG.dir = d; U.save("explorer", CFG)
+            U.ok("Maps now go to " .. outdir_path())
+        end
+
+    elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
+        aard.panel.cmd("explorer " .. verb)
+
+    else
+        U.help("explore", {
+            { "explore",             "show/hide the panel" },
+            { "explore svg [area]",  "Gaardian-style SVG map (default: where you are)" },
+            { "explore json [area]", "rooms and links as JSON" },
+            { "explore all",         "every area (writes a lot of files)" },
+            { "explore list [f]",    "areas in the map, with room counts" },
+            { "explore dir [path]",  "where maps get written" },
+            { "explore dock|embed|hide", "" },
+            { "" },
+            { "Reads Mudlet's map only - it never moves you or changes it." },
+            { "Each z level gets its own grid, so towers stay towers." },
+        })
+    end
+end
+
+aard.register("explore", "area maps from the mapper, Gaardian style", EX.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>playertracker</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>who row</name>
+				<script>aard.pt.on_who(line)</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\[.{13,16}\] .+$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>who footer</name>
+				<script>aard.pt.who_done(tonumber(matches[2]))</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Players found: *\[?(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>clan login</name>
+				<script>aard.pt.clan_login(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^CLAN: (\w+) is in attendance</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>clan logout</name>
+				<script>aard.pt.clan_logout(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^CLAN: (\w+) has had enough of learning</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>playertracker</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>playertracker</name>
+				<script>aard.pt.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^playertracker(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>pt</name>
+				<script>aard.pt.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^pt(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>playertracker</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>playertracker</name>
+				<packageName />
+				<script>--[[
+    Player Tracker — port of Solao_Player_Tracker (MUSHclient)
+    Sean Stoves, 2026-07-31
+
+    Captures every line of 'who', stores each player once keyed on name, keeps
+    their clan / ranks / title / level and a last-seen stamp. The panel shows
+    stats plus a clickable list.
+
+    Online = showed up in the most recent who sweep (seen &gt;= last_who). A clan
+    logout notice forces offline immediately, since a sweep can't tell someone
+    left until the next who.
+
+    The MUSHclient version drew its own hotspots and scroll handling. Mudlet's
+    MiniConsole gives us clickable links and a real scrollbar, so all of that
+    machinery is gone.
+]]
+
+aard = aard or {}
+aard.pt = aard.pt or {}
+
+local PT = aard.pt
+local U  = aard.util
+
+local CFG = U.load("playertracker", {
+    players  = {},              -- name:lower -&gt; rec
+    avg      = { sum = 0, n = 0 },
+    last_who = 0,
+})
+CFG.players  = CFG.players or {}
+CFG.avg      = CFG.avg or { sum = 0, n = 0 }
+CFG.last_who = CFG.last_who or 0
+
+local view      = {}
+local filter    = ""
+local capturing = false
+
+---
+-- clan decoration -&gt; short tag (punctuation-anchored, title-safe)
+---
+
+local DECOR = {
+    { "|| BOOT ||", "boot" }, { "}HooK{", "hook" }, { ")light(", "light" }, { "(Seekers)", "seekers" },
+    { "[Emerald]", "emerald" }, { "[Ba'al]", "baal" }, { "-=Masaki=-", "masaki" }, { "winlobe", "twinlobe" },
+    { "|Watchmen|", "watchmen" }, { "TouchStone", "touchstone" }, { "imson|", "crimson" }, { "erdition", "perdition" },
+    { "aardian|", "gaardian" }, { "Loqui|", "loqui" }, { "/Pyre", "pyre" }, { "IMPERIUM", "imperium" },
+    { "ibution-", "retribution" }, { "[Loner]", "loner" }, { "|Wolf|", "wolf" }, { "}Tao{", "tao" },
+    { "/|\\", "druid" }, { "Rhabdo/", "rhabdo" },
+}
+
+local CLAN = {
+    wolf = "The Wolf Administration", loner = "The Lone Adventurers", outcast = "The Outcast Clan of Shame",
+    twinlobe = "The Fellowship of the Twin Lobes", watchmen = "The Watchmen of Aardwolf", seekers = "The Seekers",
+    emerald = "The Emerald Knights", light = "The Order of Light", baal = "The Children of Ba'alzamon",
+    hook = "The Hook Clan", bard = "Order of the Bard", crusader = "Crusaders of the Nameless One",
+    xunti = "The Xunti Cult", imperium = "Clan Imperium", crimson = "The Crimson Horde", retribution = "Retribution",
+    druid = "The Great Circle of Druids", amazon = "The Tribes of the Amazon", pyre = "The Soul Pyre",
+    masaki = "Masaki Clan", rhabdo = "Dark Templars of Rhabdo Rana", perdition = "Knights of Perdition",
+    loqui = "Loqui", gaardian = "The Midgaardian Publishing Group", tao = "The Creation of Tao",
+    touchstone = "House of Touchstone", boot = "Boot Lyceum",
+}
+
+local function clan_full(t)
+    return CLAN[t or ""] or ""
+end
+
+local function detect_clan(line)
+    for _, d in ipairs(DECOR) do
+        if line:find(d[1], 1, true) then return d[2] end
+    end
+    return ""
+end
+
+---
+-- parse one who row
+---
+
+local FLAGS = { "%*AFK%*", "%(OPK%)", "%(HARDCORE%)", "%(Linkdead%)" }
+
+local function parse(line)
+    local info, body = line:match("^%[(.-)%]%s*(.*)$")
+    if not info then return nil end
+    info, body = U.trim(info), U.trim(body)
+
+    -- peel leading [Rank]/[Position] brackets and who flags, in any order, until
+    -- the name is at the front. Clan tags like [Ba'al] sit at the tail, so safe.
+    local ranks = ""
+    local changed = true
+    while changed do
+        changed = false
+        local rtag, rest = body:match("^%[([^%]]+)%]%s*(.*)$")
+        if rtag then
+            ranks = ranks == "" and U.trim(rtag) or (ranks .. " " .. U.trim(rtag))
+            body, changed = U.trim(rest), true
+        end
+        for _, f in ipairs(FLAGS) do
+            local nb = body:gsub("^" .. f .. "%s*", "", 1)
+            if nb ~= body then body, changed = nb, true end
+        end
+    end
+
+    local clan = detect_clan(line)
+    local title = body
+    local cut
+    for _, d in ipairs(DECOR) do
+        local p = body:find(d[1], 1, true)
+        if p then cut = math.min(cut or 1e9, p) end
+    end
+    if cut then title = U.trim(body:sub(1, cut - 1)) end
+
+    local name = title:match("^(%S+)")
+    if not name then return nil end
+    return { name = name, title = title, ranks = ranks, clan = clan, info = info }
+end
+
+---
+-- online model
+---
+
+local function is_online(r)
+    if r.on == false then return false end
+    return (r.seen or 0) &gt; 0 and r.seen &gt;= (CFG.last_who or 0)
+end
+
+local function ago(t)
+    if not t then return "?" end
+    return U.duration(os.time() - t)
+end
+
+local function save()
+    U.save("playertracker", CFG)
+end
+
+---
+-- capture
+---
+
+function PT.on_who(line)
+    local p = parse(line)
+    if not p then return end
+    if not capturing then
+        capturing = true
+        CFG.last_who = os.time()   -- sweep boundary: stamp before any row updates seen
+    end
+
+    local key = p.name:lower()
+    local r = CFG.players[key] or {}
+    r.name  = p.name
+    r.title = p.title
+    if p.ranks ~= "" then r.ranks = p.ranks end
+    -- keep a clan we already know if this row didn't show one, but never leave it
+    -- nil - unclanned players would have no clan key at all
+    r.clan = (p.clan ~= "" and p.clan) or r.clan or ""
+    r.info = p.info
+    r.seen = os.time()
+    r.on   = true
+    CFG.players[key] = r
+end
+
+function PT.who_done(n)
+    capturing = false
+    -- empty sweep: no row fired to advance the boundary, so do it here and age
+    -- everyone from the prior who to offline
+    if n == 0 then CFG.last_who = os.time() end
+    if n and n &gt; 0 then
+        CFG.avg.sum = CFG.avg.sum + n
+        CFG.avg.n = CFG.avg.n + 1
+    end
+    PT.paint()
+    save()
+end
+
+function PT.clan_login(name)
+    local key = name:lower()
+    local r = CFG.players[key] or { name = name }
+    r.name = r.name or name
+    r.clan = r.clan or ""
+    r.on, r.seen = true, os.time()
+    CFG.players[key] = r
+    PT.paint()
+end
+
+function PT.clan_logout(name)
+    local r = CFG.players[name:lower()]
+    if r then
+        r.on = false
+        PT.paint()
+    end
+end
+
+---
+-- stats + view
+---
+
+local function count_seen()
+    local n = 0
+    for _ in pairs(CFG.players) do n = n + 1 end
+    return n
+end
+
+local function count_online()
+    local n = 0
+    for _, r in pairs(CFG.players) do if is_online(r) then n = n + 1 end end
+    return n
+end
+
+local function avg_online()
+    if CFG.avg.n == 0 then return 0 end
+    return math.floor(CFG.avg.sum / CFG.avg.n + 0.5)
+end
+
+-- the list shows who's on right now. A search is how you reach the rest of the
+-- database, so a live filter looks at everyone, online or not.
+local function build_view()
+    view = {}
+    local f = filter:lower()
+    for _, r in pairs(CFG.players) do
+        local show
+        if f == "" then
+            show = is_online(r)
+        else
+            local hay = (r.name .. " " .. (r.title or "") .. " " .. clan_full(r.clan)):lower()
+            show = hay:find(f, 1, true) ~= nil
+        end
+        if show then view[#view + 1] = r end
+    end
+    table.sort(view, function(a, b)
+        local ao, bo = is_online(a), is_online(b)
+        if ao ~= bo then return ao end
+        return (a.seen or 0) &gt; (b.seen or 0)
+    end)
+end
+
+---
+-- ui
+---
+
+local panel = aard.panel.new({
+    name     = "players",
+    title    = "Player Tracker",
+    width    = 320,
+    height   = 380,
+    x        = "10px",
+    y        = "260px",
+    fontSize = 9,
+})
+
+PT.panel = panel
+
+function PT.paint()
+    if not panel.console then return end
+    build_view()
+
+    local c = panel.console
+    c:clear()
+
+    U.outw(c.name, string.format("&lt;#c8d0dc&gt;Seen: %d&lt;r&gt;   &lt;#3ad07a&gt;Online: %d&lt;r&gt;   &lt;#8a93a8&gt;Avg: %d&lt;r&gt;\n",
+        count_seen(), count_online(), avg_online()))
+
+    if filter ~= "" then
+        U.outw(c.name, "&lt;#8a93a8&gt;Filter: &lt;#e0af68&gt;" .. filter .. "&lt;r&gt; ")
+        U.outLinkw(c.name, "&lt;#f7768e&gt;[clear]&lt;r&gt;", [[aard.pt.setfilter("")]], "Clear the filter", true)
+        U.outw(c.name, "\n")
+    end
+    U.outw(c.name, "&lt;#3a4a6b&gt;" .. string.rep("-", 40) .. "&lt;r&gt;\n")
+
+    if #view == 0 then
+        U.outw(c.name, filter ~= "" and "&lt;#8a93a8&gt;No matches.&lt;r&gt;\n"
+                              or "&lt;#8a93a8&gt;No one online - type 'who'.&lt;r&gt;\n")
+    else
+        for _, r in ipairs(view) do
+            local on = is_online(r)
+            U.outw(c.name, on and "&lt;#3ad07a&gt;*&lt;r&gt; " or "&lt;#666666&gt;*&lt;r&gt; ")
+            U.outLinkw(c.name,
+                (on and "&lt;#e0e0e0&gt;" or "&lt;#8a93a8&gt;") .. r.name .. "&lt;r&gt;",
+                string.format("aard.pt.info(%q)", r.name),
+                "Full record for " .. r.name, true)
+            if r.clan and r.clan ~= "" then
+                U.outw(c.name, " &lt;#66ccff&gt;(" .. r.clan .. ")&lt;r&gt;")
+            end
+            if not on then
+                U.outw(c.name, " &lt;#666666&gt;" .. ago(r.seen) .. "&lt;r&gt;")
+            end
+            U.outw(c.name, "\n")
+        end
+    end
+
+    U.outw(c.name, "&lt;#3a4a6b&gt;" .. string.rep("-", 40) .. "&lt;r&gt;\n")
+    if (CFG.last_who or 0) &gt; 0 then
+        U.outw(c.name, "&lt;#8a93a8&gt;Updated " .. os.date("%H:%M:%S", CFG.last_who) .. "&lt;r&gt;\n")
+    else
+        U.outw(c.name, "&lt;#8a93a8&gt;Never updated&lt;r&gt;\n")
+    end
+end
+
+function PT.setfilter(s)
+    filter = U.trim(s)
+    PT.paint()
+end
+
+---
+-- info + lookups
+---
+
+function PT.info(name)
+    local r = CFG.players[(name or ""):lower()]
+    if not r then
+        U.note("No record for " .. tostring(name))
+        return
+    end
+    U.out("\n&lt;#7aa2f7&gt;--- " .. r.name .. " ---&lt;r&gt;")
+    U.out("\n  &lt;#8a93a8&gt;Title : &lt;#c8d0dc&gt;" .. (r.title or "?") .. "&lt;r&gt;")
+    if r.ranks and r.ranks ~= "" then
+        U.out("\n  &lt;#8a93a8&gt;Ranks : &lt;#c8d0dc&gt;" .. r.ranks .. "&lt;r&gt;")
+    end
+    local cl = r.clan or ""
+    U.out("\n  &lt;#8a93a8&gt;Clan  : &lt;#c8d0dc&gt;" .. (cl ~= "" and (clan_full(cl) .. " (" .. cl .. ")") or "none") .. "&lt;r&gt;")
+    U.out("\n  &lt;#8a93a8&gt;Level : &lt;#c8d0dc&gt;" .. (r.info or "?") .. "&lt;r&gt;")
+    U.out("\n  &lt;#8a93a8&gt;Status: " .. (is_online(r) and "&lt;#3ad07a&gt;online" or "&lt;#8a93a8&gt;offline")
+        .. "&lt;r&gt;  &lt;#8a93a8&gt;(seen " .. ago(r.seen) .. " ago)&lt;r&gt;\n")
+end
+
+-- machine-readable lookup for the other ported plugins (SolaoBot uses this)
+function PT.lookup(name)
+    local r = CFG.players[(name or ""):lower()]
+    if not r then return nil end
+    return { name = r.name, seen = r.seen or 0, online = is_online(r), clan = r.clan or "" }
+end
+
+local function do_find(term)
+    term = U.trim(term):lower()
+    if term == "" then
+        U.warn("Usage: pt find &lt;text&gt;")
+        return
+    end
+    local hits = {}
+    for _, r in pairs(CFG.players) do
+        local hay = (r.name .. " " .. (r.title or "") .. " " .. clan_full(r.clan)):lower()
+        if hay:find(term, 1, true) then hits[#hits + 1] = r end
+    end
+    table.sort(hits, function(a, b) return (a.seen or 0) &gt; (b.seen or 0) end)
+    U.note(#hits .. " match" .. (#hits == 1 and "" or "es") .. " for '" .. term .. "':")
+    for _, r in ipairs(hits) do
+        U.out(string.format("\n  %s%-14s&lt;r&gt; &lt;#8a93a8&gt;%-26s %s ago&lt;r&gt;",
+            is_online(r) and "&lt;#3ad07a&gt;" or "&lt;#8a93a8&gt;", r.name, clan_full(r.clan), ago(r.seen)))
+    end
+    echo("\n")
+end
+
+local function do_export()
+    local path = U.datafile("players.csv")
+    local f = io.open(path, "w")
+    if not f then
+        U.err("Can't write " .. path)
+        return
+    end
+    f:write("name,clan,ranks,level,online,last_seen_epoch,title\n")
+    for _, r in pairs(CFG.players) do
+        f:write(string.format('%s,%s,%s,%s,%s,%d,"%s"\n',
+            r.name, r.clan or "", (r.ranks or ""):gsub(",", ";"), (r.info or ""):gsub(",", ";"),
+            tostring(is_online(r)), r.seen or 0, (r.title or ""):gsub('"', "'")))
+    end
+    f:close()
+    U.ok("Exported " .. count_seen() .. " players -&gt; " .. path)
+end
+
+---
+-- commands
+---
+
+function PT.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" then
+        panel:toggle()
+
+    elseif verb == "find" then
+        do_find(rest)
+
+    elseif verb == "filter" then
+        PT.setfilter(rest)
+        U.ok(rest == "" and "Filter cleared." or ("Filter: " .. rest))
+
+    elseif verb == "info" then
+        PT.info(U.trim(rest))
+
+    elseif verb == "online" then
+        U.note("Online now (" .. count_online() .. "):")
+        local names = {}
+        for _, r in pairs(CFG.players) do
+            if is_online(r) then names[#names + 1] = r end
+        end
+        table.sort(names, function(a, b) return a.name &lt; b.name end)
+        for _, r in ipairs(names) do
+            U.out("\n  &lt;#3ad07a&gt;" .. r.name .. "&lt;r&gt;  &lt;#8a93a8&gt;(" .. clan_full(r.clan) .. ")&lt;r&gt;")
+        end
+        echo("\n")
+
+    elseif verb == "count" then
+        U.note(count_seen() .. " tracked, " .. count_online() .. " online, avg " .. avg_online() .. " a time.")
+
+    elseif verb == "export" then
+        do_export()
+
+    elseif verb == "clear" then
+        if U.trim(rest) == "yes" then
+            CFG.players = {}
+            PT.paint(); save()
+            U.ok("Database cleared.")
+        else
+            U.warn("Wipes ALL tracked players. Type: pt clear yes")
+        end
+
+    elseif verb == "dock" then panel:setmode("dock")
+    elseif verb == "embed" then panel:setmode("embed")
+
+    else
+        U.help("Player Tracker", {
+            { "pt",              "show/hide the panel" },
+            { "pt find &lt;text&gt;",  "search name / clan / title" },
+            { "pt filter &lt;text&gt;", "filter the panel list (blank clears)" },
+            { "pt info &lt;name&gt;",  "full record for one player" },
+            { "pt online",       "list who's online now" },
+            { "pt count",        "quick totals" },
+            { "pt export",       "dump players.csv" },
+            { "pt clear yes",    "wipe the database" },
+            { "pt dock | embed", "" },
+            { "" },
+            { "Click a name in the panel for its record. Online = in the most" },
+            { "recent 'who'; a clan logout marks offline right away." },
+        })
+    end
+end
+
+PT.paint()
+aard.register("pt", "who-sweep player database", PT.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

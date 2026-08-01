@@ -1,0 +1,4 @@
+aard/
+*.db
+*.log
+.DS_Store

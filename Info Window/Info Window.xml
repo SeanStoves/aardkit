@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>infowindow</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>info capture</name>
+				<script>aard.infowin.capture()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^INFO: (.*)$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>infowindow</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>infowin</name>
+				<script>aard.infowin.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^infowin(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>infowindow</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>infowindow</name>
+				<packageName />
+				<script>--[[
+    Info Window — port of Solao_Info_Window (MUSHclient)
+    Sean Stoves, 2026-07-31
+
+    Pulls every 'INFO: ...' line into its own panel with its colours intact and
+    gags it from the main output. Aardwolf pads INFO with a trailing blank line,
+    so we eat that too.
+]]
+
+aard = aard or {}
+aard.infowin = aard.infowin or {}
+
+local IW = aard.infowin
+local U  = aard.util
+
+local CFG = U.load("infowin", { buffer = 100, gag = true })
+
+local panel = aard.panel.new({
+    name     = "info",
+    title    = "INFO",
+    width    = 460,
+    height   = 200,
+    x        = "10px",
+    y        = "40px",
+    fontSize = 9,
+})
+
+IW.panel = panel
+
+-- MiniConsole scrollback; Mudlet keeps its own buffer, we just cap it
+local function apply_buffer()
+    if panel.console then
+        panel.console:setBufferSize(CFG.buffer, math.max(10, math.floor(CFG.buffer / 4)))
+    end
+end
+
+apply_buffer()
+
+---
+-- trigger
+---
+
+function IW.capture()
+    panel:capture_line()
+    if CFG.gag then
+        deleteLine()
+        -- eat the single blank line Aardwolf pads INFO with
+        tempLineTrigger(1, 1, [[if getCurrentLine():match("^%s*$") then deleteLine() end]])
+    end
+end
+
+---
+-- commands
+---
+
+function IW.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" then
+        panel:toggle()
+
+    elseif verb == "buffer" then
+        local n = tonumber(rest)
+        if not n then
+            U.note("INFO buffer: " .. CFG.buffer .. " lines")
+        elseif n &lt; 10 or n &gt; 5000 then
+            U.warn("Buffer must be 10-5000 lines.")
+        else
+            CFG.buffer = math.floor(n)
+            apply_buffer()
+            U.save("infowin", CFG)
+            U.ok("INFO buffer: " .. CFG.buffer .. " lines.")
+        end
+
+    elseif verb == "gag" then
+        CFG.gag = not CFG.gag
+        U.save("infowin", CFG)
+        U.ok("INFO lines are now " .. (CFG.gag and "gagged from" or "kept in") .. " the main window.")
+
+    elseif verb == "clear" then
+        panel:clear()
+        U.ok("INFO cleared.")
+
+    elseif verb == "show" then panel:show()
+    elseif verb == "hide" then panel:hide()
+    elseif verb == "dock" then panel:setmode("dock")
+    elseif verb == "embed" then panel:setmode("embed")
+
+    else
+        U.help("Info Window", {
+            { "infowin",            "show/hide the panel" },
+            { "infowin buffer &lt;n&gt;", "scrollback lines to keep (10-5000)" },
+            { "infowin gag",        "toggle gagging INFO from the main window" },
+            { "infowin clear",      "empty the panel" },
+            { "infowin dock",       "pop it out into a dockable window" },
+            { "infowin embed",      "put it back in the main window" },
+        })
+    end
+end
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

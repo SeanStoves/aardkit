@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>logging</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>aardlog</name>
+				<script>aard.sessionlog.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^aardlog(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>logging</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>logging</name>
+				<packageName />
+				<script>--[[
+    Session logging
+    Sean Stoves, 2026-07-31
+
+    Logs every session to &lt;profile&gt;/log/ as &lt;profile&gt;-YYYYMMDD-HHmm.&lt;ext&gt;.
+
+    The extension is Mudlet's call, not ours: plain .txt by default, .html if
+    "save log files in HTML format" is ticked in Preferences. That toggle is not
+    reachable from the profile XML - it was stamped there for several builds and
+    silently ignored - so if you want colour in the logs, tick the box.
+
+    Getting that filename takes two parts, because Mudlet's log naming is a fixed
+    dropdown (yyyy-MM-dd, yyyy-MM-dd#HH-mm-ss, yyyy-MM-ddTHH-mm-ss, or a static
+    named file) with no profile prefix and no Lua setter:
+
+      1. build.py stamps logFileNameFormat="yyyyMMdd-HHmm" on the Host. If Mudlet
+         hands the string straight to QDateTime::toString the timestamp half
+         comes out right on its own.
+      2. Whether it does or not, normalise() renames finished logs into the
+         scheme at startup. Renaming is done on the way IN rather than on exit,
+         because the current session's log is still open and held.
+
+    So the naming is guaranteed by (2); (1) just means there's usually nothing
+    for it to do.
+]]
+
+aard = aard or {}
+aard.sessionlog = aard.sessionlog or {}
+
+local L = aard.sessionlog
+local U = aard.util
+
+local CFG = U.load("logging", { auto = true })
+
+local function logdir()
+    return getMudletHomeDir() .. "/log"
+end
+
+local function profile()
+    -- log filenames get shared around; keep them filesystem-safe
+    return (getProfileName() or "mudlet"):gsub("[^%w%-_]", "_")
+end
+
+L.current = nil
+
+---
+-- rename finished logs into &lt;profile&gt;-YYYYMMDD-HHmm.&lt;ext&gt;
+---
+
+-- Mudlet's own formats, mapped back to the pieces we want
+local PATTERNS = {
+    -- 2026-07-31#17-53-41  /  2026-07-31T17-53-41
+    "^(%d%d%d%d)%-(%d%d)%-(%d%d)[#T](%d%d)%-(%d%d)%-%d%d$",
+    -- 2026-07-31 (daily concatenated logs)
+    "^(%d%d%d%d)%-(%d%d)%-(%d%d)$",
+    -- 20260731-1753, already ours but missing the profile prefix
+    "^(%d%d%d%d)(%d%d)(%d%d)%-(%d%d)(%d%d)$",
+}
+
+local function target_name(stem)
+    for _, pat in ipairs(PATTERNS) do
+        local y, mo, d, h, mi = stem:match(pat)
+        if y then
+            return string.format("%s-%s%s%s-%s%s", profile(), y, mo, d, h or "00", mi or "00")
+        end
+    end
+    return nil
+end
+
+function L.normalise(quiet)
+    local dir = logdir()
+    if not io.exists(dir) then return 0 end
+
+    local moved, clashed = 0, 0
+    for _, f in ipairs(lfs.dir and {} or {}) do end   -- placeholder; real walk below
+
+    for f in lfs.dir(dir) do
+        local stem, ext = f:match("^(.+)%.([%a]+)$")
+        if stem and (ext == "html" or ext == "txt") and not stem:find("^" .. profile() .. "%-") then
+            local want = target_name(stem)
+            if want then
+                local from, to = dir .. "/" .. f, dir .. "/" .. want .. "." .. ext
+                if io.exists(to) then
+                    clashed = clashed + 1          -- leave it; never overwrite a log
+                elseif os.rename(from, to) then
+                    moved = moved + 1
+                end
+            end
+        end
+    end
+
+    if not quiet and moved &gt; 0 then
+        U.note("Logging: renamed " .. moved .. " log file(s) to the profile scheme.")
+    end
+    if clashed &gt; 0 then
+        U.warn("Logging: " .. clashed .. " log(s) left alone - target name already exists.")
+    end
+    return moved
+end
+
+---
+-- start / stop
+---
+
+function L.start()
+    if L.current then return end
+    L.normalise(true)                 -- tidy previous sessions before opening ours
+    startLogging(true)
+    L.current = os.date("%Y%m%d-%H%M")
+    U.ok("Logging: on -&gt; log/" .. profile() .. "-" .. L.current)
+end
+
+function L.stop()
+    if not L.current then return end
+    startLogging(false)
+    L.current = nil
+    U.note("Logging: off.")
+    -- safe now that the handle is closed
+    L.normalise()
+end
+
+function L.on_connect()
+    if CFG.auto then L.start() end
+end
+
+---
+-- commands
+---
+
+function L.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "status" then
+        U.help("Session logging", {
+            { "auto-start", CFG.auto and "on" or "off" },
+            { "this session", L.current and (profile() .. "-" .. L.current) or "not logging" },
+            { "directory", logdir() },
+            { "format", "&lt;profile&gt;-YYYYMMDD-HHmm  (.txt, or .html if enabled in Preferences)" },
+        })
+
+    elseif verb == "on" then L.start()
+    elseif verb == "off" then L.stop()
+
+    elseif verb == "auto" then
+        local v = U.trim(rest):lower()
+        if v == "on" or v == "off" then
+            CFG.auto = (v == "on")
+            U.save("logging", CFG)
+            U.ok("Logging: auto-start " .. v .. ".")
+        else
+            U.warn("Usage: aardlog auto on|off")
+        end
+
+    elseif verb == "tidy" then
+        local n = L.normalise()
+        if n == 0 then U.note("Logging: nothing to rename.") end
+
+    elseif verb == "list" then
+        local dir = logdir()
+        if not io.exists(dir) then U.note("No log directory yet."); return end
+        local files = {}
+        for f in lfs.dir(dir) do
+            if f:match("%.html$") or f:match("%.txt$") then files[#files + 1] = f end
+        end
+        table.sort(files)
+        if #files == 0 then
+            U.note("No logs yet.")
+            return
+        end
+        U.note(#files .. " log(s) in " .. dir .. ":")
+        for i = math.max(1, #files - 14), #files do
+            local sz = lfs.attributes(dir .. "/" .. files[i], "size") or 0
+            U.out(string.format("\n  &lt;#c8d0dc&gt;%-44s&lt;r&gt; &lt;#8a93a8&gt;%d KB&lt;r&gt;", files[i], math.floor(sz / 1024)))
+        end
+        echo("\n")
+
+    else
+        U.help("aardlog", {
+            { "aardlog",          "status" },
+            { "aardlog on | off", "start / stop logging this session" },
+            { "aardlog auto on|off", "log automatically on connect" },
+            { "aardlog list",     "recent log files" },
+            { "aardlog tidy",     "rename stray logs into the profile scheme" },
+        })
+    end
+end
+
+---
+-- boot
+---
+
+if aard_log_handlers then
+    for _, id in ipairs(aard_log_handlers) do U.killhandler(id) end
+end
+aard_log_handlers = {
+    registerAnonymousEventHandler("sysConnectionEvent", "aard.sessionlog.on_connect"),
+    registerAnonymousEventHandler("sysExitEvent", "aard.sessionlog.stop"),
+}
+
+L.normalise(true)
+aard.register("sessionlog", "session logging to &lt;profile&gt;-YYYYMMDD-HHmm", L.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>mapimport</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>aardmap</name>
+				<script>aard.mapimport.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^aardmap(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>mapimport</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>mapimport</name>
+				<packageName />
+				<script>--[[
+    Map Import — MUSHclient mapper database -&gt; Mudlet map
+    Sean Stoves, 2026-07-31
+
+    Reads src/data/mapdata.txt (produced by src/tools/export_map.py) and builds
+    the Mudlet map from it: 22,931 rooms, ~73k exits, 1.6k special exits.
+
+    Chunked through tempTimer rather than one straight loop — building the lot
+    synchronously locks the client up for the best part of a minute and looks
+    like a hang.
+
+        aardmap check    - what's in the file vs what's in the map now
+        aardmap import   - wipe the current map and build from the file
+        aardmap save     - write the map to disk
+]]
+
+aard = aard or {}
+aard.mapimport = aard.mapimport or {}
+
+local MI = aard.mapimport
+local U  = aard.util
+
+local DATA = getMudletHomeDir() .. "/src/data/mapdata.txt"
+
+local CFG = U.load("mapimport", {})
+
+-- Small chunks with a real yield between them. The first run at 1500/4000 with
+-- a 0.05s yield took Mudlet down: every addRoom re-renders the map if the mapper
+-- widget is open, so the work per chunk was far larger than the call count
+-- suggests. Yielding more often keeps the UI alive and lets the GC breathe.
+local ROOM_CHUNK = 500
+local EXIT_CHUNK = 1500
+local YIELD      = 0.1
+
+-- Mudlet wants the long names; the mapper stored single letters
+local DIRNAME = { n = "north", s = "south", e = "east", w = "west", u = "up", d = "down" }
+
+-- the mapper's env colours are palette indices, not RGB
+local PALETTE = {
+    [0] = { 0, 0, 0 },      [1] = { 128, 0, 0 },    [2] = { 0, 128, 0 },
+    [3] = { 128, 128, 0 },  [4] = { 0, 0, 128 },    [5] = { 128, 0, 128 },
+    [6] = { 0, 128, 128 },  [7] = { 192, 192, 192 }, [8] = { 128, 128, 128 },
+    [9] = { 255, 0, 0 },    [10] = { 0, 255, 0 },   [11] = { 255, 255, 0 },
+    [12] = { 0, 0, 255 },   [13] = { 255, 0, 255 }, [14] = { 0, 255, 255 },
+    [15] = { 255, 255, 255 },
+}
+
+-- Counts only — used by 'check'. Deliberately does not retain the lines.
+local function scan()
+    local fh = io.open(DATA, "r")
+    if not fh then return nil end
+    local n = { A = 0, E = 0, R = 0, X = 0, S = 0 }
+    for line in fh:lines() do
+        local k = line:sub(1, 1)
+        if n[k] then n[k] = n[k] + 1 end
+    end
+    fh:close()
+    return n
+end
+
+local function split(line)
+    local p = {}
+    for f in (line .. "\t"):gmatch("(.-)\t") do p[#p + 1] = f end
+    return p
+end
+
+---
+-- check
+---
+
+function MI.check()
+    local n = scan()
+    if not n then
+        U.err("Map Import: can't read " .. DATA)
+        U.note("Run:  python3 " .. getMudletHomeDir() .. "/src/tools/export_map.py")
+        return
+    end
+
+    local have = 0
+    for _ in pairs(getRooms() or {}) do have = have + 1 end
+
+    U.help("Map Import", {
+        { "file",        DATA },
+        { "areas",       tostring(n.A) },
+        { "environments", tostring(n.E) },
+        { "rooms",       tostring(n.R) },
+        { "exits",       tostring(n.X) },
+        { "special exits", tostring(n.S) },
+        { "" },
+        { "map now",     have .. " rooms" },
+        { "" },
+        { "'aardmap import' replaces the current map with this one." },
+    })
+end
+
+---
+-- import
+---
+
+local job
+
+local function finish()
+    local parts = { job.rooms .. " rooms" }
+    if job.present &gt; 0 then parts[#parts + 1] = job.present .. " already present" end
+    parts[#parts + 1] = job.exits .. " exits"
+    parts[#parts + 1] = job.specials .. " special exits"
+    if job.skipped &gt; 0 then parts[#parts + 1] = job.skipped .. " UNUSABLE" end
+    U.ok("Map Import: done - " .. table.concat(parts, ", ") .. ".")
+    if job.skipped &gt; 0 then
+        U.warn("Map Import: " .. job.skipped .. " row(s) had no id or no known area.")
+    end
+    U.note("Map Import: run 'aardmap save' to write it to disk, then restart Mudlet.")
+    U.note("The mapper reopens from the toolbar's Map button (or 'lua openMapWidget()').")
+    job = nil
+    centerview(getPlayerRoom() or 1)
+end
+
+local function step()
+    if not job then return end
+
+    local budget = job.phase == "rooms" and ROOM_CHUNK or EXIT_CHUNK
+    local done = 0
+
+    while done &lt; budget do
+        local line = job.fh:read("*l")
+
+        if not line then
+            job.fh:close()
+            if job.phase == "rooms" then
+                U.note("Map Import: " .. job.rooms .. " rooms placed, linking exits...")
+                job.phase = "exits"
+                job.fh = io.open(DATA, "r")
+                if not job.fh then
+                    U.err("Map Import: lost the data file partway through.")
+                    job = nil
+                    return
+                end
+                break
+            else
+                finish()
+                return
+            end
+        end
+
+        local k = line:sub(1, 1)
+
+        if k == "R" and job.phase == "rooms" then
+            local p = split(line)
+            local id = tonumber(p[2])
+            local area = job.areas[p[3]]
+            if id and area and job.resume and roomExists(id) then
+                -- already built by an earlier run; nothing to do, and it is NOT
+                -- a skip - counting it as one made a clean resume read as a
+                -- total failure
+                job.present = job.present + 1
+            elseif id and area then
+                addRoom(id)
+                setRoomArea(id, area)
+                setRoomCoordinates(id, tonumber(p[4]) or 0, tonumber(p[5]) or 0, tonumber(p[6]) or 0)
+                if p[8] and p[8] ~= "" then setRoomName(id, p[8]) end
+                local env = tonumber(p[7])
+                if env and env &gt; 0 then setRoomEnv(id, env) end
+                -- terrain is deliberately NOT stored as user data: setRoomEnv
+                -- already carries it, and it was 22,927 redundant writes
+                if p[10] and p[10] ~= "" then setRoomUserData(id, "info", p[10]) end
+                if p[11] and p[11] ~= "" then setRoomUserData(id, "notes", p[11]) end
+                job.rooms = job.rooms + 1
+            else
+                job.skipped = job.skipped + 1
+            end
+            done = done + 1
+
+        elseif k == "X" and job.phase == "exits" then
+            local p = split(line)
+            local f, t = tonumber(p[2]), tonumber(p[3])
+            local d = DIRNAME[p[4]]
+            if f and t and d and roomExists(f) and roomExists(t) then
+                setExit(f, t, d)
+                job.exits = job.exits + 1
+            else
+                job.skipped = job.skipped + 1
+            end
+            done = done + 1
+
+        elseif k == "S" and job.phase == "exits" then
+            local p = split(line)
+            local f, t = tonumber(p[2]), tonumber(p[3])
+            if f and t and p[4] and p[4] ~= "" and roomExists(f) and roomExists(t) then
+                addSpecialExit(f, t, p[4])
+                job.specials = job.specials + 1
+            else
+                job.skipped = job.skipped + 1
+            end
+            done = done + 1
+        end
+    end
+
+    if job then
+        local n = job.phase == "rooms" and job.rooms or (job.exits + job.specials)
+        if n - (job.reported or 0) &gt;= 8000 then
+            job.reported = n
+            U.note("Map Import: " .. n .. " " .. job.phase .. "...")
+        end
+        collectgarbage("step")
+        tempTimer(YIELD, step)
+    end
+end
+
+function MI.import(confirmed, resume)
+    if job then
+        U.warn("Map Import: already running.")
+        return
+    end
+    if not (confirmed or resume) then
+        U.warn("This REPLACES the current Mudlet map. Confirm with:  aardmap import yes")
+        return
+    end
+
+    local fh = io.open(DATA, "r")
+    if not fh then
+        U.err("Map Import: can't read " .. DATA)
+        return
+    end
+
+    -- Shut the mapper first. It re-renders on every room added, which is what
+    -- turned 22,931 addRoom calls into a client-killer on the first attempt.
+    -- Best-effort: it throws if the widget wasn't open, which is fine.
+    if U.has("closeMapWidget") and pcall(closeMapWidget) then
+        U.note("Map Import: closed the mapper window for the duration.")
+    end
+
+    if resume then
+        U.note("Map Import: resuming - keeping the rooms already built.")
+    else
+        U.note("Map Import: clearing the current map...")
+        deleteMap()
+    end
+
+    -- areas and environments first; rooms reference both. Streamed and
+    -- discarded as we go rather than held - the whole file as a Lua table was
+    -- tens of MB sitting alongside Mudlet's own map structures.
+    local areas, envs = {}, 0
+    for line in fh:lines() do
+        local k = line:sub(1, 1)
+        if k == "A" then
+            local p = split(line)
+            local id = addAreaName(p[3] ~= "" and p[3] or p[2])
+            if id then areas[p[2]] = id end
+        elseif k == "E" then
+            local p = split(line)
+            local id, colour = tonumber(p[2]), tonumber(p[4])
+            local rgb = PALETTE[colour or 7] or PALETTE[7]
+            if id then
+                setCustomEnvColor(id, rgb[1], rgb[2], rgb[3], 255)
+                envs = envs + 1
+            end
+        end
+    end
+    fh:close()
+    U.note("Map Import: " .. envs .. " environments, building rooms...")
+
+    job = {
+        fh = io.open(DATA, "r"), areas = areas, phase = "rooms", reported = 0,
+        resume = resume, rooms = 0, exits = 0, specials = 0, skipped = 0, present = 0,
+    }
+    if not job.fh then
+        U.err("Map Import: can't reopen the data file.")
+        job = nil
+        return
+    end
+    step()
+end
+
+---
+-- commands
+---
+
+function MI.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "check" then
+        MI.check()
+
+    elseif verb == "import" then
+        MI.import(U.trim(rest):lower() == "yes", false)
+
+    elseif verb == "resume" then
+        MI.import(false, true)
+
+    elseif verb == "stop" then
+        if job then
+            if job.fh then job.fh:close() end
+            U.warn(string.format("Map Import: stopped after %d rooms, %d exits. The map is"
+                .. " half-built - re-run 'aardmap import yes' or don't save it.",
+                job.rooms, job.exits + job.specials))
+            job = nil
+        else
+            U.note("Map Import: nothing running.")
+        end
+
+    elseif verb == "zoom" then
+        local arg2 = U.trim(rest)
+        if arg2:lower() == "off" then
+            CFG.zoom = nil
+            U.save("mapimport", CFG)
+            U.ok("Map zoom: no longer overriding the module's default.")
+        else
+            local n = tonumber(arg2)
+            if n then
+                MI.setzoom(n)
+                CFG.zoom = n
+                U.save("mapimport", CFG)
+                U.ok("Map zoom " .. n .. ", and it'll be reapplied after each login.")
+            else
+                local ok, cur = pcall(getMapZoom)
+                U.help("Map zoom", {
+                    { "current",   ok and tostring(cur) or "unknown" },
+                    { "preferred", CFG.zoom and tostring(CFG.zoom) or "(none - module's 35 stands)" },
+                    { "" },
+                    { "aardmap zoom &lt;n&gt;", "set it, and keep it across logins" },
+                    { "aardmap zoom off", "stop overriding" },
+                    { "" },
+                    { "The module calls setMapZoom(35) shortly after load, which" },
+                    { "is why a zoom you set by hand doesn't survive a relogin." },
+                    { "Setting it here reapplies yours a few seconds later." },
+                })
+            end
+        end
+
+    elseif verb == "save" then
+        if saveMap() then
+            U.ok("Map Import: map saved.")
+        else
+            U.err("Map Import: saveMap() failed.")
+        end
+
+    else
+        U.help("aardmap", {
+            { "aardmap check",      "what's in the export vs the live map" },
+            { "aardmap import yes", "replace the map with the MUSHclient one" },
+            { "aardmap resume",     "carry on without wiping what's already built" },
+            { "aardmap save",       "write the map to disk" },
+            { "aardmap stop",       "abort a running import" },
+            { "aardmap zoom [n]",   "read or set the mapper zoom" },
+            { "" },
+            { "Regenerate the export with:" },
+            { "  python3 " .. getMudletHomeDir() .. "/src/tools/export_map.py" },
+        })
+    end
+end
+
+-- Geyser.Mapper embeds into the main window, so the bare call is the right
+-- target for the module's panel; the named form is for Mudlet's separate dock.
+function MI.setzoom(n)
+    local done = pcall(setMapZoom, n)
+    pcall(setMapZoom, n, "mapwin")
+    return done
+end
+
+-- The module sets 35 on a short timer after load. Land after it, not before.
+function MI.on_connect()
+    if CFG.zoom then
+        tempTimer(4, function()
+            MI.setzoom(CFG.zoom)
+        end)
+    end
+end
+
+U.killhandler(aard_map_zoom_handler)
+aard_map_zoom_handler = registerAnonymousEventHandler("sysConnectionEvent", "aard.mapimport.on_connect")
+
+aard.register("aardmap", "MUSHclient mapper -&gt; Mudlet map import", MI.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

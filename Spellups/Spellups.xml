@@ -1,0 +1,1644 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>spellups</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>spellheaders</name>
+				<script>aard.spellup.on_spellheaders()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{spellheaders</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>recoveries</name>
+				<script>aard.spellup.on_recoveries()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{recoveries</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>affon</name>
+				<script>aard.spellup.on_affon(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{affon\}(\d+),(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>affoff</name>
+				<script>aard.spellup.on_affoff(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{affoff\}(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>sfail</name>
+				<script>aard.spellup.on_sfail(matches[2], matches[3], matches[4], matches[5])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{sfail\}(-?\d+),(\d+),(\d+),(-?\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>recon</name>
+				<script>aard.spellup.on_recon(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{recon\}(\d+),(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>recoff</name>
+				<script>aard.spellup.on_recoff(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{recoff\}(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>skillgain</name>
+				<script>aard.spellup.on_skillgain(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{skillgain\}(\d+),(\d+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>class change</name>
+				<script>aard.spellup.on_classchange()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Your primary class is now \w+\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>remort done</name>
+				<script>aard.spellup.on_remort()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\* Remort transformation complete!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>died</name>
+				<script>aard.spellup.on_death()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You see your own dead body from above\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>totem placed</name>
+				<script>aard.spellup.on_totem_placed(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You place an? ([A-Za-z]{1,10}) totem in the room\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>totem attacked</name>
+				<script>aard.spellup.on_totem_attacked(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^&lt;&gt; (\w{3,12}) is attacking your totem!$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>totem killed</name>
+				<script>aard.spellup.on_totem_killed(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^&lt;&gt; Your totem has been killed by (\w{3,12})\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>totem expired</name>
+				<script>aard.spellup.on_totem_expired()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^&lt;&gt; Your totem has expired\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>eye message</name>
+				<script>aard.spellup.on_eye_msg(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^&lt;Eye&gt; (.*)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>eye closed</name>
+				<script>aard.spellup.on_eye_closed()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Your eye of vigilance has closed for the last time\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>eye removed</name>
+				<script>aard.spellup.on_eye_removed(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You remove your eye of vigilance from (.*)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>aff header</name>
+				<script>aard.spellup.on_affheader()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You are affected by the following skills/spells:$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>spellups</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>spellup</name>
+				<script>aard.spellup.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^spellups?(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>hsp</name>
+				<script>aard.spellup.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^hsp(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>spellups</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>spellups</name>
+				<packageName />
+				<script>--[[
+    Spellups — state engine (stage 1)
+    Sean Stoves, 2026-07-31
+
+    Knows what you can cast, what's currently on you, what's blocked by a
+    recovery, and why the last cast failed. It does NOT cast anything — that's
+    stage 2, and it only gets built once this half is proven against live tag
+    traffic. A half-working auto-caster is worse than none.
+
+    Built from docs/aardwolf-spelltags.md, which was written from Aardwolf's own
+    published protocol and a live slist. Hadar's plugin showed the idea was worth
+    having; no code, structure or naming came from it. See CREDITS.md.
+
+    The one idea worth stating: {sfail} tells you WHY a cast failed, and each
+    reason has exactly one correct response. That's a table, not a pile of
+    conditionals, and it's the whole reason a tag-driven caster beats a keybind
+    that fires the same list blind.
+]]
+
+aard = aard or {}
+aard.spellup = aard.spellup or {}
+
+local SP = aard.spellup
+local U  = aard.util
+
+local CFG = U.load("spellups", {
+    warn30 = true, warn10 = true, channel = "echo",
+    decay = 300,   -- how long a fallen buff stays on the panel before fading out
+})
+
+---
+-- state
+---
+
+SP.skills = SP.skills or {}   -- skillnum -&gt; {name,target,duration,prac,recovery,type}
+SP.byname = SP.byname or {}   -- name -&gt; skillnum
+SP.recov  = SP.recov  or {}   -- recnum  -&gt; name
+SP.affect = SP.affect or {}   -- skillnum -&gt; expiry epoch
+SP.blocked = SP.blocked or {} -- recnum  -&gt; expiry epoch
+SP.failed = SP.failed or {}   -- skillnum -&gt; {code=, at=}
+SP.dropped = SP.dropped or {} -- skillnum -&gt; when it fell off
+SP.nope = SP.nope or {}       -- skillnum -&gt; true, MUD says you don't have it
+
+-- The skill table only changes when your class does, so there's no reason to
+-- pull 619 rows off the MUD every single launch. Cache it and re-read on the
+-- events that actually invalidate it.
+function SP.saveskills()
+    U.save("spellskills", { skills = SP.skills, recov = SP.recov })
+end
+
+function SP.loadskills()
+    local d = U.load("spellskills", { skills = {}, recov = {} })
+    local n = 0
+    -- keys come back as strings if the save round-tripped through anything that
+    -- stringifies them, so normalise rather than trusting what's on disk
+    for k, sk in pairs(d.skills or {}) do
+        local id = tonumber(k)
+        if id and type(sk) == "table" and sk.name then
+            SP.skills[id] = sk
+            SP.byname[sk.name:lower()] = id
+            n = n + 1
+        end
+    end
+    for k, name in pairs(d.recov or {}) do
+        local id = tonumber(k)
+        if id then SP.recov[id] = name end
+    end
+    return n
+end
+
+-- from the protocol doc; see the {sfail} table there
+local FAIL = {
+    [1]  = { "lost concentration", "retry" },
+    [2]  = { "already affected",   "mark-up" },
+    [3]  = { "blocked by recovery", "wait-recovery" },
+    [4]  = { "not enough mana",    "backoff" },
+    [5]  = { "nocast room",        "wait-room" },
+    [6]  = { "cannot concentrate", "retry" },
+    [8]  = { "unknown spell",      "never" },
+    [9]  = { "self-only cast on other", "fix-target" },
+    [10] = { "resting or sitting", "stand" },
+    [11] = { "disabled",           "never" },
+    [12] = { "not enough moves",   "backoff" },
+}
+
+SP.FAIL = FAIL
+
+-- target codes, confirmed against the live slist
+local SELF_OK = { [2] = true, [3] = true }   -- 2 = self or other, 3 = self only
+
+local function is_spellup(s)
+    -- a spell (type 1) you can put on yourself, that lasts a while
+    return s and s.type == 1 and SELF_OK[s.target] == true
+end
+
+SP.is_spellup = is_spellup
+
+---
+-- slist ingest
+--
+-- The rows between the markers aren't tagged, so they need a catch-all — armed
+-- only for the block, released on the closing marker, with a safety timer. Same
+-- shape as the tag gag and Who Poller.
+---
+
+local ing_trig, ing_timer, ingesting = nil, nil, nil
+
+local function ingest_stop()
+    ingesting = nil
+    if ing_trig then killTrigger(ing_trig); ing_trig = nil end
+    if ing_timer then killTimer(ing_timer); ing_timer = nil end
+end
+
+local function ingest_row()
+    local line = getCurrentLine()
+    deleteLine()          -- we own this block, so we hide it too
+
+    if line:find("^{/") then
+        local what = ingesting
+        ingest_stop()
+        if what == "spells" then
+            local n = 0
+            for _ in pairs(SP.skills) do n = n + 1 end
+            U.ok("Spellups: read " .. n .. " skills.")
+        elseif what == "recoveries" then
+            -- table's complete; cache it, then find out what's already running
+            SP.saveskills()
+            if SP.classdiff then SP.classdiff() end
+            tempTimer(1, function() SP.sync() end)
+        end
+        return
+    end
+
+    if ingesting == "spells" then
+        -- skillnum,name,target,duration,prac,recovery,type
+        local num, name, target, dur, prac, rec, kind =
+            line:match("^(%d+),(.-),(%-?%d+),(%-?%d+),(%-?%d+),(%-?%d+),(%-?%d+)%s*$")
+        if num then
+            local id = tonumber(num)
+            SP.skills[id] = {
+                name = name, target = tonumber(target), duration = tonumber(dur),
+                prac = tonumber(prac), recovery = tonumber(rec), type = tonumber(kind),
+            }
+            SP.byname[name:lower()] = id
+        end
+    elseif ingesting == "recoveries" then
+        -- recnum,name,seconds
+        local num, name = line:match("^(%d+),(.-),(%-?%d+)%s*$")
+        if num then SP.recov[tonumber(num)] = name end
+    end
+end
+
+local function ingest_start(what)
+    ingest_stop()
+    ingesting = what
+    ing_trig = tempRegexTrigger("^.*$", ingest_row)
+    ing_timer = tempTimer(20, function()
+        if ingesting then
+            ingest_stop()
+            U.warn("Spellups: " .. tostring(what) .. " block never closed.")
+        end
+    end)
+end
+
+function SP.on_spellheaders()
+    deleteLine()
+    ingest_start("spells")
+    SP.skills, SP.byname = {}, {}
+end
+
+function SP.on_recoveries()
+    deleteLine()
+    ingest_start("recoveries")
+    SP.recov = {}
+end
+
+---
+-- live state
+---
+
+local warned = {}   -- skillnum -&gt; { [30]=true, [10]=true }
+
+function SP.on_affon(num, secs)
+    num, secs = tonumber(num), tonumber(secs)
+    if not num then return end
+    SP.affect[num] = os.time() + (secs or 0)
+    SP.failed[num] = nil
+    SP.dropped[num] = nil
+    warned[num] = nil
+end
+
+function SP.on_affoff(num)
+    num = tonumber(num)
+    if not num then return end
+    if SP.affect[num] then SP.dropped[num] = os.time() end
+    SP.affect[num] = nil
+    warned[num] = nil
+    -- some effects come from worn items rather than casts
+    if SP.on_aura_drop then SP.on_aura_drop(num) end
+    -- wraith form drops others when it lands, so pre-cast rather than chase it
+    if SP.skills[num] and SP.skills[num].name == "wraith form" and SP.wraith_pre then
+        SP.wraith_pre()
+    end
+end
+
+function SP.on_sfail(num, target, code, rec)
+    num, code = tonumber(num), tonumber(code)
+    if not num then return end
+    SP.failed[num] = { code = code, at = os.time(), recovery = tonumber(rec) }
+    -- Codes 8 and 11 mean it's never going to work — you don't have the spell,
+    -- or it's disabled. Say so once so it isn't a mystery why it stopped being
+    -- attempted, then drop it and move on. Silence here reads as a bug.
+    if SP.on_castfail then SP.on_castfail(code) end
+
+    local d = FAIL[code]
+    if d and d[2] == "never" then
+        local s = SP.skills[num]
+        if not SP.nope[num] then
+            U.note("You don't have " .. ((s and s.name) or num) .. " (" .. d[1] .. ").")
+        end
+        SP.nope[num] = true
+        SP.dropped[num] = nil
+    end
+    -- "already affected" is information, not a failure: the MUD is telling us
+    -- our picture is stale
+    if code == 2 then
+        local s = SP.skills[num]
+        SP.affect[num] = os.time() + ((s and s.duration or 0) &gt; 0 and s.duration or 60)
+    end
+end
+
+function SP.on_recon(num, secs)
+    num, secs = tonumber(num), tonumber(secs)
+    if not num then return end
+    SP.blocked[num] = os.time() + (secs or 0)
+end
+
+function SP.on_recoff(num)
+    num = tonumber(num)
+    if not num then return end
+    SP.blocked[num] = nil
+    -- totem and eye are gated by recovery, not duration; this is their cue
+    if SP.on_recovery_clear then SP.on_recovery_clear(num) end
+end
+
+function SP.on_skillgain(num, pct)
+    num, pct = tonumber(num), tonumber(pct)
+    local s = num and SP.skills[num]
+    if s then s.prac = pct or s.prac end
+end
+
+---
+-- seeding from 'aff'
+--
+-- Confirmed live: {affon} only fires on a fresh cast. Anything already running
+-- when you log in is invisible to the tag stream, so the picture starts blank
+-- and stays wrong until each spell happens to recast. Reading 'aff' once fixes
+-- that - it is the only way to learn what you're already under.
+---
+
+local sync_trig, sync_timer, syncing = nil, nil, false
+
+local function sync_stop()
+    syncing = false
+    if sync_trig then killTrigger(sync_trig); sync_trig = nil end
+    if sync_timer then killTimer(sync_timer); sync_timer = nil end
+end
+
+local synced = 0
+
+local function sync_row()
+    local line = getCurrentLine()
+
+    -- the skills/spells list ends at the special-affects header or the summary
+    if line:find("special affects") or line:find("^You are affected by %d")
+       or line:find("^You are not affected") then
+        sync_stop()
+        U.ok("Spellups: synced " .. synced .. " running affect(s) from 'aff'.")
+        return
+    end
+
+    -- "  Detect invis             : sets detect invis effect (00:15)"
+    -- and the longer "(01:02:03)" form for anything lasting over an hour
+    local name, a, b, c = line:match("^%s%s(.-)%s*:%s*.-%((%d+):(%d+):(%d+)%)%s*$")
+    if not name then
+        name, a, b = line:match("^%s%s(.-)%s*:%s*.-%((%d+):(%d+)%)%s*$")
+        c = nil
+    end
+    if not name then return end
+
+    local secs = c and (tonumber(a) * 3600 + tonumber(b) * 60 + tonumber(c))
+                   or (tonumber(a) * 60 + tonumber(b))
+    local id = SP.byname[name:lower()]
+    if id then
+        SP.affect[id] = os.time() + secs
+        synced = synced + 1
+    end
+end
+
+function SP.on_affheader()
+    sync_stop()
+    syncing = true
+    synced = 0
+    sync_trig = tempRegexTrigger("^.*$", sync_row)
+    sync_timer = tempTimer(6, function()
+        if syncing then sync_stop() end
+    end)
+end
+
+function SP.sync()
+    if next(SP.skills) == nil then
+        U.warn("Spellups: no skill table yet - run 'spellup slist' first.")
+        return
+    end
+    send("aff", false)
+end
+
+---
+-- queries
+---
+
+-- seconds left, or nil when it isn't up
+function SP.left(num)
+    local t = SP.affect[num]
+    if not t then return nil end
+    local d = t - os.time()
+    if d &lt;= 0 then SP.affect[num] = nil; return nil end
+    return d
+end
+
+-- is this spell unavailable because its recovery is running?
+function SP.recovering(num)
+    local s = SP.skills[num]
+    if not s or (s.recovery or -1) &lt; 0 then return nil end
+    local t = SP.blocked[s.recovery]
+    if not t then return nil end
+    local d = t - os.time()
+    if d &lt;= 0 then SP.blocked[s.recovery] = nil; return nil end
+    return d, SP.recov[s.recovery] or ("recovery " .. s.recovery)
+end
+
+-- everything we'd consider a spellup, sorted by name
+function SP.spellups()
+    local out = {}
+    for id, s in pairs(SP.skills) do
+        if is_spellup(s) then out[#out + 1] = id end
+    end
+    table.sort(out, function(a, b) return SP.skills[a].name &lt; SP.skills[b].name end)
+    return out
+end
+
+---
+-- expiry warnings
+---
+
+function SP.tick()
+    if not (CFG.warn30 or CFG.warn10) then return end
+    for num in pairs(SP.affect) do
+        local d = SP.left(num)
+        if d then
+            local s = SP.skills[num]
+            warned[num] = warned[num] or {}
+            for _, mark in ipairs({ 30, 10 }) do
+                local want = (mark == 30 and CFG.warn30) or (mark == 10 and CFG.warn10)
+                if want and d &lt;= mark and not warned[num][mark] then
+                    warned[num][mark] = true
+                    local msg = (s and s.name or ("spell " .. num)) .. " falls in " .. mark .. "s"
+                    if CFG.channel == "echo" then
+                        U.warn(msg)
+                    else
+                        send(CFG.channel .. " " .. msg, false)
+                    end
+                end
+            end
+        end
+    end
+end
+
+---
+-- panel
+---
+
+local panel = aard.panel.new({
+    name     = "spellups",
+    title    = "Spellups",
+    width    = 300,
+    height   = 340,
+    x        = "20px",
+    y        = "120px",
+    fontSize = 9,
+})
+
+SP.panel = panel
+
+-- MMM:SS, zero-padded so the column doesn't jitter as it counts down. The panel
+-- repaints every second, so this is a live clock, not a snapshot.
+function fmt(secs)
+    secs = math.max(0, math.floor(secs or 0))
+    return string.format("%03d:%02d", math.floor(secs / 60), secs % 60)
+end
+
+-- Only what's actually relevant: what's on you now, and what just fell off. The
+-- full 186-spell list of things you aren't running is noise - 'spellup list' is
+-- there when you want the whole inventory.
+--
+-- A dropped buff goes red and then fades out over CFG.decay. Plenty of them come
+-- from potions and gear and were never yours to recast, so nothing sits there
+-- accusing you forever.
+
+-- Reused across repaints. The panel redraws once a second to keep the clocks
+-- honest, so anything allocated here is allocated 86400 times a day - build the
+-- frame in one buffer and hand it over in a single write.
+local buf, lastframe = {}, nil
+
+-- bright red at the moment it drops, sinking toward the background as it ages
+local function fadecol(t)
+    t = math.min(1, math.max(0, t))
+    return string.format("#%02x%02x%02x",
+        math.floor(247 - 202 * t), math.floor(118 - 88 * t), math.floor(142 - 102 * t))
+end
+
+function SP.paint()
+    if not panel.console then return end
+    local c = panel.console
+
+    local n = 0
+    local function put(s) n = n + 1; buf[n] = s end
+
+    if next(SP.skills) == nil then
+        put("&lt;#8a93a8&gt;No skill table yet.\nRun 'spellup slist'.&lt;r&gt;\n")
+    else
+        local now = os.time()
+        local up, gone = {}, {}
+
+        for id in pairs(SP.affect) do
+            local left = SP.left(id)
+            if left and SP.skills[id] then up[#up + 1] = { id = id, left = left } end
+        end
+
+        for id, at in pairs(SP.dropped) do
+            local age = now - at
+            if not SP.skills[id] or age &gt; CFG.decay then
+                SP.dropped[id] = nil
+                SP.failed[id] = nil          -- prune alongside; nothing else does
+            else
+                gone[#gone + 1] = { id = id, age = age }
+            end
+        end
+
+        table.sort(up,   function(a, b) return a.left &lt; b.left end)
+        table.sort(gone, function(a, b) return a.age &lt; b.age end)
+
+        if #up == 0 and #gone == 0 then
+            put("&lt;#8a93a8&gt;Nothing running.&lt;r&gt;\n")
+        else
+            local w = 0
+            for _, e in ipairs(up)   do w = math.max(w, #SP.skills[e.id].name) end
+            for _, e in ipairs(gone) do w = math.max(w, #SP.skills[e.id].name) end
+            w = math.min(w, 24)
+
+            for _, e in ipairs(up) do
+                -- green while comfortable, amber as it gets close, red about to go
+                local col = e.left &lt;= 30 and "#f7768e" or (e.left &lt;= 120 and "#e0af68" or "#3ad07a")
+                local rec, recname = SP.recovering(e.id)
+                put(string.format("&lt;%s&gt;%-" .. w .. "s %8s&lt;r&gt;%s\n",
+                    col, SP.skills[e.id].name:sub(1, w), fmt(e.left),
+                    rec and (" &lt;#8a93a8&gt;" .. (recname or "") .. "&lt;r&gt;") or ""))
+            end
+
+            if #gone &gt; 0 then
+                if #up &gt; 0 then put("&lt;#3a4a6b&gt;" .. string.rep("-", w + 9) .. "&lt;r&gt;\n") end
+                for _, e in ipairs(gone) do
+                    local col = fadecol(e.age / CFG.decay)
+                    local f = SP.failed[e.id]
+                    local why = ""
+                    if f and FAIL[f.code] then why = " &lt;#8a93a8&gt;" .. FAIL[f.code][1] .. "&lt;r&gt;" end
+                    put(string.format("&lt;%s&gt;%-" .. w .. "s %8s&lt;r&gt;%s\n",
+                        col, SP.skills[e.id].name:sub(1, w), "-" .. fmt(e.age), why))
+                end
+            end
+        end
+    end
+
+    -- One frame, one comparison, one write. When nothing on screen would look
+    -- different there's no reason to touch the console at all - which is most
+    -- ticks once things settle down.
+    local frame = table.concat(buf, "", 1, n)
+    for i = 1, n do buf[i] = nil end
+    if frame == lastframe then return end
+    lastframe = frame
+
+    c:clear()
+    U.outw(c.name, frame)
+end
+
+---
+-- commands
+---
+
+function SP.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    -- autocast owns auto/now; extras own totem/eye/aura/wraith
+    if SP.autocmd and SP.autocmd(verb, rest) then return end
+    if SP.extrascmd and SP.extrascmd(verb, rest) then return end
+
+    if verb == "" then
+        SP.paint()
+        panel:show()
+
+    elseif verb == "reclass" then
+        SP.reslist("reclass")
+
+    elseif verb == "slist" then
+        U.note("Spellups: reading the skill table...")
+        -- ONE command: 'slist spells' emits {spellheaders spells} AND
+        -- {recoveries spells}. Sending a second slist lands in the middle of
+        -- 619 streaming rows and tears down the capture that's still running.
+        send("slist spells", false)
+
+    elseif verb == "sync" then
+        SP.sync()
+
+    elseif verb == "list" then
+        local ups = SP.spellups()
+        if #ups == 0 then U.note("No skill table yet. Run 'spellup slist'."); return end
+        U.note(#ups .. " spellups known:")
+        for _, id in ipairs(ups) do
+            local left = SP.left(id)
+            local rec, recname = SP.recovering(id)
+            local state = left and ("up " .. fmt(left))
+                or (rec and ("blocked " .. fmt(rec) .. " " .. (recname or "")))
+                or "down"
+            U.out(string.format("\n  &lt;#c8d0dc&gt;%-26s&lt;r&gt; &lt;#8a93a8&gt;%-4d %s&lt;r&gt;",
+                SP.skills[id].name, id, state))
+        end
+        echo("\n")
+
+    elseif verb == "why" then
+        local key = U.trim(rest):lower()
+        local id = tonumber(key) or SP.byname[key]
+        local f = id and SP.failed[id]
+        if not id or not SP.skills[id] then
+            U.warn("Don't know a spell called '" .. key .. "'.")
+        elseif not f then
+            U.note(SP.skills[id].name .. ": nothing failed recently.")
+        else
+            local d = FAIL[f.code]
+            U.help(SP.skills[id].name, {
+                { "failed",   d and d[1] or ("code " .. tostring(f.code)) },
+                { "policy",   d and d[2] or "unknown" },
+                { "when",     U.duration(os.time() - f.at) .. " ago" },
+                { "recovery", f.recovery and f.recovery &gt;= 0
+                              and (SP.recov[f.recovery] or tostring(f.recovery)) or "-" },
+            })
+        end
+
+    elseif verb == "warn" then
+        local which = U.trim(rest):lower()
+        if which == "30" then CFG.warn30 = not CFG.warn30
+        elseif which == "10" then CFG.warn10 = not CFG.warn10
+        else U.warn("Usage: spellup warn 30|10"); return end
+        U.save("spellups", CFG)
+        U.ok(string.format("Warnings: 30s %s, 10s %s",
+            CFG.warn30 and "on" or "off", CFG.warn10 and "on" or "off"))
+
+    elseif verb == "decay" then
+        local n = tonumber(U.trim(rest))
+        if not n or n &lt; 0 or n &gt; 3600 then
+            U.warn("Usage: spellup decay &lt;seconds&gt;   (currently " .. CFG.decay .. ")")
+        else
+            CFG.decay = math.floor(n); U.save("spellups", CFG)
+            U.ok("Fallen buffs stay on the panel for " .. CFG.decay .. "s.")
+        end
+
+    elseif verb == "channel" then
+        local c = U.trim(rest):match("^(%S+)")
+        if c then
+            CFG.channel = c
+            U.save("spellups", CFG)
+            U.ok("Spellup warnings go to: " .. c)
+        else
+            U.note("Warnings go to: " .. CFG.channel)
+        end
+
+    elseif verb == "dock" then panel:setmode("dock")
+    elseif verb == "embed" then panel:setmode("embed")
+    elseif verb == "hide" then panel:hide()
+
+    elseif verb == "status" then
+        local n, ups, rec = 0, #SP.spellups(), 0
+        for _ in pairs(SP.skills) do n = n + 1 end
+        for _ in pairs(SP.recov) do rec = rec + 1 end
+        local upcount = 0
+        for id in pairs(SP.affect) do if SP.left(id) then upcount = upcount + 1 end end
+        U.help("Spellups", {
+            { "skills known",  tostring(n) },
+            { "spellups",      tostring(ups) },
+            { "recoveries",    tostring(rec) },
+            { "currently up",  tostring(upcount) },
+            { "warnings",      (CFG.warn30 and "30s " or "") .. (CFG.warn10 and "10s" or "")
+                               .. " -&gt; " .. CFG.channel },
+            { "autocast",      (SP.AC and SP.AC.on) and
+                               ("on, fires at " .. SP.AC.threshold .. " down") or "off" },
+        })
+
+    else
+        U.help("Spellups", {
+            { "spellup",            "the panel: what's up, down, blocked" },
+            { "spellup list",       "every spellup and its state" },
+            { "spellup why &lt;name&gt;", "why the last cast of it failed" },
+            { "spellup slist",      "re-read the skill table from the MUD" },
+            { "spellup reclass",    "changed class: re-read and diff against the old set" },
+            { "spellup auto",       "autocast: sends 'spellup' once enough is down" },
+            { "spellup now",        "send 'spellup' right now" },
+            { "spellup sync",       "read 'aff' to learn what's already up" },
+            { "spellup decay &lt;secs&gt;", "how long a fallen buff stays listed" },
+            { "spellup warn 30|10", "toggle expiry warnings" },
+            { "spellup channel &lt;c&gt;", "where warnings go ('echo' for here)" },
+            { "spellup status",     "counts" },
+            { "spellup totem",      "totem tracking and recast" },
+            { "spellup eye",        "eye of vigilance" },
+            { "spellup aura",       "wear an item when its affect drops" },
+            { "spellup wraith",     "pre-cast set before wraith form" },
+            { "spellup dock|embed|hide", "" },
+            { "" },
+            { "It only ever sends 'spellup' - the MUD picks the spells," },
+            { "and gates on mana, recoveries, nomagic rooms, sleeping," },
+            { "combat and affects you already have. It knows more than" },
+            { "we do. 'forgetskill' drops one; 'quickskill' sets order." },
+        })
+    end
+end
+
+---
+-- the table can change under you
+--
+-- Remort, class change and tier reset the skill list. Casting from a stale table
+-- means casting things you no longer have, which the MUD answers with {sfail} 8
+-- for every one of them. Re-read instead.
+---
+
+function SP.reslist(why)
+    U.note("Spellups: " .. why .. " - re-reading the skill table.")
+
+    -- hang on to the old spellup set so the new one can be diffed against it
+    SP.prevups = {}
+    for _, id in ipairs(SP.spellups()) do SP.prevups[id] = true end
+
+    -- every "you don't have that" was an answer about the OLD class
+    SP.affect, SP.blocked, SP.failed, SP.dropped, SP.nope = {}, {}, {}, {}, {}
+
+    tempTimer(2, function() send("slist spells", false) end)
+end
+
+-- What the new table gained and lost. Worth saying out loud: the auto flags were
+-- decisions made about a different class, and nothing else is going to tell you
+-- that a dozen new spellups just showed up switched off.
+function SP.classdiff()
+    if not SP.prevups then return end
+    local prev = SP.prevups
+    SP.prevups = nil
+
+    local gained, lost = {}, {}
+    local now = {}
+    for _, id in ipairs(SP.spellups()) do
+        now[id] = true
+        if not prev[id] then gained[#gained + 1] = id end
+    end
+    for id in pairs(prev) do
+        if not now[id] then lost[#lost + 1] = id end
+    end
+    if #gained == 0 and #lost == 0 then return end
+
+    local function names(t)
+        local out = {}
+        for _, id in ipairs(t) do out[#out + 1] = (SP.skills[id] and SP.skills[id].name) or id end
+        table.sort(out)
+        return table.concat(out, ", ")
+    end
+
+    if #lost &gt; 0 then
+        U.note("Spellups: lost " .. #lost .. " - " .. names(lost))
+    end
+    if #gained &gt; 0 then
+        U.ok("Spellups: gained " .. #gained .. " - " .. names(gained))
+    end
+end
+
+function SP.on_classchange() SP.reslist("class changed") end
+function SP.on_remort()      SP.reslist("remort") end
+
+-- death drops most affects; the MUD sends {affoff} for each, but a stale picture
+-- is worse than an empty one
+function SP.on_death()
+    SP.affect = {}
+    U.note("Spellups: died - affects cleared.")
+end
+
+---
+-- boot
+---
+
+-- Aardwolf sends char.status once you're actually in the game. sysConnectionEvent
+-- is too early - anything sent then lands on the login prompt and is eaten.
+local greeted = false
+
+function SP.on_login()
+    if greeted then return end
+    greeted = true
+    tempTimer(3, function()
+        if next(SP.skills) == nil then
+            U.note("Spellups: no cached skill table - reading it from the MUD.")
+            send("slist spells", false)
+        else
+            SP.sync()      -- table's already here; just learn what's running
+        end
+    end)
+end
+
+function SP.on_disconnect() greeted = false end
+
+do
+    local n = SP.loadskills()
+    if n &gt; 0 then U.note("Spellups: " .. n .. " skills from cache.") end
+end
+
+U.killhandler(aard_spellup_login_handler)
+aard_spellup_login_handler = registerAnonymousEventHandler("gmcp.char.status", "aard.spellup.on_login")
+
+U.killhandler(aard_spellup_disc_handler)
+aard_spellup_disc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "aard.spellup.on_disconnect")
+
+U.every("spelluptick", 1, function()
+    SP.tick()
+    if panel:visible() then SP.paint() end
+end)
+
+aard.register("spellup", "tracks what's on you and why casts fail", SP.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>spellups/autocast</name>
+				<packageName />
+				<script>--[[
+    Spellups — autocast
+    Sean Stoves, 2026-07-31
+
+    Sends exactly one command: 'spellup'. That's the whole feature.
+
+    The MUD's own spellup already decides what to cast and refuses the rest —
+    mana, recoveries, nomagic rooms, sleeping, combat-incompatible spells,
+    affects you already have, mutual exclusions, forgetskill. It knows all of
+    that better than a client ever will. See 'help spellup'.
+
+    So the only thing worth automating is WHEN to type it, which is what Hadar's
+    plugin was really doing all along: mudsidespellup=1, spellstorecast=10.
+    Watch what falls off, and once enough is down, fire the command.
+
+    The AFK gate is the same one Who Poller and bulk appraise use, and it's not
+    configurable — Aardwolf allows assist tools but not unattended automation.
+]]
+
+aard = aard or {}
+aard.spellup = aard.spellup or {}
+
+local SP = aard.spellup
+local U  = aard.util
+
+local AC = U.load("spellauto", {
+    on        = true,
+    threshold = 10,     -- how many of yours have to be down before it fires
+    cooldown  = 45,     -- seconds between fires; the queue needs time to drain
+    combat    = false,  -- fire while you're fighting
+})
+
+SP.AC = AC
+
+local function save() U.save("spellauto", AC) end
+
+local lastfire = 0
+local backoff  = 0
+
+local function fighting()
+    local s = gmcp and gmcp.char and gmcp.char.status
+    local e = s and s.enemy
+    return e ~= nil and e ~= "" and e ~= "none"
+end
+
+-- how many spellups that are actually ours to recast are currently down
+function SP.downcount()
+    local n = 0
+    for id in pairs(SP.dropped) do
+        if SP.skills[id] and SP.is_spellup(SP.skills[id]) and not SP.nope[id] then
+            n = n + 1
+        end
+    end
+    return n
+end
+
+-- why it isn't firing, or nil if nothing's stopping it
+function SP.auto_blocked()
+    if not AC.on then return "switched off" end
+    if aard.whopoll and aard.whopoll.afk then return "you're flagged AFK" end
+    if os.time() &lt; backoff then return "backing off (" .. (backoff - os.time()) .. "s)" end
+    if fighting() and not AC.combat then return "in combat" end
+    local wait = AC.cooldown - (os.time() - lastfire)
+    if wait &gt; 0 then return "cooling down (" .. wait .. "s)" end
+    return nil
+end
+
+function SP.fire(manual)
+    local why = not manual and SP.auto_blocked()
+    if why then return false, why end
+    lastfire = os.time()
+    send("spellup", false)
+    return true
+end
+
+function SP.autotick()
+    if SP.auto_blocked() then return end
+    local n = SP.downcount()
+    if n &lt; AC.threshold then return end
+    if SP.fire() then
+        U.note("Spellups: " .. n .. " down - sent 'spellup'.")
+    end
+end
+
+-- {sfail} 10 is "you're resting or sitting". Firing again immediately just
+-- queues the same refusal, so sit it out rather than spinning.
+function SP.on_castfail(code)
+    if tonumber(code) == 10 then backoff = os.time() + 30 end
+end
+
+---
+-- commands, folded into the main dispatcher
+---
+
+function SP.autocmd(verb, rest)
+    if verb ~= "auto" and verb ~= "now" then return false end
+
+    if verb == "now" then
+        local ok, why = SP.fire(true)
+        if ok then U.ok("Sent 'spellup'.") else U.warn("Didn't send: " .. tostring(why)) end
+        return true
+    end
+
+    local a, b = U.trim(rest):lower():match("^(%S*)%s*(.*)$")
+
+    if a == "" then
+        local why = SP.auto_blocked()
+        U.help("Autocast", {
+            { "state",     AC.on and "on" or "off" },
+            { "threshold", AC.threshold .. " spellup(s) down" },
+            { "cooldown",  AC.cooldown .. "s" },
+            { "in combat", AC.combat and "yes" or "no" },
+            { "down now",  tostring(SP.downcount()) },
+            { "holding",   why or "nothing - ready" },
+            { "" },
+            { "spellup auto on | off",     "" },
+            { "spellup auto &lt;n&gt;",          "fire once this many are down" },
+            { "spellup auto cooldown &lt;s&gt;", "minimum gap between fires" },
+            { "spellup auto combat",       "toggle firing mid-fight" },
+            { "spellup now",               "send 'spellup' right now" },
+            { "" },
+            { "It only ever sends 'spellup' - the MUD picks the spells." },
+        })
+
+    elseif a == "on" or a == "off" then
+        AC.on = (a == "on"); save()
+        U.ok("Autocast " .. a .. ".")
+
+    elseif a == "combat" then
+        AC.combat = not AC.combat; save()
+        U.ok("Fire in combat: " .. (AC.combat and "on" or "off"))
+
+    elseif a == "cooldown" then
+        local n = tonumber(b)
+        if not n or n &lt; 5 or n &gt; 600 then
+            U.warn("Usage: spellup auto cooldown &lt;5-600&gt;   (currently " .. AC.cooldown .. "s)")
+        else
+            AC.cooldown = math.floor(n); save()
+            U.ok("At most one 'spellup' every " .. AC.cooldown .. "s.")
+        end
+
+    elseif tonumber(a) then
+        local n = tonumber(a)
+        if n &lt; 1 or n &gt; 100 then
+            U.warn("Usage: spellup auto &lt;1-100&gt;   (currently " .. AC.threshold .. ")")
+        else
+            AC.threshold = math.floor(n); save()
+            U.ok("Fires once " .. AC.threshold .. " spellup(s) are down.")
+        end
+
+    else
+        U.warn("spellup auto on|off|combat|&lt;n&gt;|cooldown &lt;s&gt;")
+    end
+
+    return true
+end
+
+U.every("spellauto", 5, SP.autotick)
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>spellups/extras</name>
+				<packageName />
+				<script>--[[
+    Spellups — totems, eye of vigilance, auras, wraith form (stage 3)
+    Sean Stoves, 2026-07-31
+
+    The subsystems that hang off the same tag stream but aren't plain spellups.
+    Each is independently switchable and every one ships OFF, because none of
+    them fired once in the MUSHclient config — turn on what you actually use.
+
+    Everything that sends is behind the same gates as the caster: never while
+    you're flagged AFK, never faster than the pacing interval.
+]]
+
+aard = aard or {}
+aard.spellup = aard.spellup or {}
+
+local SP = aard.spellup
+local U  = aard.util
+
+local EX = U.load("spellextras", {
+    totem = { on = false, kind = nil, autocast = false, announce = true },
+    eye   = { on = false, autocast = false, announce = true },
+    aura  = { on = false, bag = nil, items = {} },   -- skillnum -&gt; item id
+    wraith = { on = false, pre = {} },               -- skillnum -&gt; true, cast before wraith
+})
+EX.totem  = EX.totem  or { on = false, announce = true }
+EX.eye    = EX.eye    or { on = false, announce = true }
+EX.aura   = EX.aura   or { on = false, items = {} }
+EX.wraith = EX.wraith or { on = false, pre = {} }
+
+SP.EX = EX
+
+local function save()
+    U.save("spellextras", EX)
+end
+
+-- shared gate: nothing here sends while you're away
+local function may_send()
+    if aard.whopoll and aard.whopoll.afk then return false end
+    return true
+end
+
+local function announce(on, msg, colour)
+    if not on then return end
+    if colour == "bad" then U.warn(msg) elseif colour == "good" then U.ok(msg) else U.note(msg) end
+end
+
+---
+-- totems
+--
+-- Recovery 65 is "Create Totem" (confirmed in the recoveries table), so the
+-- recast window is known the moment {recoff} 65 lands - no guessing at timers.
+---
+
+SP.totem = SP.totem or { up = false, kind = nil, placed = 0, cast = 0, killed = 0 }
+
+local TOTEM_RECOVERY = 65
+
+function SP.on_totem_placed(kind)
+    SP.totem.up, SP.totem.kind, SP.totem.placed = true, kind, os.time()
+    SP.totem.cast = SP.totem.cast + 1
+    if EX.totem.kind == nil then EX.totem.kind = kind; save() end
+    announce(EX.totem.announce, "Totem up: " .. tostring(kind), "good")
+end
+
+function SP.on_totem_attacked(who)
+    announce(EX.totem.announce, "Totem attacked by " .. tostring(who) .. "!", "bad")
+end
+
+function SP.on_totem_killed(who)
+    SP.totem.up = false
+    SP.totem.killed = SP.totem.killed + 1
+    announce(EX.totem.announce, "Totem killed by " .. tostring(who) .. ".", "bad")
+end
+
+function SP.on_totem_expired()
+    SP.totem.up = false
+    announce(EX.totem.announce, "Totem expired.", nil)
+end
+
+---
+-- eye of vigilance
+--
+-- Recovery 66 is "Vigilance". The eye is per-zone, so remember where it went;
+-- "is my eye up" is really "is it up HERE".
+---
+
+SP.eye = SP.eye or { up = false, zone = nil, at = 0 }
+
+local EYE_RECOVERY = 66
+
+function SP.on_eye_msg(text)
+    -- &lt;Eye&gt; lines are the eye reporting from wherever it is
+    if not EX.eye.on then return end
+    announce(EX.eye.announce, "Eye: " .. tostring(text), nil)
+end
+
+function SP.on_eye_up()
+    local _, _, zone = U.room()
+    SP.eye.up, SP.eye.zone, SP.eye.at = true, zone, os.time()
+    announce(EX.eye.announce, "Eye placed in " .. tostring(zone or "?"), "good")
+end
+
+function SP.on_eye_closed()
+    SP.eye.up = false
+    announce(EX.eye.announce, "Eye has closed.", nil)
+end
+
+function SP.on_eye_removed(where)
+    SP.eye.up = false
+    announce(EX.eye.announce, "Eye removed from " .. tostring(where), nil)
+end
+
+---
+-- recovery-driven recasts
+--
+-- Both the totem and the eye are gated by a recovery rather than a duration, so
+-- the honest trigger for "you can have another" is {recoff} on that number.
+---
+
+function SP.on_recovery_clear(recnum)
+    recnum = tonumber(recnum)
+    if not recnum or not may_send() then return end
+
+    if recnum == TOTEM_RECOVERY and EX.totem.on then
+        announce(EX.totem.announce, "Totem is ready to recast.", nil)
+        if EX.totem.autocast and EX.totem.kind and not SP.totem.up then
+            send("cast 'gaias totem' " .. EX.totem.kind, false)
+        end
+    elseif recnum == EYE_RECOVERY and EX.eye.on then
+        announce(EX.eye.announce, "Eye is ready to recast.", nil)
+        if EX.eye.autocast and not SP.eye.up then
+            send("cast 'eye of vigilance'", false)
+        end
+    end
+end
+
+---
+-- auras
+--
+-- Some effects come from wearing an item rather than casting. When the matching
+-- affect drops, fetch it from its bag and wear it. Keyed on skill number so it
+-- works for any aura, not just sanctuary.
+---
+
+function SP.on_aura_drop(skillnum)
+    if not (EX.aura.on and may_send()) then return end
+    local item = EX.aura.items[skillnum]
+    if not item then return end
+    if EX.aura.bag then send("get " .. item .. " " .. EX.aura.bag, false) end
+    send("wear " .. item, false)
+    U.note("Aura: wearing " .. item .. " to replace "
+        .. ((SP.skills[skillnum] and SP.skills[skillnum].name) or skillnum))
+end
+
+---
+-- wraith form
+--
+-- Wraith form drops other affects when it lands, so anything in the pre-list
+-- gets cast first rather than immediately after.
+---
+
+function SP.wraith_pre()
+    if not (EX.wraith.on and may_send()) then return end
+    local n = 0
+    for id in pairs(EX.wraith.pre) do
+        local s = SP.skills[id]
+        if s then
+            n = n + 1
+            tempTimer(n * 1.5, function()
+                if may_send() then send("cast '" .. s.name .. "'", false) end
+            end)
+        end
+    end
+    if n &gt; 0 then U.note("Wraith: pre-casting " .. n .. " spell(s).") end
+end
+
+---
+-- commands, folded into the main dispatcher
+---
+
+local function toggle_item(set, key, label)
+    local id = tonumber(key) or SP.byname[(key or ""):lower()]
+    if not id or not SP.skills[id] then
+        U.warn("Don't know a spell called '" .. tostring(key) .. "'.")
+        return
+    end
+    set[id] = not set[id] or nil
+    save()
+    U.ok(SP.skills[id].name .. ": " .. label .. " " .. (set[id] and "on" or "off"))
+end
+
+function SP.extrascmd(verb, rest)
+    rest = U.trim(rest)
+
+    if verb == "totem" then
+        local a, b = rest:match("^(%S*)%s*(.*)$")
+        if a == "" then
+            U.help("Totem", {
+                { "tracking", EX.totem.on and "on" or "off" },
+                { "autocast", EX.totem.autocast and "on" or "off" },
+                { "type",     tostring(EX.totem.kind or "-") },
+                { "state",    SP.totem.up and ("up since " .. os.date("%H:%M", SP.totem.placed)) or "down" },
+                { "cast/killed", SP.totem.cast .. " / " .. SP.totem.killed },
+                { "" },
+                { "spellup totem on|off",   "track totem messages" },
+                { "spellup totem autocast", "recast when the recovery clears" },
+                { "spellup totem type &lt;t&gt;", "which totem to cast" },
+            })
+        elseif a == "on" or a == "off" then
+            EX.totem.on = (a == "on"); save(); U.ok("Totem tracking " .. a .. ".")
+        elseif a == "autocast" then
+            EX.totem.autocast = not EX.totem.autocast; save()
+            U.ok("Totem autocast " .. (EX.totem.autocast and "on" or "off") .. ".")
+        elseif a == "type" then
+            EX.totem.kind = b ~= "" and b or nil; save()
+            U.ok("Totem type: " .. tostring(EX.totem.kind or "-"))
+        end
+        return true
+
+    elseif verb == "eye" then
+        local a = rest:match("^(%S*)")
+        if a == "" then
+            U.help("Eye of Vigilance", {
+                { "tracking", EX.eye.on and "on" or "off" },
+                { "autocast", EX.eye.autocast and "on" or "off" },
+                { "state",    SP.eye.up and ("up in " .. tostring(SP.eye.zone)) or "down" },
+                { "" },
+                { "spellup eye on|off",   "track eye messages" },
+                { "spellup eye autocast", "recast when the recovery clears" },
+            })
+        elseif a == "on" or a == "off" then
+            EX.eye.on = (a == "on"); save(); U.ok("Eye tracking " .. a .. ".")
+        elseif a == "autocast" then
+            EX.eye.autocast = not EX.eye.autocast; save()
+            U.ok("Eye autocast " .. (EX.eye.autocast and "on" or "off") .. ".")
+        end
+        return true
+
+    elseif verb == "aura" then
+        local a, b = rest:match("^(%S*)%s*(.*)$")
+        if a == "" then
+            local rows = {
+                { "auto-wear", EX.aura.on and "on" or "off" },
+                { "bag",       tostring(EX.aura.bag or "-") },
+                { "" },
+            }
+            for id, item in pairs(EX.aura.items) do
+                rows[#rows + 1] = { (SP.skills[id] and SP.skills[id].name) or tostring(id), tostring(item) }
+            end
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "spellup aura on|off", "wear an item when its affect drops" }
+            rows[#rows + 1] = { "spellup aura bag &lt;id&gt;", "container to fetch from" }
+            rows[#rows + 1] = { "spellup aura set &lt;spell&gt; &lt;itemid&gt;", "" }
+            U.help("Auras", rows)
+        elseif a == "on" or a == "off" then
+            EX.aura.on = (a == "on"); save(); U.ok("Aura auto-wear " .. a .. ".")
+        elseif a == "bag" then
+            EX.aura.bag = b ~= "" and b or nil; save()
+            U.ok("Aura bag: " .. tostring(EX.aura.bag or "-"))
+        elseif a == "set" then
+            local spell, item = b:match("^(%S+)%s+(%S+)$")
+            local id = spell and (tonumber(spell) or SP.byname[spell:lower()])
+            if not id or not item then
+                U.warn("Usage: spellup aura set &lt;spell&gt; &lt;item id&gt;")
+            else
+                EX.aura.items[id] = item; save()
+                U.ok((SP.skills[id] and SP.skills[id].name or id) .. " -&gt; item " .. item)
+            end
+        end
+        return true
+
+    elseif verb == "wraith" then
+        local a, b = rest:match("^(%S*)%s*(.*)$")
+        if a == "" then
+            local rows = { { "enabled", EX.wraith.on and "on" or "off" }, { "" } }
+            for id in pairs(EX.wraith.pre) do
+                rows[#rows + 1] = { (SP.skills[id] and SP.skills[id].name) or tostring(id), "" }
+            end
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "spellup wraith on|off", "" }
+            rows[#rows + 1] = { "spellup wraith &lt;spell&gt;", "add/remove from the pre-cast set" }
+            U.help("Wraith form pre-cast", rows)
+        elseif a == "on" or a == "off" then
+            EX.wraith.on = (a == "on"); save(); U.ok("Wraith pre-cast " .. a .. ".")
+        else
+            toggle_item(EX.wraith.pre, a, "wraith pre-cast")
+        end
+        return true
+    end
+
+    return false
+end
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

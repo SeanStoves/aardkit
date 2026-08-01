@@ -1,0 +1,1092 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>aardcore</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>tag open</name>
+				<script>aard.tags.on_open(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{(\w+)(?:\s[^}]*)?\}</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>tag close</name>
+				<script>aard.tags.on_close(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{/(\w+)\}\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>aardcore</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>panel</name>
+				<script>aard.panel.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^panel(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>aard</name>
+				<script>aard.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^aard(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>aardtags</name>
+				<script>aard.tags.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^aardtags(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>aardcore</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>00_util</name>
+				<packageName />
+				<script>--[[
+    aard core utils
+    Sean Stoves, 2026-07-31
+    Shared helpers for the ported MUSHclient plugins.
+]]
+
+aard = aard or {}
+aard.version = "1.0.0"
+
+local U = {}
+aard.util = U
+
+---
+-- paths
+---
+
+-- everything we persist lives under &lt;profile&gt;/aard/
+function U.datadir()
+    local d = getMudletHomeDir() .. "/aard"
+    if not io.exists(d) then lfs.mkdir(d) end
+    return d
+end
+
+function U.datafile(name)
+    return U.datadir() .. "/" .. name
+end
+
+---
+-- persistence — one table per key, saved as a Lua chunk
+---
+
+function U.save(key, tbl)
+    local ok, err = pcall(table.save, U.datafile(key .. ".lua"), tbl)
+    if not ok then aard.util.err("save " .. key .. ": " .. tostring(err)) end
+    return ok
+end
+
+-- Defaults are a floor, not a fallback: whatever loads gets laid over them, so a
+-- truncated or half-written state file costs you the saved values, not the keys.
+-- Without this a bad file returns an empty table and the first plugin that does
+-- arithmetic on a config field dies at load time and takes itself out.
+function U.load(key, default)
+    local out = {}
+    for k, v in pairs(default or {}) do out[k] = v end
+
+    local path = U.datafile(key .. ".lua")
+    if not io.exists(path) then return out end
+
+    local t = {}
+    if not pcall(table.load, path, t) then
+        U.warn("couldn't read " .. key .. ".lua - using defaults")
+        return out
+    end
+    for k, v in pairs(t) do out[k] = v end
+    return out
+end
+
+---
+-- output
+--
+-- Everything we print uses &lt;#rrggbb&gt; tags, which is NOT a syntax any Mudlet echo
+-- accepts: cecho wants colour *names*, hecho wants #rrggbb, decho wants &lt;r,g,b&gt;.
+-- Feed cecho a &lt;#rrggbb&gt; and it quietly drops it, which is how the whole thing
+-- came out plain. So convert to decho: it's bracket-delimited, so a '#' or a
+-- comma sitting in the message text can't be mistaken for markup the way it can
+-- with hecho.
+---
+
+local function to_decho(s)
+    return (tostring(s or ""):gsub("&lt;#(%x%x%x%x%x%x)&gt;", function(h)
+        return string.format("&lt;%d,%d,%d&gt;",
+            tonumber(h:sub(1, 2), 16), tonumber(h:sub(3, 4), 16), tonumber(h:sub(5, 6), 16))
+    end))
+end
+
+U.to_decho = to_decho
+
+-- main window
+function U.out(s)
+    decho(to_decho(s))
+end
+
+-- a named console / miniwindow
+function U.outw(win, s)
+    decho(win, to_decho(s))
+end
+
+---
+-- compat
+--
+-- Mudlet's C++ API is greppable in the binary; its Lua-side API (Geyser, db,
+-- LuaGlobal) is compressed into a Qt resource and is not. So anything below that
+-- lives on the Lua side gets checked at runtime instead of assumed — guessing
+-- wrong there is how 'clearMap' shipped as a nil call.
+---
+
+function U.has(name)
+    return type(_G[name]) == "function"
+end
+
+-- links: dechoLink is the one that takes our colour form, but fall back through
+-- what's actually present rather than dying
+function U.outLink(s, cmd, hint)
+    if U.has("dechoLink") then
+        dechoLink(to_decho(s), cmd, hint or "", true)
+    elseif U.has("echoLink") then
+        echoLink((s:gsub("&lt;[^&gt;]*&gt;", "")), cmd, hint or "", true)
+    else
+        U.out(s)
+    end
+end
+
+function U.outLinkw(win, s, cmd, hint)
+    if U.has("dechoLink") then
+        dechoLink(win, to_decho(s), cmd, hint or "", true)
+    elseif U.has("echoLink") then
+        echoLink(win, (s:gsub("&lt;[^&gt;]*&gt;", "")), cmd, hint or "", true)
+    else
+        U.outw(win, s)
+    end
+end
+
+function U.killhandler(id)
+    if id and U.has("killAnonymousEventHandler") then
+        pcall(killAnonymousEventHandler, id)
+    end
+end
+
+-- Repeating timer built on tempTimer, which is C++ and definitely there.
+-- registerNamedTimer would do this too, but it's Lua-side and unverifiable, and
+-- a self-rearming tempTimer keyed on a generation counter is no more code.
+U.timers = U.timers or {}
+
+function U.every(key, secs, fn)
+    U.timers[key] = (U.timers[key] or 0) + 1
+    local gen = U.timers[key]
+    local function tick()
+        if U.timers[key] ~= gen then return end   -- superseded or cancelled
+        local ok, err = pcall(fn)
+        if not ok then U.err("timer " .. key .. ": " .. tostring(err)) end
+        if U.timers[key] == gen then tempTimer(secs, tick) end
+    end
+    tempTimer(secs, tick)
+end
+
+function U.unevery(key)
+    U.timers[key] = (U.timers[key] or 0) + 1      -- orphans any tick in flight
+end
+
+local TAG = "&lt;#7aa2f7&gt;[&lt;#e94560&gt;aard&lt;#7aa2f7&gt;]&lt;r&gt; "
+
+function U.note(msg)
+    U.out("\n" .. TAG .. "&lt;#c8d0dc&gt;" .. msg .. "&lt;r&gt;")
+end
+
+function U.ok(msg)
+    U.out("\n" .. TAG .. "&lt;#9ece6a&gt;" .. msg .. "&lt;r&gt;")
+end
+
+function U.warn(msg)
+    U.out("\n" .. TAG .. "&lt;#e0af68&gt;" .. msg .. "&lt;r&gt;")
+end
+
+function U.err(msg)
+    U.out("\n" .. TAG .. "&lt;#f7768e&gt;" .. msg .. "&lt;r&gt;")
+end
+
+-- help blocks: pass a list of {cmd, description} and it lines them up
+function U.help(title, rows)
+    U.out("\n&lt;#7aa2f7&gt;" .. title .. "&lt;r&gt;")
+    local w = 0
+    for _, r in ipairs(rows) do w = math.max(w, #r[1]) end
+    for _, r in ipairs(rows) do
+        if r[2] then
+            U.out("\n  &lt;#e0af68&gt;" .. r[1] .. string.rep(" ", w - #r[1]) .. "&lt;r&gt;  &lt;#c8d0dc&gt;" .. r[2] .. "&lt;r&gt;")
+        else
+            U.out("\n  &lt;#8a93a8&gt;" .. r[1] .. "&lt;r&gt;")
+        end
+    end
+    echo("\n")
+end
+
+---
+-- strings
+---
+
+function U.trim(s)
+    return (tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- "buffer 200" -&gt; "buffer", "200"
+function U.split_verb(s)
+    s = U.trim(s)
+    local verb, rest = s:match("^(%S+)%s*(.*)$")
+    return (verb or ""):lower(), rest or ""
+end
+
+-- db: stores numeric columns as REAL, so a room id reads back 16298.0
+function U.rid(n)
+    return string.format("%d", math.floor(tonumber(n) or 0))
+end
+
+function U.commas(n)
+    local s = tostring(math.floor(tonumber(n) or 0))
+    local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+    return (out:gsub("^,", ""))
+end
+
+-- 4211 -&gt; "1h 10m", for last-seen columns
+function U.duration(secs)
+    secs = math.floor(tonumber(secs) or 0)
+    if secs &lt; 60 then return secs .. "s" end
+    local m = math.floor(secs / 60)
+    if m &lt; 60 then return m .. "m" end
+    local h = math.floor(m / 60)
+    if h &lt; 24 then return h .. "h " .. (m % 60) .. "m" end
+    return math.floor(h / 24) .. "d " .. (h % 24) .. "h"
+end
+
+-- Aardwolf sends colour codes as @x123 / @R etc in some channels; strip for storage
+function U.strip_codes(s)
+    s = tostring(s or "")
+    s = s:gsub("@x%d%d?%d?", ""):gsub("@[%a@]", "")
+    return s
+end
+
+-- Aardwolf @ codes -&gt; hex, for rendering a stored/echoed @-coded string locally
+local ACOLOR = {
+    r = "#800000", R = "#ff0000", g = "#008000", G = "#00ff00",
+    y = "#808000", Y = "#ffff00", b = "#000080", B = "#0000ff",
+    m = "#800080", M = "#ff00ff", c = "#008080", C = "#00ffff",
+    w = "#c0c0c0", W = "#ffffff", D = "#808080",
+}
+
+-- xterm 256 -&gt; hex, the standard cube + greyscale ramp
+local function xterm(n)
+    n = tonumber(n) or 0
+    if n &lt; 16 then
+        local basic = { "#000000", "#800000", "#008000", "#808000", "#000080", "#800080",
+                        "#008080", "#c0c0c0", "#808080", "#ff0000", "#00ff00", "#ffff00",
+                        "#0000ff", "#ff00ff", "#00ffff", "#ffffff" }
+        return basic[n + 1] or "#c0c0c0"
+    end
+    if n &lt; 232 then
+        local i = n - 16
+        local lv = { 0, 95, 135, 175, 215, 255 }
+        return string.format("#%02x%02x%02x",
+            lv[math.floor(i / 36) % 6 + 1], lv[math.floor(i / 6) % 6 + 1], lv[i % 6 + 1])
+    end
+    local g = 8 + (n - 232) * 10
+    return string.format("#%02x%02x%02x", g, g, g)
+end
+
+-- turn an @-coded string into something cecho understands. $C is a server-side
+-- channel reset the codes don't cover, so locally it just reads as white.
+function U.acolor(s)
+    s = tostring(s or ""):gsub("%$C", "@w")
+    s = s:gsub("@x(%d%d?%d?)", function(n) return "&lt;" .. xterm(n) .. "&gt;" end)
+    s = s:gsub("@(%a)", function(c) return ACOLOR[c] and ("&lt;" .. ACOLOR[c] .. "&gt;") or "" end)
+    return (s:gsub("@@", "@"))
+end
+
+function U.aecho(s)
+    U.out("\n" .. U.acolor(s) .. "&lt;r&gt;")
+end
+
+---
+-- gmcp
+---
+
+-- current room vnum, or nil if gmcp hasn't landed yet
+function U.room()
+    local r = gmcp and gmcp.room and gmcp.room.info
+    if not r then return nil end
+    return tonumber(r.num), r.name, r.zone
+end
+
+function U.charname()
+    local c = gmcp and gmcp.char and gmcp.char.base and gmcp.char.base.name
+    return c or getProfileName()
+end
+
+-- Aardwolf sets char.status.state; 3 = playing
+function U.playing()
+    local st = gmcp and gmcp.char and gmcp.char.status and gmcp.char.status.state
+    return tonumber(st) == 3
+end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>10_panel</name>
+				<packageName />
+				<script>--[[
+    aard panel manager
+    Sean Stoves, 2026-07-31
+
+    Every ported plugin that used to draw a MUSHclient miniwindow gets one of
+    these instead. Two modes:
+
+      embed  - Adjustable.Container inside the main window. Drag the title bar,
+               drag the edges to resize, right-click for the built-in menu.
+               The container saves and reloads its own geometry.
+      dock   - Geyser.UserWindow, a real Qt dock widget. Drag it out to float,
+               drag it back to dock it to any edge. Mudlet stores that layout
+               in windowLayout.dat by itself.
+
+    Which mode each panel is in (and whether it's hidden) is ours to remember,
+    so a panel comes back the way you left it.
+]]
+
+aard = aard or {}
+aard.panel = aard.panel or {}
+
+local P = aard.panel
+local U = aard.util
+
+P.reg   = P.reg or {}      -- name -&gt; panel
+P.state = P.state or {}    -- name -&gt; {mode=, hidden=}
+
+local DEFAULT_MODE = "embed"
+
+-- Doubles as the title bar height: Adjustable.Container places contents at
+-- padding*2. Mudlet's own default is 10; the close/minimise buttons are 15px
+-- tall sitting at y=4, so anything under 10 clips them and the title too.
+local TITLEBAR = 10
+
+local STYLE = {
+    bg      = "#0d1117",
+    bar     = "#161b2e",
+    border  = "#3a4a6b",
+    title   = "#e94560",
+    text    = "#c8d0dc",
+}
+
+local function container_style()
+    return [[
+        background-color: rgba(13,17,23,235);
+        border: 1px solid ]] .. STYLE.border .. [[;
+        border-radius: 3px;
+    ]]
+end
+
+---
+-- state
+---
+
+local function load_state()
+    P.state = U.load("panels", {})
+end
+
+local function save_state()
+    U.save("panels", P.state)
+end
+
+local function st(name)
+    P.state[name] = P.state[name] or {}
+    return P.state[name]
+end
+
+---
+-- buffer migration — carry the scrollback (with its colours) across a mode flip
+---
+
+local function migrate(from, to)
+    if not from or not to then return end
+    local n = getLineCount(from)
+    if not n or n &lt; 1 then return end
+    local first = math.max(1, n - 500)   -- 500 lines is plenty to carry over
+    for i = first, n - 1 do
+        moveCursor(from, 0, i)
+        selectCurrentLine(from)
+        copy(from)
+        appendBuffer(to)
+    end
+    moveCursorEnd(from)
+end
+
+---
+-- panel
+---
+
+local Panel = {}
+Panel.__index = Panel
+
+function Panel:_build()
+    local s = st(self.name)
+    local mode = s.mode or self.defmode
+
+    -- bumped every rebuild so widget names stay unique; Mudlet keeps the old
+    -- label objects alive and reusing a name orphans them
+    self.gen = (self.gen or 0) + 1
+
+    if mode == "dock" then
+        self.holder = Geyser.UserWindow:new({
+            name      = self.name .. "_uw" .. self.gen,
+            titleText = self.title,
+        })
+    else
+        self.holder = Adjustable.Container:new({
+            name        = self.name .. "_ac" .. self.gen,
+            x           = self.x, y = self.y,
+            width       = self.w, height = self.h,
+            titleText   = self.title,
+            titleTxtColor = STYLE.title,
+            adjLabelstyle = container_style(),
+            padding     = TITLEBAR,
+            autoSave    = true,
+            autoLoad    = true,
+        })
+
+        -- Adjustable.Container puts its contents at y = padding*2 and draws the
+        -- title above that, so padding IS the title bar height. At 4 that left
+        -- 8px for a 12px title and the console covered it. Worse, padding is
+        -- saved with the geometry and restored on load, so the constructor value
+        -- above gets overwritten by whatever the file remembers - it has to be
+        -- set again afterwards or old saves keep the cramped bar forever.
+        if self.holder.setPadding then pcall(function() self.holder:setPadding(TITLEBAR) end) end
+    end
+
+    self.mode = mode
+
+    -- Measure and parent against the CONTENT box, not the outer frame. An
+    -- Adjustable.Container's Inside starts at x=padding, so anything that sized
+    -- itself off the outer width then drew from that offset origin overhung the
+    -- right edge by exactly padding - which is why the recall buttons ran past
+    -- the border, and why raising padding to 10 made it worse.
+    self.container = type(self.holder.Inside) == "table" and self.holder.Inside or self.holder
+
+    if not self.consoleless then
+        local old = self.console and self.console.name
+        self.console = Geyser.MiniConsole:new({
+            name       = self.name .. "_con" .. self.gen,
+            x = 0, y = 0, width = "100%", height = "100%",
+            autoWrap   = self.wrap ~= false,
+            color      = STYLE.bg,
+            fontSize   = self.fontSize or 9,
+            scrollBar  = true,
+        }, self.holder)
+        self.console:setColor(STYLE.bg)
+        if old then migrate(old, self.console.name) end
+    end
+
+    if self.onbuild then
+        local ok, err = pcall(self.onbuild, self)
+        if not ok then U.err("panel " .. self.name .. " onbuild: " .. tostring(err)) end
+    end
+end
+
+function Panel:show()
+    self.holder:show()
+    self:raise()
+    st(self.name).hidden = false
+    save_state()
+end
+
+function Panel:hide()
+    self.holder:hide()
+    st(self.name).hidden = true
+    save_state()
+end
+
+function Panel:visible()
+    return not st(self.name).hidden
+end
+
+function Panel:toggle()
+    if self:visible() then self:hide() else self:show() end
+end
+
+function Panel:setmode(mode)
+    if mode ~= "dock" and mode ~= "embed" then
+        U.warn("panel mode must be dock or embed")
+        return
+    end
+    if mode == self.mode then return end
+
+    local oldholder, oldcon = self.holder, self.console
+    st(self.name).mode = mode
+    self:_build()
+
+    -- the new console pulled the scrollback across in _build; drop the old shell
+    if oldcon then oldcon:hide() end
+    if oldholder then oldholder:hide() end
+
+    if self:visible() then self:show() else self:hide() end
+    save_state()
+    U.ok(self.name .. " -&gt; " .. mode)
+end
+
+-- The AardwolfMudlet GUI frame builds after us and lands on top, which is how a
+-- panel gets "lost" under the chat tabs.
+--
+-- raiseWindow() needs a REAL widget name. A Geyser container isn't one - only
+-- the labels and consoles inside it are actual Mudlet windows - so raising the
+-- container by name silently does nothing.
+--
+-- Order matters and it bit us: raiseWindow puts a widget on TOP, so whoever is
+-- raised last wins. Walking windowList with pairs() is a random order, so some
+-- runs raised the container's own backdrop last and painted it over the panel's
+-- own contents. The buttons were never missing - they were under a 92%-opaque
+-- label, which is exactly what "faded and unclickable" looks like. So: backdrop
+-- first, contents next, chrome last, every time.
+function Panel:raise()
+    local h = self.holder
+    if not h then return end
+
+    local function up(o)
+        if type(o) == "table" and type(o.name) == "string" then pcall(raiseWindow, o.name) end
+    end
+
+    up(h.adjLabel)                     -- backdrop + title, bottom of our stack
+
+    local seen = {}
+    local function contents(o, depth)
+        if type(o) ~= "table" or depth &gt; 4 or seen[o] then return end
+        seen[o] = true
+        up(o)
+        if type(o.windowList) == "table" then
+            for _, child in pairs(o.windowList) do contents(child, depth + 1) end
+        end
+    end
+    contents(h.Inside, 0)
+    contents(self.console, 0)
+
+    -- minimise/close have to stay clickable above everything we just raised
+    up(h.minimizeLabel)
+    up(h.exitLabel)
+end
+
+function Panel:cecho(s)
+    if self.console then aard.util.outw(self.console.name, s) end
+end
+
+function Panel:echo(s)
+    if self.console then self.console:echo(s) end
+end
+
+function Panel:clear()
+    if self.console then self.console:clear() end
+end
+
+-- copy the line the current trigger fired on, colours intact
+function Panel:capture_line()
+    if not self.console then return end
+    selectCurrentLine()
+    copy()
+    appendBuffer(self.console.name)
+end
+
+---
+-- registry
+---
+
+function P.new(spec)
+    assert(spec and spec.name, "panel needs a name")
+
+    local p = setmetatable({}, Panel)
+    p.name       = spec.name
+    p.title      = spec.title or spec.name
+    p.x          = spec.x or "10px"
+    p.y          = spec.y or "40px"
+    p.w          = spec.width or 460
+    p.h          = spec.height or 220
+    p.fontSize   = spec.fontSize
+    p.wrap       = spec.wrap
+    p.consoleless = spec.consoleless
+    p.onbuild    = spec.onbuild
+    p.defmode    = spec.mode or DEFAULT_MODE
+
+    p:_build()
+    if st(p.name).hidden then p.holder:hide() end
+
+    P.reg[p.name] = p
+    return p
+end
+
+-- everything of ours, above everything of theirs
+function P.raiseall()
+    for _, p in pairs(P.reg) do
+        if p:visible() then p:raise() end
+    end
+end
+
+function P.get(name)
+    return P.reg[(name or ""):lower()]
+end
+
+---
+-- commands
+---
+
+local function list()
+    local rows = {}
+    for name, p in pairs(P.reg) do
+        rows[#rows + 1] = { name, p.mode .. (p:visible() and "" or ", hidden") }
+    end
+    table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
+    if #rows == 0 then
+        U.note("No panels registered.")
+        return
+    end
+    U.help("Panels", rows)
+end
+
+function P.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "list" then
+        list()
+
+    elseif verb == "raise" or verb == "top" then
+        P.raiseall()
+        U.ok("Panels raised above the module's windows.")
+
+    elseif verb == "save" then
+        if Adjustable and Adjustable.Container and Adjustable.Container.saveAll then
+            Adjustable.Container.saveAll()
+        end
+        save_state()
+        U.ok("Panel layout saved.")
+
+    elseif verb == "load" then
+        if Adjustable and Adjustable.Container and Adjustable.Container.loadAll then
+            Adjustable.Container.loadAll()
+        end
+        U.ok("Panel layout reloaded.")
+
+    elseif verb == "reset" then
+        P.state = {}
+        save_state()
+        U.warn("Panel state cleared - reload the profile to rebuild them.")
+
+    elseif verb == "help" or verb == "?" then
+        U.help("panel", {
+            { "panel",                "list every panel, its mode and visibility" },
+            { "panel &lt;name&gt; show",    "show it" },
+            { "panel &lt;name&gt; hide",    "hide it" },
+            { "panel &lt;name&gt; dock",    "make it a real dockable window" },
+            { "panel &lt;name&gt; embed",   "put it back inside the main window" },
+            { "panel &lt;name&gt; clear",   "empty its buffer" },
+            { "panel raise",          "bring every panel above the module's GUI" },
+            { "panel save",           "write the current layout to disk" },
+            { "panel load",           "reload the saved layout" },
+            { "panel reset",          "forget all panel state" },
+            { "" },
+            { "Embedded panels: drag the title bar to move, edges to resize," },
+            { "right-click for the built-in menu. Docked panels are dragged" },
+            { "out to float and back onto an edge to dock; Mudlet keeps that." },
+        })
+
+    else
+        local p = P.get(verb)
+        if not p then
+            U.warn("No panel called '" .. verb .. "'. Try 'panel' for the list.")
+            return
+        end
+        local act = U.trim(rest):lower()
+        if act == "" or act == "toggle" then p:toggle()
+        elseif act == "show"  then p:show()
+        elseif act == "hide"  then p:hide()
+        elseif act == "dock"  then p:setmode("dock")
+        elseif act == "embed" then p:setmode("embed")
+        elseif act == "clear" then p:clear()
+        else U.warn("panel " .. verb .. " show|hide|dock|embed|clear")
+        end
+    end
+end
+
+---
+-- lifecycle
+---
+
+load_state()
+
+-- Mudlet saves UserWindow geometry itself; this covers the embedded ones
+-- and our mode/visibility bookkeeping.
+function aard.panel.on_exit()
+    if Adjustable and Adjustable.Container and Adjustable.Container.saveAll then
+        pcall(Adjustable.Container.saveAll)
+    end
+    -- drop state for panels nothing registers any more, so retiring a plugin
+    -- doesn't leave its geometry behind forever
+    for name in pairs(P.state) do
+        if not P.reg[name] then P.state[name] = nil end
+    end
+    save_state()
+end
+
+U.killhandler(aard_panel_exit_handler)
+aard_panel_exit_handler = registerAnonymousEventHandler("sysExitEvent", "aard.panel.on_exit")
+
+-- The AardwolfMudlet GUI assembles itself on a timer after load and lands on
+-- top of us — that's how a panel ends up buried under the chat tabs. Raising
+-- once at script time is too early, so do it again once it has settled.
+function aard.panel.on_connect()
+    -- the module's GUI assembles on its own timers and can land on top after
+    -- any one of ours, so try at several points rather than guessing one
+    for _, t in ipairs({ 3, 8, 15, 30 }) do tempTimer(t, P.raiseall) end
+end
+
+U.killhandler(aard_panel_connect_handler)
+aard_panel_connect_handler = registerAnonymousEventHandler("sysConnectionEvent", "aard.panel.on_connect")
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>20_cmd</name>
+				<packageName />
+				<script>--[[
+    aard top-level command
+    Sean Stoves, 2026-07-31
+]]
+
+aard = aard or {}
+local U = aard.util
+
+-- plugins register themselves here so 'aard' can list what's loaded
+aard.plugins = aard.plugins or {}
+
+function aard.register(name, desc, cmd)
+    aard.plugins[name] = { desc = desc, cmd = cmd }
+end
+
+function aard.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "help" or verb == "?" then
+        local rows = {
+            { "aard",        "this list" },
+            { "aard plugins", "what's loaded" },
+            { "aard probe",   "which Mudlet functions actually exist here" },
+            { "panel",       "manage the docked/embedded windows" },
+        }
+        local names = {}
+        for n in pairs(aard.plugins) do names[#names + 1] = n end
+        table.sort(names)
+        for _, n in ipairs(names) do
+            rows[#rows + 1] = { n, aard.plugins[n].desc }
+        end
+        U.help("aard " .. aard.version, rows)
+
+    elseif verb == "probe" then
+        -- Mudlet's Lua-side API isn't greppable in the binary, so ask the
+        -- interpreter instead of guessing at it again
+        local rows = {}
+        for _, n in ipairs({
+            "cecho", "decho", "hecho", "echoLink", "cechoLink", "dechoLink",
+            "tempTimer", "killTimer", "tempRegexTrigger", "tempLineTrigger",
+            "killTrigger", "registerAnonymousEventHandler", "killAnonymousEventHandler",
+            "registerNamedTimer", "deleteNamedTimer",
+            "deleteMap", "clearMap", "addRoom", "addAreaName", "setExit",
+            "addSpecialExit", "setCustomEnvColor", "saveMap", "getRooms",
+            "postHTTP", "getHTTP", "startLogging", "getProfileName",
+        }) do
+            rows[#rows + 1] = { n, type(_G[n]) }
+        end
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "db", type(db) }
+        rows[#rows + 1] = { "db.create", type(db) == "table" and type(db.create) or "n/a" }
+        rows[#rows + 1] = { "Geyser.Gauge", (Geyser and type(Geyser.Gauge)) or "nil" }
+        rows[#rows + 1] = { "Adjustable.Container", (Adjustable and type(Adjustable.Container)) or "nil" }
+        rows[#rows + 1] = { "table.save", type(table.save) }
+        U.help("API probe", rows)
+
+    elseif verb == "plugins" then
+        local names = {}
+        for n in pairs(aard.plugins) do names[#names + 1] = n end
+        table.sort(names)
+        if #names == 0 then
+            U.note("Nothing registered.")
+        else
+            U.note(#names .. " loaded: " .. table.concat(names, ", "))
+        end
+
+    else
+        local p = aard.plugins[verb]
+        if p and p.cmd then p.cmd(rest) else U.warn("Unknown: aard " .. verb) end
+    end
+end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>30_tags</name>
+				<packageName />
+				<script>--[[
+    Tag gag
+    Sean Stoves, 2026-07-31
+
+    'tags on' is what makes everything else here possible — it's how the MUD
+    tells us a spell landed, who's in the room, what's in a shop. It also dumps
+    protocol noise all over the screen.
+
+    So: hide the tags, keep the game. Gagging in Mudlet is deleteLine(), which
+    removes the line from the display but not from trigger processing — every
+    plugin still sees the tag it cares about, you just stop looking at it.
+
+    Three behaviours, because tags aren't all the same shape:
+
+      line    a tag that IS the payload      {affon}72,1650      -&gt; hide it
+      block   a bulk dump between markers    {spellheaders}...   -&gt; hide all of it
+      marker  a wrapper round normal output  {roomchars}...      -&gt; hide the
+              markers only; the lines between are the room description you
+              actually want to read
+
+    Unknown tags default to 'marker' — hide the wrapper, never swallow content.
+    Guessing wrong that way costs you a stray brace; the other way costs you the
+    game text.
+]]
+
+aard = aard or {}
+aard.tags = aard.tags or {}
+
+local T = aard.tags
+local U = aard.util
+
+-- the payload IS the tag; nothing to keep
+local LINE = {
+    affon = true, affoff = true, sfail = true,
+    recon = true, recoff = true, skillgain = true,
+    invitem = true, invmon = true,
+    stat = true, statmon = true,
+    chan = true, tell = true,
+    quest = true, mapstart = true, mapend = true,
+}
+
+-- Bulk dumps; hide the lot.
+local BLOCK = {
+    invdata = true, skills = true,
+}
+
+-- Blocks another plugin parses. We keep our hands entirely off these — not the
+-- contents, not even the markers.
+--
+-- Removing them from BLOCK wasn't enough: the marker triggers below are generic
+-- and were still deleting the {/tag} line before the parser could see it, so its
+-- capture never closed. And the rows got deleteLine()'d twice, which is what
+-- left blank gaps in the output. One owner per block, all the way through.
+local OWNED = {
+    spellheaders = true, recoveries = true,
+}
+
+-- wrappers around text worth reading; hide only the markers
+local MARKER = {
+    roomchars = true, rdesc = true, exits = true, roomname = true,
+}
+
+local CFG = U.load("tags", { on = true, extra = {} })
+
+-- anything the user adds by hand
+for name, how in pairs(CFG.extra or {}) do
+    if how == "line" then LINE[name] = true
+    elseif how == "block" then BLOCK[name] = true
+    else MARKER[name] = true end
+end
+
+local inblock, block_trig, block_timer = nil, nil, nil
+
+local function kind(name)
+    if LINE[name] then return "line" end
+    if BLOCK[name] then return "block" end
+    return "marker"
+end
+
+-- A block's contents aren't tagged, so swallowing them needs a catch-all — and a
+-- PERMANENT catch-all would run Lua on every line the MUD ever sends. Arm one
+-- only for the length of the block instead, the way Who Poller does its gag.
+local function close_block()
+    inblock = nil
+    if block_trig then killTrigger(block_trig); block_trig = nil end
+    if block_timer then killTimer(block_timer); block_timer = nil end
+end
+
+local function open_block(name)
+    close_block()
+    inblock = name
+    block_trig = tempRegexTrigger("^.*$", function() deleteLine() end)
+    -- if the closing marker never lands, let go rather than eating the session
+    block_timer = tempTimer(6, function()
+        if inblock then
+            close_block()
+            U.warn("Tag gag: {" .. tostring(name) .. "} never closed, released.")
+        end
+    end)
+end
+
+---
+-- triggers
+---
+
+-- an opening marker or a self-contained tag: ^{name}rest
+function T.on_open(name)
+    if not CFG.on then return end
+    name = (name or ""):lower()
+    if OWNED[name] then return end      -- its parser gags it
+    deleteLine()
+    if kind(name) == "block" then open_block(name) end
+    -- 'line' and 'marker' both just lose this one line
+end
+
+-- a closing marker: ^{/name}
+function T.on_close(name)
+    if not CFG.on then return end
+    if OWNED[(name or ""):lower()] then return end
+    deleteLine()
+    if inblock and (name or ""):lower() == inblock then close_block() end
+end
+
+---
+-- commands
+---
+
+local function listing()
+    local function names(t)
+        local a = {}
+        for k in pairs(t) do a[#a + 1] = k end
+        table.sort(a)
+        return table.concat(a, " ")
+    end
+    U.help("Tag gag", {
+        { "gagging", CFG.on and "on" or "OFF" },
+        { "" },
+        { "line   (hidden entirely)" },
+        { "  " .. names(LINE) },
+        { "block  (hidden with their contents)" },
+        { "  " .. names(BLOCK) },
+        { "marker (markers hidden, text kept)" },
+        { "  " .. names(MARKER) },
+        { "owned  (left alone; another plugin parses them)" },
+        { "  " .. names(OWNED) },
+        { "" },
+        { "aardtags off",              "show the raw tags again" },
+        { "aardtags line|block|marker &lt;tag&gt;", "classify one yourself" },
+        { "aardtags forget &lt;tag&gt;",     "drop a custom classification" },
+        { "" },
+        { "Gagging hides lines from the screen only - every plugin still" },
+        { "sees them, so nothing stops working." },
+    })
+end
+
+function T.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest):lower()
+
+    if verb == "" or verb == "list" or verb == "status" then
+        listing()
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on")
+        close_block()
+        U.save("tags", CFG)
+        U.ok("Tag gag " .. verb .. ".")
+
+    elseif verb == "line" or verb == "block" or verb == "marker" then
+        if rest == "" then
+            U.warn("Usage: aardtags " .. verb .. " &lt;tagname&gt;")
+            return
+        end
+        LINE[rest], BLOCK[rest], MARKER[rest] = nil, nil, nil
+        if verb == "line" then LINE[rest] = true
+        elseif verb == "block" then BLOCK[rest] = true
+        else MARKER[rest] = true end
+        CFG.extra[rest] = verb
+        U.save("tags", CFG)
+        U.ok("{" .. rest .. "} treated as " .. verb .. ".")
+
+    elseif verb == "forget" then
+        if CFG.extra[rest] then
+            CFG.extra[rest] = nil
+            U.save("tags", CFG)
+            U.ok("{" .. rest .. "} back to its default; reload to apply.")
+        else
+            U.warn("No custom rule for {" .. rest .. "}.")
+        end
+
+    else
+        listing()
+    end
+end
+
+aard.register("tags", "hide Aardwolf's protocol tags from the screen", T.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

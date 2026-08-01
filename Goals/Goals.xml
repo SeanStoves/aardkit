@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>goals</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>goal</name>
+				<script>aard.goals.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^goals?(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>goals</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>goals</name>
+				<packageName />
+				<script>--[[
+    Goals — what you're saving up for
+    Sean Stoves, 2026-07-31
+
+    Set a target, and this tells you the moment you can afford it.
+
+    Written against Aardwolf's gmcp.char.worth, not against anyone's plugin.
+    Hadar's Goal Tracker showed the idea was worth having; the design here is our
+    own and shares nothing with it - see CREDITS.md.
+
+    The one thing worth doing differently: Hadar's version told you where you
+    stood when you asked it. This one watches char.worth and speaks up the moment
+    a goal is met, once, and then shuts up about it. Finding out you can afford
+    the thing is the entire point, and having to remember to ask defeats it.
+]]
+
+aard = aard or {}
+aard.goals = aard.goals or {}
+
+local G = aard.goals
+local U = aard.util
+
+-- Aardwolf's own currencies, as gmcp.char.worth reports them.
+-- alias -&gt; {gmcp field, display}
+local KIND = {
+    qp     = { "qp",     "qp" },
+    tp     = { "tp",     "tp" },
+    gold   = { "gold",   "gold" },
+    bank   = { "bank",   "bank" },
+    trains = { "trains", "trains" },
+    pracs  = { "pracs",  "pracs" },
+}
+-- the short forms people actually type
+local ALIAS = {
+    quest = "qp", qps = "qp", tps = "tp", trivia = "tp",
+    train = "trains", prac = "pracs", coins = "gold", banked = "bank",
+}
+
+local ORDER = { "qp", "tp", "gold", "bank", "trains", "pracs" }
+
+local CFG = U.load("goals", { channel = "echo", goals = {} })
+CFG.goals = CFG.goals or {}
+
+local function save()
+    U.save("goals", CFG)
+end
+
+local function kind_of(word)
+    word = (word or ""):lower()
+    word = ALIAS[word] or word
+    return KIND[word] and word or nil
+end
+
+-- what you're holding right now
+local function held()
+    local w = (gmcp and gmcp.char and gmcp.char.worth) or {}
+    local out = {}
+    for k, spec in pairs(KIND) do
+        out[k] = tonumber(w[spec[1]]) or 0
+    end
+    return out
+end
+
+---
+-- progress
+---
+
+local BAR_W = 20
+
+local function bar(pct)
+    local full = math.floor(BAR_W * math.min(pct, 100) / 100 + 0.5)
+    local colour = pct &gt;= 100 and "#3ad07a" or (pct &gt;= 50 and "#e0af68" or "#7aa2f7")
+    return "&lt;" .. colour .. "&gt;" .. string.rep("=", full)
+        .. "&lt;#3a4a6b&gt;" .. string.rep("-", BAR_W - full) .. "&lt;r&gt;"
+end
+
+-- one goal against current holdings. Capped at 100: "140% of the way there"
+-- isn't a thing, you either have it or you don't.
+local function progress(g, have)
+    local pct = g.want &gt; 0 and math.floor(have / g.want * 100 + 0.5) or 100
+    return math.min(100, pct), math.max(0, g.want - have)
+end
+
+---
+-- the watcher — the reason this exists
+---
+
+function G.on_worth()
+    local have = held()
+    local newly = {}
+
+    for name, g in pairs(CFG.goals) do
+        local got = have[g.kind] or 0
+        if got &gt;= g.want then
+            if not g.hit then
+                g.hit = true
+                newly[#newly + 1] = { name = name, g = g }
+            end
+        elseif g.hit then
+            -- dropped back below (spent it); re-arm so it announces again later
+            g.hit = false
+        end
+    end
+
+    if #newly &gt; 0 then
+        save()
+        for _, n in ipairs(newly) do
+            local line = string.format("%s is within reach - %s %s",
+                n.name, U.commas(n.g.want), KIND[n.g.kind][2])
+            if CFG.channel == "echo" then
+                U.ok(line)
+            else
+                send(CFG.channel .. " " .. line, false)
+            end
+        end
+    end
+end
+
+---
+-- display
+---
+
+local function show(filter)
+    local names = {}
+    for n in pairs(CFG.goals) do names[#names + 1] = n end
+
+    if #names == 0 then
+        U.note("No goals. Set one with:  goal add &lt;name&gt; &lt;amount&gt; [type]")
+        return
+    end
+
+    local have = held()
+    local rows = {}
+    for _, n in ipairs(names) do
+        local g = CFG.goals[n]
+        if not filter or filter == g.kind then
+            local pct, left = progress(g, have[g.kind] or 0)
+            rows[#rows + 1] = { name = n, g = g, pct = pct, left = left }
+        end
+    end
+
+    if #rows == 0 then
+        U.note("No goals of type '" .. tostring(filter) .. "'.")
+        return
+    end
+
+    -- closest to done first; that's the one you care about
+    table.sort(rows, function(a, b)
+        if a.pct ~= b.pct then return a.pct &gt; b.pct end
+        return a.name &lt; b.name
+    end)
+
+    local w = 0
+    for _, r in ipairs(rows) do w = math.max(w, #r.name) end
+
+    U.out("\n&lt;#7aa2f7&gt;Goals&lt;r&gt;")
+    for _, r in ipairs(rows) do
+        U.out(string.format("\n  &lt;#c8d0dc&gt;%-" .. w .. "s&lt;r&gt;  %s &lt;#c8d0dc&gt;%3d%%&lt;r&gt;",
+            r.name, bar(r.pct), r.pct))
+        if r.pct &gt;= 100 then
+            U.out(string.format("  &lt;#3ad07a&gt;have it&lt;r&gt;"))
+        else
+            U.out(string.format("  &lt;#8a93a8&gt;%s %s to go&lt;r&gt;",
+                U.commas(r.left), KIND[r.g.kind][2]))
+        end
+    end
+    echo("\n")
+end
+
+-- push the current state to a channel, for grouping
+local function report()
+    local have = held()
+    local best, bestpct = nil, -1
+    for n, g in pairs(CFG.goals) do
+        local pct = select(1, progress(g, have[g.kind] or 0))
+        if pct &gt; bestpct and pct &lt; 100 then best, bestpct = { n, g }, pct end
+    end
+    if not best then
+        U.note("Nothing outstanding to report.")
+        return
+    end
+    local g = best[2]
+    local left = math.max(0, g.want - (have[g.kind] or 0))
+    local line = string.format("saving for %s: %s/%s %s (%d%%), %s to go",
+        best[1], U.commas(have[g.kind] or 0), U.commas(g.want),
+        KIND[g.kind][2], bestpct, U.commas(left))
+    if CFG.channel == "echo" then
+        U.note(line)
+    else
+        send(CFG.channel .. " " .. line, false)
+        U.note("-&gt; " .. CFG.channel .. ": " .. line)
+    end
+end
+
+---
+-- commands
+---
+
+function G.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "list" then
+        show(nil)
+
+    elseif verb == "add" or verb == "set" then
+        local name, amount, kind = U.trim(rest):match("^(%S+)%s+(%d[%d,]*)%s*(%S*)$")
+        if not name then
+            U.warn("Usage: goal add &lt;name&gt; &lt;amount&gt; [qp|tp|gold|bank|trains|pracs]")
+            return
+        end
+        local want = tonumber((amount:gsub(",", "")))
+        local k = kind_of(kind ~= "" and kind or "qp")
+        if not k then
+            U.warn("Unknown type '" .. kind .. "'. One of: " .. table.concat(ORDER, " "))
+            return
+        end
+        local existing = CFG.goals[name]
+        CFG.goals[name] = { want = want, kind = k, hit = false }
+        save()
+        U.ok(string.format("%s %s: %s %s",
+            existing and "Updated" or "Saving for", name, U.commas(want), KIND[k][2]))
+        G.on_worth()
+
+    elseif verb == "rm" or verb == "del" or verb == "delete" then
+        local name = U.trim(rest):match("^(%S+)")
+        if name and CFG.goals[name] then
+            CFG.goals[name] = nil
+            save()
+            U.ok("Dropped goal: " .. name)
+        else
+            U.warn("No goal called '" .. tostring(name) .. "'.")
+        end
+
+    elseif verb == "clear" then
+        if U.trim(rest):lower() == "yes" then
+            CFG.goals = {}
+            save()
+            U.ok("All goals cleared.")
+        else
+            U.warn("Drops every goal. Confirm with:  goal clear yes")
+        end
+
+    elseif verb == "report" then
+        report()
+
+    elseif verb == "channel" then
+        local c = U.trim(rest):match("^(%S+)")
+        if c then
+            CFG.channel = c
+            save()
+            U.ok("Goal announcements go to: " .. c)
+        else
+            U.note("Goal announcements go to: " .. CFG.channel .. "   (goal channel &lt;name|echo&gt;)")
+        end
+
+    elseif verb == "worth" then
+        local have = held()
+        local rows = {}
+        for _, k in ipairs(ORDER) do
+            rows[#rows + 1] = { KIND[k][2], U.commas(have[k]) }
+        end
+        U.help("Holding now", rows)
+
+    elseif kind_of(verb) then
+        show(kind_of(verb))
+
+    else
+        U.help("Goals", {
+            { "goal",                        "progress on everything, closest first" },
+            { "goal add &lt;name&gt; &lt;amt&gt; [type]", "start saving for something" },
+            { "goal rm &lt;name&gt;",              "drop it" },
+            { "goal &lt;type&gt;",                 "just the qp / gold / trains ones" },
+            { "goal report",                 "announce the nearest goal to your channel" },
+            { "goal channel &lt;name|echo&gt;",    "where announcements go" },
+            { "goal worth",                  "what you're holding right now" },
+            { "goal clear yes",              "drop everything" },
+            { "" },
+            { "types: qp tp gold bank trains pracs" },
+            { "It watches char.worth and says so the moment a goal is met," },
+            { "once - you don't have to remember to check." },
+        })
+    end
+end
+
+---
+-- boot
+---
+
+U.killhandler(aard_goals_handler)
+aard_goals_handler = registerAnonymousEventHandler("gmcp.char.worth", "aard.goals.on_worth")
+
+aard.register("goals", "savings goals, announced when met", G.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

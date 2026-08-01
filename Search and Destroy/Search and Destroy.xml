@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>snd</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="no" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>scan mob line</name>
+				<script>aard.snd.on_scan(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\s*(?:\((?:[^)]*)\)\s*)*(.+?)\s+is (?:standing|sitting|resting|sleeping|fighting|here)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>snd</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>snd</name>
+				<script>aard.snd.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^snd(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>mobwhere</name>
+				<script>aard.snd.where(matches[2])</script>
+				<command />
+				<packageName />
+				<regex>^mobwhere\s+(.+)$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>snd</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>snd</name>
+				<packageName />
+				<script>--[[
+    Search &amp; Destroy — mob/area data layer
+    Sean Stoves, 2026-07-31
+
+    The MUSHclient Search_and_Destroy.xml is a 360KB plugin: quest/campaign/gquest
+    target tracking, its own runto, a target miniwindow and a self-updater. Most
+    of the movement half of that is Mudlet's speedwalker's job, so what's ported
+    here is the part nothing else replaces — the mob/area database and the
+    lookups over it.
+
+    That database is also what SolaoBot's 'solbot mob &lt;kw&gt;' reads, which is why
+    it lands before the rest of S&amp;D.
+
+    Not ported (deliberately): the runto/target automation and the plugin
+    self-updater. See PORTING.md.
+]]
+
+aard = aard or {}
+aard.snd = aard.snd or {}
+
+local SD = aard.snd
+local U  = aard.util
+
+local ok, handle = pcall(db.create, db, "aardsnd", {
+    mobs = {
+        mob        = "",
+        room       = "",
+        roomid     = 0,
+        zone       = "",
+        seen_count = 0,
+        kill_count = 0,
+        _index     = { "mob", "zone" },
+        _unique    = { { "mob", "roomid" } },
+    },
+    area = {
+        name      = "",
+        key       = "",
+        minlvl    = 0,
+        maxlvl    = 0,
+        lock      = 0,
+        startRoom = 0,
+        noquest   = "",
+        vidblain  = "",
+        userKey   = "",
+        _index    = { "key" },
+        _unique   = { { "key" } },
+    },
+    keywords = {
+        area_name = "",
+        mob_name  = "",
+        keyword   = "",
+        _index    = { "mob_name" },
+        _unique   = { { "area_name", "mob_name" } },
+    },
+})
+
+SD.dbh   = ok and handle or nil
+SD.dberr = (not ok) and tostring(handle) or nil
+
+-- lazily resolved, same reason as Loot Tracker's: a nil here reads to every
+-- consumer as "S&amp;D isn't loaded" and never recovers
+SD.t = setmetatable({}, {
+    __index = function(_, k)
+        local d = SD.dbh or (db and db.aardsnd)
+        return d and d[k] or nil
+    end,
+})
+
+local T = SD.t
+
+---
+-- capture (off by default; the trigger is disabled until 'snd scan on')
+---
+
+-- strip the transient status flags Aardwolf prefixes -- "(flying) a casanova"
+local function strip_flags(m)
+    local s = tostring(m or "")
+    while true do
+        local n = s:gsub("^%s*%b()%s*", "", 1)
+        if n == s then break end
+        s = n
+    end
+    return U.trim(s)
+end
+
+function SD.on_scan(mob)
+    mob = strip_flags(mob)
+    if mob == "" then return end
+    local roomid, room, zone = U.room()
+    if not roomid then return end
+    local where = db:AND(db:eq(T.mobs.mob, mob), db:eq(T.mobs.roomid, roomid))
+    local found = db:fetch(T.mobs, where)
+    if found and found[1] then
+        db:update(T.mobs, { seen_count = (found[1].seen_count or 0) + 1,
+                            room = room or "", zone = zone or "" }, where)
+    else
+        db:add(T.mobs, { mob = mob, room = room or "", roomid = roomid,
+                         zone = zone or "", seen_count = 1, kill_count = 0 })
+    end
+end
+
+---
+-- lookups
+---
+
+local function keyword_for(mob)
+    local r = db:fetch(T.keywords, db:eq(T.keywords.mob_name, mob))
+    return r and r[1] and r[1].keyword or nil
+end
+
+function SD.where(term)
+    term = U.trim(term)
+    if term == "" then U.warn("Usage: mobwhere &lt;keyword&gt;"); return end
+
+    local rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. term .. "%"))
+    if not rows or #rows == 0 then
+        U.note("No mob matching '" .. term .. "' in the S&amp;D data.")
+        return
+    end
+
+    -- merge per mob name so one line covers every room it's been seen in
+    local agg, order = {}, {}
+    for _, r in ipairs(rows) do
+        local nm = strip_flags(r.mob)
+        local a = agg[nm]
+        if not a then
+            a = { name = nm, zone = r.zone or "", room = r.room or "", ids = {}, seen = {}, cnt = 0 }
+            agg[nm] = a
+            order[#order + 1] = nm
+        end
+        if r.roomid and r.roomid ~= 0 and not a.seen[r.roomid] then
+            a.seen[r.roomid] = true
+            a.ids[#a.ids + 1] = r.roomid
+        end
+        a.cnt = a.cnt + (r.seen_count or 0)
+    end
+    table.sort(order, function(x, y) return agg[x].cnt &gt; agg[y].cnt end)
+
+    U.note(#order .. " mob(s) matching '" .. term .. "':")
+    for i, nm in ipairs(order) do
+        if i &gt; 20 then
+            U.out("\n  &lt;#8a93a8&gt;... " .. (#order - 20) .. " more&lt;r&gt;")
+            break
+        end
+        local a = agg[nm]
+        local kw = keyword_for(nm)
+        U.out("\n  &lt;#7aa2f7&gt;" .. a.name .. "&lt;r&gt;" .. (kw and (" &lt;#8a93a8&gt;[" .. kw .. "]&lt;r&gt;") or ""))
+        U.out("\n    &lt;#c8d0dc&gt;" .. (a.zone ~= "" and a.zone or "?") .. " - "
+            .. (a.room ~= "" and a.room or "?") .. "&lt;r&gt;")
+        local ids = {}
+        for j, id in ipairs(a.ids) do
+            if j &gt; 8 then ids[#ids + 1] = "..."; break end
+            ids[#ids + 1] = U.rid(id)
+        end
+        if #ids &gt; 0 then
+            U.out("    &lt;#8a93a8&gt;rooms: " .. table.concat(ids, ",") .. "&lt;r&gt;")
+            -- clickable: hand the first room to the Mudlet speedwalker
+            U.outLink("  &lt;#3ad07a&gt;[go]&lt;r&gt;",
+                "aard.snd.walkto(" .. U.rid(a.ids[1]) .. ")", "Speedwalk to room " .. U.rid(a.ids[1]), true)
+        end
+    end
+    echo("\n")
+end
+
+function SD.walkto(roomid)
+    if not roomExists(roomid) then
+        U.warn("Room " .. U.rid(roomid) .. " isn't in the Mudlet map. Run 'aardmap import yes' first.")
+        return
+    end
+    local here = getPlayerRoom()
+    if not here then
+        U.warn("Mudlet doesn't know where you are yet - move a room and try again.")
+        return
+    end
+    if getPath(here, roomid) then
+        U.ok("Walking to " .. U.rid(roomid) .. " (" .. #speedWalkDir .. " steps).")
+        doSpeedWalk()
+    else
+        U.warn("No path from " .. U.rid(here) .. " to " .. U.rid(roomid) .. ".")
+    end
+end
+
+local function show_area(term)
+    term = U.trim(term):lower()
+    local rows = db:fetch(T.area)
+    if not rows or #rows == 0 then
+        U.note("No area data. Run 'aard migrate' to bring it over from MUSHclient.")
+        return
+    end
+    local hits = {}
+    for _, r in ipairs(rows) do
+        if term == "" or (r.name .. " " .. r.key):lower():find(term, 1, true) then
+            hits[#hits + 1] = r
+        end
+    end
+    table.sort(hits, function(a, b) return (a.minlvl or 0) &lt; (b.minlvl or 0) end)
+    U.note(#hits .. " area(s):")
+    for i, r in ipairs(hits) do
+        if i &gt; 40 then
+            U.out("\n  &lt;#8a93a8&gt;... " .. (#hits - 40) .. " more&lt;r&gt;")
+            break
+        end
+        U.out(string.format("\n  &lt;#7aa2f7&gt;%-32s&lt;r&gt; &lt;#8a93a8&gt;%-14s L%d-%d%s&lt;r&gt;",
+            r.name, r.key, r.minlvl or 0, r.maxlvl or 0,
+            (r.startRoom or 0) &gt; 0 and ("  start " .. U.rid(r.startRoom)) or ""))
+    end
+    echo("\n")
+end
+
+---
+-- commands
+---
+
+local scan_on = false
+
+function SD.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "status" then
+        local m = db:fetch(T.mobs) or {}
+        local a = db:fetch(T.area) or {}
+        local k = db:fetch(T.keywords) or {}
+        U.help("Search &amp; Destroy data", {
+            { "mobs",     tostring(#m) },
+            { "areas",    tostring(#a) },
+            { "keywords", tostring(#k) },
+            { "scanning", scan_on and "on" or "off" },
+        })
+
+    elseif verb == "mob" or verb == "where" then
+        SD.where(rest)
+
+    elseif verb == "area" or verb == "areas" then
+        show_area(rest)
+
+    elseif verb == "scan" then
+        local v = U.trim(rest):lower()
+        if v == "on" or v == "off" then
+            scan_on = (v == "on")
+            enableTrigger("scan mob line")
+            if not scan_on then disableTrigger("scan mob line") end
+            U.ok("S&amp;D: room scanning " .. v .. ".")
+        else
+            U.warn("Usage: snd scan on|off")
+        end
+
+    else
+        U.help("Search &amp; Destroy data", {
+            { "snd",              "row counts" },
+            { "snd mob &lt;keyword&gt;", "where a mob has been seen (clickable [go])" },
+            { "mobwhere &lt;kw&gt;",    "same thing, shorter" },
+            { "snd area [text]",  "area list with level ranges and start rooms" },
+            { "snd scan on|off",  "record mobs from room descriptions as you go" },
+            { "" },
+            { "This is the data half of Search &amp; Destroy. The quest/campaign" },
+            { "target automation was not ported - see PORTING.md." },
+        })
+    end
+end
+
+aard.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

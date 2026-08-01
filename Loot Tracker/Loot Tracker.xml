@@ -1,0 +1,1680 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>loottracker</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>corpse loot</name>
+				<script>aard.loot.on_loot(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You get (.+?) from the .*?corpse of (.+)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>shop stock</name>
+				<script>aard.loot.on_shop(matches[2], matches[3], matches[4])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\s*\d+\s+(\d+)\s+(\d+)\s+---\s+(\S.*?)\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>room gather</name>
+				<script>aard.loot.on_get(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You get (.+?) from (.+)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>invitem</name>
+				<script>aard.loot.on_invitem(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{invitem\}(.+)$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>id box start</name>
+				<script>aard.loot.on_id_start(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\| Keywords\s+:\s*(.+?)\s*\|$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>loottracker</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>loot</name>
+				<script>aard.loot.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^loot(?:\s+(.*))?$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>bulk appraise</name>
+				<script>aard.loot.bulk_appraise(matches[2], matches[3])</script>
+				<command />
+				<packageName />
+				<regex>^appraise\s+(\d+)\s*-\s*(\d+)\s*$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>loottracker</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>loottracker/db</name>
+				<packageName />
+				<script>--[[
+    Loot Tracker — schema
+    Sean Stoves, 2026-07-31
+
+    The MUSHclient version drove sqlite3 directly. Mudlet's db: layer is the
+    documented way in, so the tables are declared here and every query in
+    init.lua goes through it. Same columns, same keys — a converted SolaoLoot.db
+    drops straight in.
+
+    Mudlet writes this to &lt;profile&gt;/Database_aardloot.db.
+]]
+
+aard = aard or {}
+aard.loot = aard.loot or {}
+
+local LT = aard.loot
+
+LT.STAT_COLS = {
+    "str", "intel", "wis", "dex", "con", "luck",
+    "hp", "mana", "moves", "hit", "dam",
+    "all_phys", "all_magic",
+    "acid", "air", "bash", "cold", "disease", "earth", "electric", "energy",
+    "fire", "holy", "light", "magic", "mental", "negative", "pierce",
+    "poison", "shadow", "slash", "sonic", "water",
+}
+
+local function stats_sheet()
+    local t = {
+        item        = "",
+        item_color  = "",
+        keywords    = "",
+        type        = "",
+        level       = 0,
+        worth       = 0,
+        weight      = 0,
+        score       = 0,
+        wearable    = "",
+        material    = "",
+        flags       = "",
+        found_at    = "",
+        clan_item   = "",
+        owned_by    = "",
+        leads_to    = "",
+        notes       = "",
+        weapon_type = "",
+        ave_dam     = 0,
+        specials    = "",
+        inflicts    = "",
+        dam_type    = "",
+        spells      = "",
+        capacity    = 0,
+        full_id     = 0,
+        last_id     = 0,
+        synced      = 0,
+        _index      = { "type" },
+        _unique     = { { "item" } },
+    }
+    for _, c in ipairs(LT.STAT_COLS) do t[c] = 0 end
+    return t
+end
+
+-- Take the handle db:create hands back rather than assuming db.aardloot exists.
+-- The first run proved that assumption wrong: the tables and indexes were built
+-- correctly but db.aardloot was nil, so every consumer read as "not loaded".
+-- Whatever the reason, the return value is the thing we were actually given.
+local ok, handle = pcall(db.create, db, "aardloot", {
+    loot = {
+        item       = "",
+        item_color = "",
+        mob        = "",
+        zone       = "",
+        roomid     = 0,
+        room       = "",
+        count      = 1,
+        last_seen  = 0,
+        synced     = 0,
+        _index     = { "item", "mob", "synced" },
+        _unique    = { { "item", "mob" } },
+    },
+    shop_stock = {
+        item       = "",
+        item_color = "",
+        keeper     = "",
+        zone       = "",
+        roomid     = 0,
+        room       = "",
+        price      = 0,
+        level      = 0,
+        last_seen  = 0,
+        synced     = 0,
+        _index     = { "item", "synced" },
+        _unique    = { { "item", "roomid" } },
+    },
+    gathered = {
+        item       = "",
+        item_color = "",
+        source     = "",
+        zone       = "",
+        roomid     = 0,
+        room       = "",
+        count      = 1,
+        last_seen  = 0,
+        synced     = 0,
+        _index     = { "item", "synced" },
+        _unique    = { { "item", "source", "roomid" } },
+    },
+    item_stats = stats_sheet(),
+})
+
+LT.dbh  = ok and handle or nil
+LT.dberr = (not ok) and tostring(handle) or nil
+
+-- Resolved on use, not at load. Grabbing db.aardloot.&lt;sheet&gt; here means one bad
+-- moment during db:create leaves LT.t nil forever, and every consumer then reads
+-- as "Loot Tracker isn't loaded" with no way back short of a restart. Going
+-- through __index makes the lookup retry each time instead.
+-- resolved on use: prefer the handle we were handed, fall back to the documented
+-- db.&lt;name&gt; path, and retry on every access rather than caching a nil
+LT.t = setmetatable({}, {
+    __index = function(_, k)
+        local d = LT.dbh or (db and db.aardloot)
+        return d and d[k] or nil
+    end,
+})
+
+-- text columns; everything else in item_stats is numeric
+LT.STAT_TEXT = {
+    item = true, item_color = true, keywords = true, type = true, wearable = true,
+    material = true, flags = true, found_at = true, clan_item = true,
+    owned_by = true, leads_to = true, notes = true, weapon_type = true,
+    specials = true, inflicts = true, dam_type = true, spells = true,
+}
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>loottracker</name>
+				<packageName />
+				<script>--[[
+    Loot Tracker — port of Solao_Loot_Tracker (MUSHclient)
+    Sean Stoves, 2026-07-31
+
+    Every time you loot an item off a corpse it records the item, the mob it came
+    from, and the zone/room you were in (from GMCP). Native shop stock and room
+    resources go in their own tables, and any identify/appraise box that scrolls
+    past is parsed for stats — so a shop appraise fills the DB with no wish and no
+    extra traffic.
+
+    Ports of note:
+      - sqlite3 -&gt; Mudlet's db: layer (see db.lua)
+      - MUSHclient's @-coded item colour -&gt; a hex colour read off the line with
+        selectString/getFgColor, which is how Mudlet gets at the same thing
+      - async.doAsyncRemoteRequest -&gt; Mudlet's getHTTP/postHTTP + sys*HttpDone
+]]
+
+aard = aard or {}
+aard.loot = aard.loot or {}
+
+local LT = aard.loot
+local U  = aard.util
+local T  = LT.t
+
+local API_URL = "https://api.aardwolf.muds.fyi"
+
+local CFG = U.load("loottracker", {
+    autoid   = false,   -- needs the identify wish to return anything useful
+    idnote   = true,
+    bags     = "bag,backpack,pouch,sack,satchel,purse,quiver,holding,pack,wallet,keyring",
+    flags    = table.concat({
+        "godly",
+        "divine", "mythical", "fabled", "epic", "legendary",
+        "eternal", "exalted", "majestic", "wondrous", "radiant",
+        "brilliant", "dazzling", "shimmering", "gleaming", "sparkling",
+        "vibrant", "shiny", "burnished", "enhanced", "polished",
+    }, ","),
+    authkey  = "",
+    authname = "",
+    lastfull = 0,
+})
+
+local function save()
+    U.save("loottracker", CFG)
+end
+
+local function csv_set(s)
+    local t = {}
+    for word in (s or ""):gmatch("[^,]+") do
+        local w = U.trim(word):lower()
+        if w ~= "" then t[w] = true end
+    end
+    return t
+end
+
+local function set_csv(t)
+    local a = {}
+    for w in pairs(t) do a[#a + 1] = w end
+    table.sort(a)
+    return table.concat(a, ",")
+end
+
+local exclude     = csv_set(CFG.bags)
+local bonus_flags = csv_set(CFG.flags)
+
+local my_bags    = {}   -- shortdesc:lower -&gt; true, learned from invdata (rename-proof)
+local inv_serial = {}   -- shortdesc:lower -&gt; serial
+
+---
+-- colour helpers
+--
+-- MUSHclient handed the trigger a styles table. Mudlet gives us the live line, so
+-- we select the run we care about and read its foreground colour back as hex.
+---
+
+local function hex(r, g, b)
+    return string.format("#%02x%02x%02x", r or 0, g or 0, b or 0)
+end
+
+local function color_of(text)
+    if not text or text == "" then return "" end
+    local ok = pcall(selectString, text, 1)
+    if not ok then return "" end
+    local okc, r, g, b = pcall(getFgColor)
+    if not okc or not r then return "" end
+    return hex(r, g, b)
+end
+
+-- Aardwolf paints the bonus-tier bracket white/yellow/red/green. Close enough by
+-- channel: the tiers are saturated primaries, nothing subtle.
+local function bracket_tier(colour)
+    if colour == "" then return nil end
+    local r = tonumber(colour:sub(2, 3), 16) or 0
+    local g = tonumber(colour:sub(4, 5), 16) or 0
+    local b = tonumber(colour:sub(6, 7), 16) or 0
+    if r &gt; 150 and g &gt; 150 and b &gt; 150 then return "W" end
+    if r &gt; 150 and g &gt; 150 and b &lt; 120 then return "Y" end
+    if r &gt; 150 and g &lt; 120 and b &lt; 120 then return "R" end
+    if r &lt; 120 and g &gt; 120 and b &lt; 120 then return "G" end
+    return nil
+end
+
+---
+-- name normalisation
+--
+-- Bonus-loot variants ('help gameload'): a mob-reset item can roll random stats
+-- and gets a flag welded onto its name — "(Polished) Runed Jade Bracer". The flag
+-- is a per-kill dice roll, not a different item, so for provenance the base name
+-- is what we want, or every roll spawns a new row.
+--
+-- Can't just strip any leading (Word): plenty of real names start that way —
+-- (Seekers) Elixir of Free Movement — and shops sell a (Legendary) Bracers of the
+-- Warrior-Poet that has nothing to do with the bonus tier. So two signals have to
+-- agree: the word is a known flag, AND the bracket colour matches its tier.
+---
+
+local function base_name(item, tier)
+    item = U.trim(item or "")
+
+    -- "2 * the body armor of ..." is the stacked-pickup syntax, never a name
+    item = U.trim((item:gsub("^%d+%s*%*%s*", "")))
+
+    -- ((Godly)) is doubled and white-bracketed
+    local word, rest = item:match("^%(%((%a+)%)%)%s*(.*)$")
+    if word and bonus_flags[word:lower()] then
+        if (not tier) or tier == "W" then return U.trim(rest) end
+        return item
+    end
+
+    -- every other tier is a single (Word) in yellow, red or green brackets
+    word, rest = item:match("^%((%a+)%)%s*(.*)$")
+    if word and bonus_flags[word:lower()] and rest ~= "" then
+        if (not tier) or tier == "Y" or tier == "R" or tier == "G" then
+            return U.trim(rest)
+        end
+    end
+    return item
+end
+
+local function is_bag(source)
+    local low = source:lower()
+    for w in pairs(exclude) do
+        if low:find(w, 1, true) then return true end
+    end
+    return false
+end
+
+local function room_now()
+    local num, name, zone = U.room()
+    return zone or "", num or 0, name or ""
+end
+
+---
+-- upsert helpers — db: has no "insert or ignore then bump", so do it by hand
+---
+
+local function bump(sheet, keys, fields)
+    local found = db:fetch(sheet, db:AND(unpack(keys)))
+    if found and found[1] then
+        local row = found[1]
+        fields.count = (row.count or 0) + 1
+        db:update(sheet, fields, db:AND(unpack(keys)))
+    else
+        fields.count = 1
+        db:add(sheet, fields)
+    end
+end
+
+---
+-- capture
+---
+
+function LT.on_loot(item, mob)
+    item, mob = U.trim(item), U.trim(mob)
+    if item:match("^[%d,]+ gold coins?$") then return end   -- gold isn't loot
+    if item == "" or mob == "" then return end
+    -- mob short-descs always lead with an article; a player corpse is a bare name.
+    -- No article means PK loot, which we don't record.
+    local low = mob:lower()
+    if not (low:match("^a ") or low:match("^an ") or low:match("^the ")) then return end
+
+    local citem = color_of(item)
+    local tier  = bracket_tier(color_of(item:match("^(%(+)") or ""))
+    item = base_name(item, tier)
+
+    local zone, roomid, room = room_now()
+    bump(T.loot,
+        { db:eq(T.loot.item, item), db:eq(T.loot.mob, mob) },
+        { item = item, item_color = citem, mob = mob, zone = zone,
+          roomid = roomid, room = room, last_seen = os.time(), synced = 0 })
+
+    LT.queue_autoid(item)
+end
+
+-- native shop stock ('---' Qty). Keyed on (item, roomid) so re-listing updates price.
+function LT.on_shop(lvl, price, item)
+    item = U.trim(item)
+    if item == "" then return end
+    local citem = color_of(item)
+    local zone, roomid, room = room_now()
+    local keys = { db:eq(T.shop_stock.item, item), db:eq(T.shop_stock.roomid, roomid) }
+    local fields = {
+        item = item, item_color = citem, zone = zone, roomid = roomid, room = room,
+        price = tonumber(price) or 0, level = tonumber(lvl) or 0,
+        last_seen = os.time(), synced = 0,
+    }
+    local found = db:fetch(T.shop_stock, db:AND(unpack(keys)))
+    if found and found[1] then
+        db:update(T.shop_stock, fields, db:AND(unpack(keys)))
+    else
+        db:add(T.shop_stock, fields)
+    end
+end
+
+local function record_gather(item, citem, source, tier)
+    item = base_name(item, tier)
+    local zone, roomid, room = room_now()
+    bump(T.gathered,
+        { db:eq(T.gathered.item, item), db:eq(T.gathered.source, source),
+          db:eq(T.gathered.roomid, roomid) },
+        { item = item, item_color = citem, source = source, zone = zone,
+          roomid = roomid, room = room, last_seen = os.time(), synced = 0 })
+    return roomid, zone, room
+end
+
+-- room-resource gather: source is a room object (bush, chest, desk), NOT a corpse
+-- and NOT one of your own containers
+function LT.on_get(item, source)
+    item, source = U.trim(item), U.trim(source)
+    if item == "" or source == "" then return end
+    if item:match("^[%d,]+ gold coins?$") then return end
+    if source:lower():find("corpse", 1, true) then return end   -- on_loot handles those
+    if my_bags[source:lower()] then return end                  -- a container you carry
+    if is_bag(source) then return end                           -- word-list fallback
+    local tier = bracket_tier(color_of(item:match("^(%(+)") or ""))
+    record_gather(item, color_of(item), source, tier)
+end
+
+-- invdata: learn which carried items are containers (type 11), so gets from your
+-- own bags are skipped no matter what you've renamed them to
+function LT.on_invitem(payload)
+    local parts = {}
+    for p in (payload .. ","):gmatch("(.-),") do parts[#parts + 1] = p end
+    local n = #parts
+    if n &lt; 7 then return end
+    local d = {}
+    for i = 3, n - 5 do d[#d + 1] = parts[i] end   -- desc may itself contain commas
+    local desc = U.trim(table.concat(d, ","))
+    if desc == "" then return end
+    inv_serial[desc:lower()] = U.trim(parts[1])
+    if tonumber(parts[n - 3]) == 11 then my_bags[desc:lower()] = true end
+end
+
+---
+-- 'loot here': send a get, catch its "You get &lt;item&gt;." so the full name and
+-- colour get recorded as a floor spawn
+---
+
+local here_pending, here_catch_id, here_timer_id = false, nil, nil
+
+local function here_disarm()
+    here_pending = false
+    if here_catch_id then killTrigger(here_catch_id); here_catch_id = nil end
+    if here_timer_id then killTimer(here_timer_id); here_timer_id = nil end
+end
+
+local function here_arm()
+    here_pending = true
+    here_catch_id = tempRegexTrigger("^You get (.+?)\\.$", function()
+        if not here_pending then return end
+        local item = U.trim(matches[2] or "")
+        if item:find(" from ", 1, true) then return end   -- a container get slipped in
+        here_disarm()
+        if item:match("^[%d,]+ gold coins?$") then
+            U.note("Loot Tracker: that was gold, not recorded.")
+            return
+        end
+        local tier = bracket_tier(color_of(item:match("^(%(+)") or ""))
+        local roomid, _, room = record_gather(item, color_of(item), "the ground", tier)
+        U.ok("Recorded '" .. item .. "' on the ground in " .. (room ~= "" and room or "?") .. " (" .. roomid .. ").")
+    end)
+    here_timer_id = tempTimer(3, function()
+        if here_pending then
+            here_disarm()
+            U.warn("Loot Tracker: no pickup seen - is the item here? Nothing recorded.")
+        end
+    end)
+end
+
+---
+-- auto-identify
+---
+
+local autoid_q = {}
+
+local function have_full_id(item)
+    local r = db:fetch(T.item_stats, db:eq(T.item_stats.item, item))
+    return r and r[1] and r[1].full_id == 1
+end
+
+function LT.queue_autoid(item)
+    if not CFG.autoid or item == "" then return end
+    if aard.whopoll and aard.whopoll.afk then return end
+    if have_full_id(item) then return end
+    autoid_q[#autoid_q + 1] = item
+    -- deferred a tick: the {invitem} carrying the serial can land after "You get"
+    tempTimer(1, function()
+        local it = table.remove(autoid_q, 1)
+        if not it then return end
+        local serial = inv_serial[it:lower()]
+        if serial then send("id " .. serial) end   -- no serial means it's already gone
+    end)
+end
+
+---
+-- identify / appraise box parser
+--
+-- Aardwolf prints the same boxed table for 'id', 'appraise' and a shop appraise.
+-- Two things to watch: the mod blocks pack two "Label : +N" pairs per line and
+-- continue on unlabelled lines, and numbers carry commas (22,380).
+--
+-- Nothing here sends a command — it reads boxes that already scrolled past.
+---
+
+local STAT_MAP = {
+    ["Strength"] = "str", ["Intelligence"] = "intel", ["Wisdom"] = "wis",
+    ["Dexterity"] = "dex", ["Constitution"] = "con", ["Luck"] = "luck",
+    ["Hit points"] = "hp", ["Mana"] = "mana", ["Moves"] = "moves",
+    ["Hit roll"] = "hit", ["Damage roll"] = "dam",
+    ["All physical"] = "all_phys", ["All magic"] = "all_magic",
+    ["Acid"] = "acid", ["Air"] = "air", ["Bash"] = "bash", ["Cold"] = "cold",
+    ["Disease"] = "disease", ["Earth"] = "earth", ["Electric"] = "electric",
+    ["Energy"] = "energy", ["Fire"] = "fire", ["Holy"] = "holy",
+    ["Light"] = "light", ["Magic"] = "magic", ["Mental"] = "mental",
+    ["Negative"] = "negative", ["Pierce"] = "pierce", ["Poison"] = "poison",
+    ["Shadow"] = "shadow", ["Slash"] = "slash", ["Sonic"] = "sonic",
+    ["Water"] = "water",
+}
+
+local ID_FIELDS = {
+    ["Keywords"]    = "keywords",
+    ["Type"]        = "type",
+    ["Worth"]       = "worth",
+    ["Weight"]      = "weight",
+    ["Level"]       = "level",
+    ["Score"]       = "score",
+    ["Wearable"]    = "wearable",
+    ["Material"]    = "material",
+    ["Flags"]       = "flags",
+    ["Found at"]    = "found_at",
+    ["Clan Item"]   = "clan_item",
+    ["Owned By"]    = "owned_by",
+    ["Leads to"]    = "leads_to",
+    ["Weapon Type"] = "weapon_type",
+    ["Average Dam"] = "ave_dam",
+    ["Specials"]    = "specials",
+    ["Inflicts"]    = "inflicts",
+    ["Damage Type"] = "dam_type",
+    ["Capacity"]    = "capacity",
+}
+
+local idrec, id_mod_block
+local id_line_id, id_end_id
+
+local function num(s)
+    return tonumber((tostring(s or ""):gsub(",", "")))
+end
+
+local function id_mods(text)
+    for label, sign, digits in text:gmatch("([A-Za-z][A-Za-z ]-)%s*:%s*([%+%-])(%d+)") do
+        local col = STAT_MAP[U.trim(label)]
+        if col then idrec[col] = tonumber(sign .. digits) end
+    end
+end
+
+local function id_store()
+    local r = idrec
+    idrec, id_mod_block = nil, nil
+    if id_line_id then killTrigger(id_line_id); id_line_id = nil end
+    if id_end_id then killTrigger(id_end_id); id_end_id = nil end
+    if not r or not r.item or r.item == "" then return end
+
+    r.last_id = os.time()
+    r.synced = 0
+    local found = db:fetch(T.item_stats, db:eq(T.item_stats.item, r.item))
+    if found and found[1] then
+        db:update(T.item_stats, r, db:eq(T.item_stats.item, r.item))
+    else
+        db:add(T.item_stats, r)
+    end
+    if CFG.idnote then
+        U.ok("Loot Tracker: stats stored for " .. r.item)
+    end
+end
+
+local function on_id_line(body)
+    if not idrec then return end
+
+    -- Name carries the item's colour
+    local nm = body:match("^%s*Name%s+:%s*(.-)%s*|?%s*$")
+    if nm then
+        idrec.item = U.trim(nm)
+        idrec.item_color = color_of(idrec.item)
+        id_mod_block = nil
+        return
+    end
+
+    -- Stat Mods / Resist Mods open a block that continues on unlabelled rows
+    local mods = body:match("^%s*Stat Mods%s*:(.*)$") or body:match("^%s*Resist Mods%s*:(.*)$")
+    if mods then
+        id_mods(mods)
+        id_mod_block = "stat"
+        return
+    end
+    if id_mod_block and body:match("^%s+[A-Za-z][A-Za-z ]-%s*:%s*[%+%-]%d") then
+        id_mods(body)
+        return
+    end
+
+    -- Notes and Spells repeat; join rather than clobber
+    local note = body:match("^%s*Notes%s+:%s*(.-)%s*|?%s*$")
+    if note and note ~= "" then
+        idrec.notes = (idrec.notes and (idrec.notes .. "; ") or "") .. note
+        id_mod_block = nil
+        return
+    end
+    local sp = body:match("^%s*Spells%s+:%s*(.-)%s*|?%s*$")
+    if sp and sp ~= "" then
+        idrec.spells = (idrec.spells and (idrec.spells .. "; ") or "") .. sp
+        id_mod_block = nil
+        return
+    end
+
+    -- plain "Label : value" pairs. Rows pack two of them ("Type : Weapon  Level : 131"),
+    -- so a value can't run to the next colon or it swallows the following label. Walk
+    -- the colons: a label is the text since the last run of 2+ spaces (real labels use
+    -- single spaces, column padding is always wider).
+    local found, pos = {}, 1
+    while true do
+        local c = body:find(":", pos, true)
+        if not c then break end
+        local pre = body:sub(1, c - 1):gsub("%s+$", "")
+        local lstart, scan = 1, 1
+        while true do
+            local a, b = pre:find("%s%s+", scan)
+            if not a then break end
+            lstart, scan = b + 1, b + 1
+        end
+        found[#found + 1] = { label = U.trim(pre:sub(lstart)), lstart = lstart, vstart = c + 1 }
+        pos = c + 1
+    end
+
+    local hit = false
+    for i, p in ipairs(found) do
+        local col = ID_FIELDS[p.label]
+        if col then
+            local vend = found[i + 1] and (found[i + 1].lstart - 1) or #body
+            local v = U.trim((body:sub(p.vstart, vend):gsub("|%s*$", "")))
+            if v ~= "" then
+                idrec[col] = LT.STAT_TEXT[col] and v or (num(v) or 0)
+                hit = true
+            end
+        end
+    end
+    if hit then id_mod_block = nil end
+end
+
+-- "| Keywords :" is the first row of every one of these boxes, so it opens the
+-- capture and arms the row + end triggers
+function LT.on_id_start(keywords)
+    idrec = { full_id = 1, keywords = U.trim(keywords) }
+    id_mod_block = nil
+
+    if id_line_id then killTrigger(id_line_id) end
+    if id_end_id then killTrigger(id_end_id) end
+
+    id_line_id = tempRegexTrigger("^[|+](.*)$", function()
+        on_id_line(matches[2] or "")
+    end)
+    -- the box ends at the first line that isn't part of it. Without the identify
+    -- wish that line is the "full appraisal" nag, which is how we know the record
+    -- is partial and worth re-identifying later.
+    id_end_id = tempRegexTrigger("^[^|+].*$", function()
+        if idrec and (matches[1] or ""):find("full appraisal", 1, true) then
+            idrec.full_id = 0
+        end
+        id_store()
+    end)
+end
+
+---
+-- bulk appraise: "appraise 3-18" walks a shop's list numbers
+--
+-- Paced one per second instead of fired in a burst — 20 commands at once is
+-- command spam and Aardwolf will treat it as such. Stops if you go AFK partway.
+---
+
+local APPRAISE_MAX, APPRAISE_WAIT = 60, 1
+local appraise_q, appraise_n, appraise_gen = {}, 0, 0
+
+local function appraise_tick(gen)
+    if gen ~= appraise_gen then return end       -- stale tick from an old run
+    local n = table.remove(appraise_q, 1)
+    if not n then
+        U.ok("Loot Tracker: bulk appraise done (" .. appraise_n .. " sent).")
+        return
+    end
+    if aard.whopoll and aard.whopoll.afk then
+        U.warn("Loot Tracker: you're flagged AFK - bulk appraise stopped (" .. (#appraise_q + 1) .. " left).")
+        appraise_q = {}
+        return
+    end
+    appraise_n = appraise_n + 1
+    send("appraise " .. n)
+    tempTimer(APPRAISE_WAIT, function() appraise_tick(gen) end)
+end
+
+local function appraise_halt()
+    local left = #appraise_q
+    appraise_q = {}
+    appraise_gen = appraise_gen + 1              -- orphans any tick already in flight
+    return left
+end
+
+function LT.bulk_appraise(a, b)
+    local lo, hi = tonumber(a), tonumber(b)
+    if not (lo and hi) then return end
+    if lo &gt; hi then lo, hi = hi, lo end
+    if lo &lt; 1 then lo = 1 end
+    local count = hi - lo + 1
+    if count &gt; APPRAISE_MAX then
+        U.warn(string.format("Loot Tracker: %d items is over the %d cap - narrow the range.", count, APPRAISE_MAX))
+        return
+    end
+    appraise_halt()
+    appraise_n = 0
+    for i = lo, hi do appraise_q[#appraise_q + 1] = i end
+    U.note(string.format("Loot Tracker: appraising %d-%d (%d items, ~%ds). 'loot appraise stop' to halt.",
+        lo, hi, count, count * APPRAISE_WAIT))
+    appraise_tick(appraise_gen)
+end
+
+---
+-- queries
+---
+
+-- Rows we captured store item_color as hex; rows migrated from MUSHclient store
+-- it as an @-coded string, and feeding one of those to cecho as a &lt;tag&gt; is
+-- garbage. Take whichever form we actually got.
+local function item_label(name, colour)
+    colour = colour or ""
+    if colour:match("^#%x%x%x%x%x%x$") then
+        return "&lt;" .. colour .. "&gt;" .. name .. "&lt;r&gt;"
+    elseif colour:find("@", 1, true) then
+        return U.acolor(colour) .. "&lt;r&gt;"
+    end
+    return "&lt;#7aa2f7&gt;" .. name .. "&lt;r&gt;"
+end
+
+local function count_of(sheet)
+    local r = db:fetch(sheet)
+    return r and #r or 0
+end
+
+local function like(sheet, col, term)
+    return db:fetch(sheet, db:like(col, "%" .. term .. "%"))
+end
+
+local function show_item(term)
+    term = U.trim(term)
+    if term == "" then U.warn("Usage: loot item &lt;text&gt;"); return end
+    local rows = like(T.loot, T.loot.item, term)
+    if not rows or #rows == 0 then
+        U.note("No looted item matching '" .. term .. "'.")
+        return
+    end
+    table.sort(rows, function(a, b)
+        if a.item ~= b.item then return a.item &lt; b.item end
+        return (a.count or 0) &gt; (b.count or 0)
+    end)
+    for _, r in ipairs(rows) do
+        U.out("\n" .. item_label(r.item, r.item_color))
+        U.out(string.format("\n   &lt;#c8d0dc&gt;from %s in %s - %s (%d)  x%d&lt;r&gt;",
+            r.mob, r.zone ~= "" and r.zone or "?", r.room ~= "" and r.room or "?", r.roomid, r.count))
+        local s = db:fetch(T.item_stats, db:eq(T.item_stats.item, r.item))
+        if s and s[1] then
+            local t = {}
+            if s[1].type ~= "" then t[#t + 1] = s[1].type end
+            if (s[1].level or 0) &gt; 0 then t[#t + 1] = "L" .. s[1].level end
+            if (s[1].score or 0) &gt; 0 then t[#t + 1] = s[1].score .. " score" end
+            if (s[1].worth or 0) &gt; 0 then t[#t + 1] = s[1].worth .. "g" end
+            if #t &gt; 0 then
+                U.out("\n   &lt;#8a93a8&gt;" .. table.concat(t, "  ") .. "   ('loot stats' for the rest)&lt;r&gt;")
+            end
+        end
+    end
+    echo("\n")
+end
+
+local function show_mob(term)
+    term = U.trim(term)
+    if term == "" then U.warn("Usage: loot mob &lt;text&gt;"); return end
+    local rows = like(T.loot, T.loot.mob, term)
+    if not rows or #rows == 0 then
+        U.note("No mob drops matching '" .. term .. "'.")
+        return
+    end
+    table.sort(rows, function(a, b)
+        if a.mob ~= b.mob then return a.mob &lt; b.mob end
+        return (a.count or 0) &gt; (b.count or 0)
+    end)
+    for _, r in ipairs(rows) do
+        U.out("\n&lt;#7aa2f7&gt;" .. r.mob .. "&lt;r&gt;  &lt;#8a93a8&gt;(" .. (r.zone ~= "" and r.zone or "?")
+            .. " - " .. (r.room ~= "" and r.room or "?") .. " " .. (r.roomid or 0) .. ")&lt;r&gt;")
+        U.out(string.format("\n   &lt;#c8d0dc&gt;drops %s  x%d&lt;r&gt;", r.item, r.count))
+    end
+    echo("\n")
+end
+
+local STAT_ROW = {
+    { "str", "Str" }, { "intel", "Int" }, { "wis", "Wis" }, { "dex", "Dex" },
+    { "con", "Con" }, { "luck", "Luck" }, { "hp", "Hp" }, { "mana", "Mana" },
+    { "moves", "Mv" }, { "hit", "Hit" }, { "dam", "Dam" },
+}
+local RESIST_ROW = {
+    { "all_phys", "AllPhys" }, { "all_magic", "AllMagic" }, { "acid", "Acid" },
+    { "air", "Air" }, { "bash", "Bash" }, { "cold", "Cold" }, { "disease", "Disease" },
+    { "earth", "Earth" }, { "electric", "Electric" }, { "energy", "Energy" },
+    { "fire", "Fire" }, { "holy", "Holy" }, { "light", "Light" }, { "magic", "Magic" },
+    { "mental", "Mental" }, { "negative", "Negative" }, { "pierce", "Pierce" },
+    { "poison", "Poison" }, { "shadow", "Shadow" }, { "slash", "Slash" },
+    { "sonic", "Sonic" }, { "water", "Water" },
+}
+
+local function mods_line(r, spec)
+    local t = {}
+    for _, p in ipairs(spec) do
+        local v = tonumber(r[p[1]])
+        if v and v ~= 0 then t[#t + 1] = string.format("%s %+d", p[2], v) end
+    end
+    return table.concat(t, "  ")
+end
+
+local function show_stats(term)
+    term = U.trim(term)
+    if term == "" then U.warn("Usage: loot stats &lt;text&gt;"); return end
+    local rows = like(T.item_stats, T.item_stats.item, term)
+    if not rows or #rows == 0 then
+        U.note("No item stats matching '" .. term .. "'. Appraise or id it first.")
+        return
+    end
+    table.sort(rows, function(a, b) return (a.level or 0) &gt; (b.level or 0) end)
+    for i, r in ipairs(rows) do
+        if i &gt; 10 then break end
+        U.out("\n" .. item_label(r.item, r.item_color))
+        local head = {}
+        if r.type ~= "" then head[#head + 1] = r.type end
+        if (r.level or 0) &gt; 0 then head[#head + 1] = "L" .. r.level end
+        if (r.score or 0) &gt; 0 then head[#head + 1] = r.score .. " score" end
+        if (r.worth or 0) &gt; 0 then head[#head + 1] = r.worth .. "g" end
+        if (r.weight or 0) &gt; 0 then head[#head + 1] = r.weight .. " wt" end
+        if #head &gt; 0 then U.out("\n   &lt;#c8d0dc&gt;" .. table.concat(head, "  ") .. "&lt;r&gt;") end
+        if r.wearable ~= "" then U.out("\n   &lt;#c8d0dc&gt;Worn  : " .. r.wearable .. "&lt;r&gt;") end
+
+        local sm = mods_line(r, STAT_ROW)
+        if sm ~= "" then U.out("\n   &lt;#c8d0dc&gt;Stats : " .. sm .. "&lt;r&gt;") end
+        local rm = mods_line(r, RESIST_ROW)
+        if rm ~= "" then U.out("\n   &lt;#c8d0dc&gt;Resist: " .. rm .. "&lt;r&gt;") end
+
+        if r.weapon_type ~= "" then
+            U.out("\n   &lt;#c8d0dc&gt;Weapon: " .. r.weapon_type
+                .. ((r.ave_dam or 0) &gt; 0 and ("  ave " .. r.ave_dam) or "")
+                .. (r.specials ~= "" and ("  [" .. r.specials .. "]") or "") .. "&lt;r&gt;")
+        end
+        if r.inflicts ~= "" then
+            U.out("\n   &lt;#c8d0dc&gt;Infl  : " .. r.inflicts
+                .. (r.dam_type ~= "" and (" (" .. r.dam_type .. ")") or "") .. "&lt;r&gt;")
+        end
+        if r.spells ~= "" then U.out("\n   &lt;#c8d0dc&gt;Spells: " .. r.spells .. "&lt;r&gt;") end
+        if r.flags ~= "" then U.out("\n   &lt;#8a93a8&gt;Flags : " .. r.flags .. "&lt;r&gt;") end
+        if r.found_at ~= "" then U.out("\n   &lt;#8a93a8&gt;Found : " .. r.found_at .. "&lt;r&gt;") end
+        if r.keywords ~= "" then U.out("\n   &lt;#8a93a8&gt;Keys  : " .. r.keywords .. "&lt;r&gt;") end
+        if r.full_id ~= 1 then
+            U.out("\n   &lt;#e0af68&gt;(partial - no identify wish when this was recorded)&lt;r&gt;")
+        end
+    end
+    echo("\n")
+end
+
+local function show_shop(term)
+    term = U.trim(term)
+    if term == "" then U.warn("Usage: loot shop &lt;text&gt;"); return end
+    local rows = like(T.shop_stock, T.shop_stock.item, term)
+    if not rows or #rows == 0 then
+        U.note("No shop stock matching '" .. term .. "'.")
+        return
+    end
+    table.sort(rows, function(a, b) return (a.price or 0) &lt; (b.price or 0) end)
+    for _, r in ipairs(rows) do
+        U.out("\n" .. item_label(r.item, r.item_color))
+        U.out(string.format("\n   &lt;#c8d0dc&gt;%s gold (lvl %d) @ %s - %s (%d)&lt;r&gt;",
+            U.commas(r.price or 0), r.level or 0,
+            r.zone ~= "" and r.zone or "?", r.room ~= "" and r.room or "?", r.roomid))
+    end
+    echo("\n")
+end
+
+local function show_gathered(term)
+    term = U.trim(term)
+    local rows
+    if term == "" then
+        rows = db:fetch(T.gathered)
+    else
+        rows = db:fetch(T.gathered, db:OR(
+            db:like(T.gathered.item, "%" .. term .. "%"),
+            db:like(T.gathered.source, "%" .. term .. "%")))
+    end
+    if not rows or #rows == 0 then
+        U.note("No gathered items" .. (term ~= "" and (" matching '" .. term .. "'.") or " yet."))
+        return
+    end
+    table.sort(rows, function(a, b) return (a.count or 0) &gt; (b.count or 0) end)
+    for i, r in ipairs(rows) do
+        if i &gt; 40 then break end
+        U.out("\n" .. item_label(r.item, r.item_color))
+        U.out(string.format("\n   &lt;#c8d0dc&gt;from %s in %s - %s (%d)  x%d&lt;r&gt;",
+            r.source, r.zone ~= "" and r.zone or "?", r.room ~= "" and r.room or "?", r.roomid, r.count))
+    end
+    echo("\n")
+end
+
+local function show_recent()
+    local rows = db:fetch(T.loot)
+    if not rows or #rows == 0 then
+        U.note("Nothing recorded yet.")
+        return
+    end
+    table.sort(rows, function(a, b) return (a.last_seen or 0) &gt; (b.last_seen or 0) end)
+    for i, r in ipairs(rows) do
+        if i &gt; 15 then break end
+        U.out(string.format("\n   &lt;#c8d0dc&gt;%-30s &lt;#8a93a8&gt;&lt;- %-24s (%s)&lt;r&gt;",
+            r.item, r.mob, r.zone ~= "" and r.zone or "?"))
+    end
+    echo("\n")
+end
+
+local function del_item(rest)
+    rest = U.trim(rest)
+    if rest == "" then
+        U.warn("Usage: loot del &lt;item&gt; [roomid]   (roomid scopes to that one room)")
+        return
+    end
+    local item, roomid = rest, nil
+    local id = rest:match("%s(%d+)$")           -- trailing " &lt;number&gt;" = a room id
+    if id then
+        item = U.trim(rest:sub(1, #rest - #id))
+        roomid = tonumber(id)
+    end
+
+    local total = 0
+    for _, pair in ipairs({ { T.loot, "loot" }, { T.shop_stock, "shop" }, { T.gathered, "gathered" } }) do
+        local sheet, label = pair[1], pair[2]
+        local where = db:like(sheet.item, "%" .. item .. "%")
+        if roomid then where = db:AND(where, db:eq(sheet.roomid, roomid)) end
+        local rows = db:fetch(sheet, where)
+        local n = rows and #rows or 0
+        if n &gt; 0 then
+            db:delete(sheet, where)
+            U.out("\n  &lt;#c8d0dc&gt;" .. label .. ": removed " .. n .. "&lt;r&gt;")
+            total = total + n
+        end
+    end
+    if total == 0 then
+        U.note("No rows matching '" .. item .. "'" .. (roomid and (" in room " .. roomid) or "") .. ".")
+    else
+        U.ok("Deleted " .. total .. " row(s) matching '" .. item .. "'"
+            .. (roomid and (" in room " .. roomid) or "") .. ".")
+    end
+end
+
+-- Retro-fix rows captured before variants were collapsed. Where the base name
+-- collides with an existing row the counts fold together and the variant goes.
+-- Touched rows go unsynced so the pool gets the corrected version.
+local function dedupe_variants()
+    local renamed, merged = 0, 0
+    for _, spec in ipairs({
+        { sheet = T.loot, keys = { "mob" } },
+        { sheet = T.gathered, keys = { "source", "roomid" } },
+    }) do
+        local rows = db:fetch(spec.sheet) or {}
+        for _, r in ipairs(rows) do
+            local clean = base_name(r.item, nil)
+            if clean ~= "" and clean ~= r.item then
+                local where = { db:eq(spec.sheet.item, clean) }
+                for _, k in ipairs(spec.keys) do
+                    where[#where + 1] = db:eq(spec.sheet[k], r[k])
+                end
+                local exists = db:fetch(spec.sheet, db:AND(unpack(where)))
+                if exists and exists[1] then
+                    db:update(spec.sheet,
+                        { count = (exists[1].count or 0) + (r.count or 1), synced = 0 },
+                        db:AND(unpack(where)))
+                    db:delete(spec.sheet, db:eq(spec.sheet._row_id, r._row_id))
+                    merged = merged + 1
+                else
+                    db:update(spec.sheet, { item = clean, synced = 0 },
+                        db:eq(spec.sheet._row_id, r._row_id))
+                    renamed = renamed + 1
+                end
+            end
+        end
+    end
+    return renamed, merged
+end
+
+---
+-- share: export/import a JSON dump, and the pooled API
+---
+
+local SHARE_ORDER = { "loot", "shop_stock", "gathered", "item_stats" }
+
+local function serialize_db()
+    local data, rows = {}, 0
+    for _, name in ipairs(SHARE_ORDER) do
+        local arr = {}
+        for _, r in ipairs(db:fetch(T[name]) or {}) do
+            local o = {}
+            for k, v in pairs(r) do
+                if k ~= "_row_id" and k ~= "synced" then o[k] = v end
+            end
+            arr[#arr + 1] = o
+            rows = rows + 1
+        end
+        data[name] = arr
+    end
+    return yajl.to_string(data), rows
+end
+
+-- from_pool matters for the sync flag. Rows pulled from the API are already in
+-- the pool, so they land synced and the next upload won't ship everyone else's
+-- data back. Rows from a clanmate's file land unsynced and get contributed.
+local function merge_dump(text, from_pool)
+    local ok, data = pcall(yajl.to_value, tostring(text or ""))
+    if not ok or type(data) ~= "table" then return 0, 0 end
+    local flag = from_pool and 1 or 0
+    local added, seen = 0, 0
+    for _, name in ipairs(SHARE_ORDER) do
+        local sheet, arr = T[name], data[name]
+        if type(arr) == "table" then
+            for _, o in ipairs(arr) do
+                if type(o) == "table" and o.item then
+                    o.synced = flag
+                    local ok2 = pcall(db.add, db, sheet, o)   -- unique index rejects dupes
+                    if ok2 then added = added + 1 end
+                    seen = seen + 1
+                end
+            end
+        end
+    end
+    return added, seen
+end
+
+local function pending_of(name)
+    local r = db:fetch(T[name], db:eq(T[name].synced, 0))
+    return r and #r or 0
+end
+
+local function pending_all()
+    local n = 0
+    for _, t in ipairs(SHARE_ORDER) do n = n + pending_of(t) end
+    return n
+end
+
+local function do_export(fn)
+    fn = U.trim(fn)
+    if fn == "" then fn = "SolaoLoot-share.json" end
+    local path = U.datafile(fn)
+    local f = io.open(path, "w")
+    if not f then U.err("Loot Tracker: can't write " .. path); return end
+    local body, rows = serialize_db()
+    f:write(body)
+    f:close()
+    U.ok("Loot Tracker: exported " .. rows .. " rows -&gt; " .. path)
+    U.note("Share that file out-of-band. Others: loot import " .. fn)
+end
+
+local function do_import(fn)
+    fn = U.trim(fn)
+    if fn == "" then
+        U.warn("Usage: loot import &lt;file&gt;   (merge a shared export; existing rows kept)")
+        return
+    end
+    local f = io.open(U.datafile(fn), "r")
+    if not f then U.err("Loot Tracker: can't read " .. fn); return end
+    local text = f:read("*a")
+    f:close()
+    local added, seen = merge_dump(text, false)
+    U.ok("Loot Tracker: imported " .. fn .. " - " .. added .. " new row(s) (" .. seen .. " read).")
+end
+
+---
+-- commands
+---
+
+function LT.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+
+    if verb == "" or verb == "status" then
+        U.help("Loot Tracker", {
+            { "loot rows",  tostring(count_of(T.loot)) },
+            { "shop rows",  tostring(count_of(T.shop_stock)) },
+            { "gathered",   tostring(count_of(T.gathered)) },
+            { "id'd items", count_of(T.item_stats) .. "  (auto-id " .. (CFG.autoid and "on" or "off") .. ")" },
+            { "to sync",    tostring(pending_all()) },
+        })
+
+    elseif verb == "item"  then show_item(rest)
+    elseif verb == "mob"   then show_mob(rest)
+    elseif verb == "shop"  then show_shop(rest)
+    elseif verb == "stats" or verb == "stat" then show_stats(rest)
+    elseif verb == "gathered" or verb == "gather" then show_gathered(rest)
+    elseif verb == "recent" then show_recent()
+    elseif verb == "del" or verb == "forget" or verb == "remove" then del_item(rest)
+
+    elseif verb == "id" then
+        local kw = U.trim(rest)
+        if kw == "" then U.warn("Usage: loot id &lt;keyword&gt;   (or 'loot autoid on|off')"); return end
+        send("id " .. kw)
+
+    elseif verb == "here" or verb == "ground" then
+        local kw = U.trim(rest)
+        if kw == "" then
+            U.warn("Usage: loot here &lt;keyword&gt;   (picks it up and records the room spawn)")
+            return
+        end
+        here_arm()
+        send("get " .. kw)
+
+    elseif verb == "autoid" then
+        local s = U.trim(rest):lower()
+        if s == "on" then
+            CFG.autoid = true; save()
+            U.ok("Loot Tracker: auto-identify on loot is ON. Needs the identify wish for full stats.")
+        elseif s == "off" then
+            CFG.autoid = false; save()
+            U.ok("Loot Tracker: auto-identify on loot is off.")
+        else
+            U.note("Loot Tracker: auto-identify is " .. (CFG.autoid and "ON" or "off") .. ".  'loot autoid on|off'")
+            U.note("Appraise and manual 'id' are always captured - this only controls sending 'id' for you.")
+        end
+
+    elseif verb == "idnote" then
+        local s = U.trim(rest):lower()
+        if s == "on" then CFG.idnote = true; save(); U.ok("Loot Tracker: will confirm each stat capture.")
+        elseif s == "off" then CFG.idnote = false; save(); U.ok("Loot Tracker: stat captures are silent now.")
+        else U.note("Loot Tracker: stat-capture notices are " .. (CFG.idnote and "on" or "off") .. ".") end
+
+    elseif verb == "bags" then
+        local sub, w = rest:match("^(%S*)%s*(.*)$")
+        sub, w = (sub or ""):lower(), U.trim(w or ""):lower()
+        if sub == "add" and w ~= "" then
+            exclude[w] = true; CFG.bags = set_csv(exclude); save()
+            U.ok("Ignoring gather sources matching '" .. w .. "'.")
+        elseif sub == "del" and w ~= "" then
+            exclude[w] = nil; CFG.bags = set_csv(exclude); save()
+            U.ok("No longer ignoring '" .. w .. "'.")
+        else
+            local carried = {}
+            for x in pairs(my_bags) do carried[#carried + 1] = x end
+            table.sort(carried)
+            U.note("Containers you carry (from invdata, rename-proof):")
+            U.out("\n  &lt;#c8d0dc&gt;" .. (#carried &gt; 0 and table.concat(carried, ", ") or "(none seen yet - type 'inv')") .. "&lt;r&gt;")
+            U.note("Fallback word-list (source containing any = ignored):")
+            U.out("\n  &lt;#c8d0dc&gt;" .. set_csv(exclude):gsub(",", ", ") .. "&lt;r&gt;")
+            U.out("\n  &lt;#8a93a8&gt;loot bags add &lt;word&gt; | loot bags del &lt;word&gt;&lt;r&gt;\n")
+        end
+
+    elseif verb == "flags" then
+        local sub, w = rest:match("^(%S*)%s*(.*)$")
+        sub, w = (sub or ""):lower(), U.trim(w or ""):lower():gsub("[%(%)]", "")
+        if sub == "add" and w ~= "" then
+            bonus_flags[w] = true; CFG.flags = set_csv(bonus_flags); save()
+            U.ok("Loot Tracker: '" .. w .. "' is a bonus flag.")
+        elseif sub == "del" and w ~= "" then
+            bonus_flags[w] = nil; CFG.flags = set_csv(bonus_flags); save()
+            U.ok("Loot Tracker: '" .. w .. "' is no longer treated as a bonus flag.")
+        else
+            U.note("Bonus-loot flags stripped from loot/gathered names:")
+            U.out("\n  &lt;#c8d0dc&gt;" .. set_csv(bonus_flags):gsub(",", ", ") .. "&lt;r&gt;")
+            U.out("\n  &lt;#8a93a8&gt;Only stripped when the bracket colour matches a bonus tier.&lt;r&gt;\n")
+        end
+
+    elseif verb == "appraise" then
+        local sub = U.trim(rest):lower()
+        local lo, hi = sub:match("^(%d+)%s*%-%s*(%d+)$")
+        if sub == "stop" then
+            local left = appraise_halt()
+            if left &gt; 0 then U.warn("Loot Tracker: bulk appraise stopped, " .. left .. " unsent.")
+            else U.note("Loot Tracker: bulk appraise wasn't running.") end
+        elseif lo then
+            LT.bulk_appraise(lo, hi)
+        else
+            U.warn("Usage: appraise &lt;first&gt;-&lt;last&gt;  (e.g. appraise 1-12)  |  loot appraise stop")
+        end
+
+    elseif verb == "dedupe" then
+        local renamed, merged = dedupe_variants()
+        if renamed + merged == 0 then
+            U.ok("Loot Tracker: nothing to collapse - no variant rows found.")
+        else
+            U.ok(string.format("Loot Tracker: collapsed %d variant row(s) - %d renamed, %d merged.",
+                renamed + merged, renamed, merged))
+        end
+
+    elseif verb == "export" then do_export(rest)
+    elseif verb == "import" then do_import(rest)
+
+    elseif verb == "api" then
+        U.help("Loot Tracker pool", {
+            { "endpoint", API_URL },
+            { "auth",     CFG.authkey ~= "" and ("yes, as " .. (CFG.authname ~= "" and CFG.authname or "?")) or "no - run 'loot auth'" },
+            { "loot",       pending_of("loot") .. " of " .. count_of(T.loot) .. " to sync" },
+            { "shop_stock", pending_of("shop_stock") .. " of " .. count_of(T.shop_stock) .. " to sync" },
+            { "gathered",   pending_of("gathered") .. " of " .. count_of(T.gathered) .. " to sync" },
+            { "item_stats", pending_of("item_stats") .. " of " .. count_of(T.item_stats) .. " to sync" },
+        })
+
+    elseif verb == "auth" then LT.auth()
+    elseif verb == "upload" then LT.upload(U.trim(rest):lower() == "full")
+    elseif verb == "update" then LT.update()
+
+    elseif verb == "resync" then
+        if U.trim(rest):lower() ~= "yes" then
+            U.note("'loot resync yes' re-sends everything on the next upload.")
+        else
+            for _, t in ipairs(SHARE_ORDER) do db:update(T[t], { synced = 0 }) end
+            U.ok("Loot Tracker: all rows marked unsynced - 'loot upload' will re-send everything.")
+        end
+
+    elseif verb == "clear" then
+        local what = U.trim(rest):lower()
+        local map = { loot = T.loot, shop = T.shop_stock, gathered = T.gathered, stats = T.item_stats }
+        if map[what] then
+            db:delete(map[what], db:gt(map[what]._row_id, -1))
+            U.ok(what .. " table cleared.")
+        else
+            U.warn("Type 'loot clear loot|shop|gathered|stats'.")
+        end
+
+    else
+        U.help("Loot Tracker", {
+            { "loot",                 "row counts" },
+            { "loot item &lt;text&gt;",     "where an item drops from (mob / zone / room)" },
+            { "loot mob &lt;text&gt;",      "what a mob drops" },
+            { "loot shop &lt;text&gt;",     "which shops natively stock an item" },
+            { "loot gathered &lt;text&gt;", "where a room resource is picked up" },
+            { "loot stats &lt;text&gt;",    "stat block for an item" },
+            { "loot id &lt;keyword&gt;",    "identify an item and store its stats" },
+            { "loot autoid on|off",   "auto-identify freshly looted gear" },
+            { "loot idnote on|off",   "confirm each stat capture on screen" },
+            { "loot here &lt;keyword&gt;",  "get a room-floor spawn and record it" },
+            { "loot del &lt;item&gt; [roomid]", "remove matching rows" },
+            { "loot bags [add|del &lt;word&gt;]", "container words ignored for gathers" },
+            { "loot flags [add|del &lt;word&gt;]", "bonus-loot flags stripped from names" },
+            { "loot dedupe",          "collapse variant rows already captured" },
+            { "appraise &lt;a&gt;-&lt;b&gt;",     "appraise a range of shop list numbers, paced" },
+            { "loot appraise stop",   "halt a running bulk appraise" },
+            { "loot recent",          "last 15 things looted" },
+            { "loot export [file]",   "dump the DB to a file to share" },
+            { "loot import &lt;file&gt;",   "merge a shared export" },
+            { "loot api | auth | upload | update | resync yes", "" },
+            { "loot clear loot|shop|gathered|stats", "wipe a table" },
+        })
+    end
+end
+
+---
+-- boot
+---
+
+aard.register("loot", "item/mob/shop provenance database", LT.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>loottracker/api</name>
+				<packageName />
+				<script>--[[
+    Loot Tracker — shared pool sync
+    Sean Stoves, 2026-07-31
+
+    MUSHclient used async.doAsyncRemoteRequest with a status code in the callback.
+    Mudlet gives us postHTTP/getHTTP plus sys*HttpDone / sys*HttpError events, and
+    the error path doesn't hand back a status. So the 401 rule becomes: if a
+    request fails while we hold a key, re-auth ONCE and retry ONCE.
+
+    That single-retry cap is the important part. Every /auth mints a NEW account
+    (the name can come back with a -2 suffix), so careless re-registration would
+    fragment one player across many accounts.
+]]
+
+aard = aard or {}
+aard.loot = aard.loot or {}
+
+local LT = aard.loot
+local U  = aard.util
+local T  = LT.t
+
+local API_URL = "https://api.aardwolf.muds.fyi"
+local SHARE_ORDER = { "loot", "shop_stock", "gathered", "item_stats" }
+
+-- Upload in slices capped by BYTES, not row count. The MUSHclient version learned
+-- the hard way that a ~144KB body never arrived: past roughly one socket buffer
+-- fewer bytes reach the wire than content-length advertises. A row cap alone
+-- wouldn't do it either - one item with a long notes field could blow the budget.
+local MAX_BODY    = 32768
+local UPLOAD_READ = 200
+local FULL_EVERY  = 7 * 86400        -- re-declare the whole DB weekly
+
+local CFG   -- lazily bound to the same table init.lua persists
+local pending = {}   -- url -&gt; handler, so the event handlers can find their caller
+
+local function cfg()
+    if not CFG then CFG = U.load("loottracker", {}) end
+    return CFG
+end
+
+local function save()
+    U.save("loottracker", cfg())
+end
+
+local function key()
+    return U.trim(cfg().authkey or "")
+end
+
+---
+-- request plumbing
+---
+
+local function handle_done(event, url, body)
+    local h = pending[url]
+    if not h then return end
+    pending[url] = nil
+    h.ok(body)
+end
+
+local function handle_err(event, a, b)
+    -- sysPostHttpError(response, url) / sysGetHttpError(response, url)
+    local url = b or a
+    local h = pending[url]
+    if not h then return end
+    pending[url] = nil
+    h.fail(a)
+end
+
+if aard_loot_http_handlers then
+    for _, id in ipairs(aard_loot_http_handlers) do U.killhandler(id) end
+end
+aard_loot_http_handlers = {
+    registerAnonymousEventHandler("sysPostHttpDone",  handle_done),
+    registerAnonymousEventHandler("sysGetHttpDone",   handle_done),
+    registerAnonymousEventHandler("sysPostHttpError", handle_err),
+    registerAnonymousEventHandler("sysGetHttpError",  handle_err),
+}
+
+local function post(url, body, headers, ok, fail)
+    pending[url] = { ok = ok, fail = fail }
+    postHTTP(body, url, headers)
+end
+
+local function get(url, headers, ok, fail)
+    pending[url] = { ok = ok, fail = fail }
+    getHTTP(url, headers)
+end
+
+---
+-- auth
+---
+
+-- POST /auth for `name`; store the key AND the name the server hands back (it may
+-- add a -N suffix if the name is taken).
+local function register(name, cb)
+    local body = yajl.to_string({ name = name })
+    post(API_URL .. "/auth", body, { ["Content-Type"] = "application/json" },
+        function(page)
+            local ok, t = pcall(yajl.to_value, tostring(page or ""))
+            if ok and type(t) == "table" and t.key and U.trim(t.key) ~= "" then
+                cfg().authkey  = U.trim(t.key)          -- hidden; never displayed
+                cfg().authname = U.trim(t.name or name)
+                save()
+                if cb then cb(true) end
+            else
+                U.warn("Loot Tracker: auth failed - no key in the reply.")
+                if cb then cb(false) end
+            end
+        end,
+        function(err)
+            U.warn("Loot Tracker: auth failed (" .. tostring(err) .. ").")
+            if cb then cb(false) end
+        end)
+end
+
+function LT.auth()
+    if key() ~= "" then
+        U.ok("Loot Tracker: already authenticated as " .. (cfg().authname or "?") .. ".")
+        return
+    end
+    local name = U.charname()
+    if not name or name == "" then
+        U.warn("Loot Tracker: no character name yet - log in first, then 'loot auth'.")
+        return
+    end
+    U.note("Loot Tracker: registering '" .. name .. "'...")
+    register(name, function(ok)
+        if ok then
+            U.ok("Loot Tracker: authenticated as " .. (cfg().authname or name)
+                .. ". 'loot upload' / 'loot update' are ready.")
+        end
+    end)
+end
+
+-- request against /loot; one re-auth + one retry on failure, then give up
+local function loot_request(method, body, on_ok, retried)
+    local url = API_URL .. "/loot"
+    local headers = { ["x-api-key"] = key() }
+    if body then headers["Content-Type"] = "application/json" end
+
+    local function fail(err)
+        if not retried and key() ~= "" then
+            local name = U.charname()
+            if not name or name == "" then
+                U.warn("Loot Tracker: request failed and no character name to re-auth with.")
+                return
+            end
+            cfg().authkey = ""      -- discard the possibly-dead key first
+            save()
+            U.note("Loot Tracker: request rejected, re-registering '" .. name .. "'...")
+            register(name, function(ok)
+                if ok then loot_request(method, body, on_ok, true)
+                else U.warn("Loot Tracker: sync aborted - couldn't get a valid key.") end
+            end)
+        else
+            U.warn("Loot Tracker: sync failed (" .. tostring(err) .. "). Run it again to resume.")
+        end
+    end
+
+    if method == "POST" then
+        post(url, body, headers, on_ok, fail)
+    else
+        get(url, headers, on_ok, fail)
+    end
+end
+
+---
+-- upload
+---
+
+local function row_out(r)
+    local o = {}
+    for k, v in pairs(r) do
+        if k ~= "_row_id" and k ~= "synced" then o[k] = v end
+    end
+    return o
+end
+
+local function pending_of(name)
+    local r = db:fetch(T[name], db:eq(T[name].synced, 0))
+    return r and #r or 0
+end
+
+local function pending_all()
+    local n = 0
+    for _, t in ipairs(SHARE_ORDER) do n = n + pending_of(t) end
+    return n
+end
+
+-- The next unsynced slice of `name`, taking as many rows as fit in MAX_BODY.
+-- A sent row gets marked synced so it drops out of the next query - that's what
+-- makes a half-finished upload resume exactly where it stopped.
+local function serialize_slice(name)
+    local rows = db:fetch(T[name], db:eq(T[name].synced, 0)) or {}
+    local parts, ids, bytes = {}, {}, 0
+    for i, r in ipairs(rows) do
+        if i &gt; UPLOAD_READ then break end
+        local enc = yajl.to_string(row_out(r))
+        -- always take at least one row, even if that row is enormous on its own
+        if #ids &gt; 0 and (bytes + #enc) &gt; MAX_BODY then break end
+        parts[#parts + 1] = enc
+        ids[#ids + 1] = r._row_id
+        bytes = bytes + #enc + 1
+    end
+    if #ids == 0 then return nil, nil end
+    return '{"' .. name .. '":[' .. table.concat(parts, ",") .. ']}', ids
+end
+
+local function mark_synced(name, ids)
+    for _, id in ipairs(ids) do
+        db:update(T[name], { synced = 1 }, db:eq(T[name]._row_id, id))
+    end
+end
+
+function LT.upload(force_full)
+    if key() == "" then
+        U.warn("Loot Tracker: not authenticated - run 'loot auth' first.")
+        return
+    end
+
+    -- Deltas are cheap but they only declare what changed, and the pool's
+    -- "how many players have this item" counter learns from what you declare.
+    -- Skip that forever and you never register on items you already share with
+    -- everyone. So re-declare the whole DB on a slow cadence, deltas in between.
+    local full = force_full or (os.time() - (tonumber(cfg().lastfull) or 0)) &gt;= FULL_EVERY
+    if full then
+        for _, t in ipairs(SHARE_ORDER) do db:update(T[t], { synced = 0 }) end
+    end
+
+    local grand = pending_all()
+    if grand == 0 then
+        U.note("Loot Tracker: nothing new to upload - the pool already has everything here.")
+        return
+    end
+    U.note("Loot Tracker: uploading " .. grand
+        .. (full and " rows (full re-declare)" or " new/changed rows") .. "...")
+
+    local ti, sent, batch = 1, 0, 0
+    local function step()
+        while ti &lt;= #SHARE_ORDER and pending_of(SHARE_ORDER[ti]) == 0 do ti = ti + 1 end
+        if ti &gt; #SHARE_ORDER then
+            -- only stamp a full declare once it actually finished, so an aborted
+            -- one gets retried rather than counting as this week's
+            if full then cfg().lastfull = os.time(); save() end
+            U.ok(string.format("Loot Tracker: upload ok - %d rows in %d batches.%s",
+                sent, batch, full and "  (full re-declare)" or ""))
+            return
+        end
+
+        local name = SHARE_ORDER[ti]
+        local body, ids = serialize_slice(name)
+        if not body then ti = ti + 1; step(); return end
+        batch = batch + 1
+        local n = #ids
+        loot_request("POST", body, function()
+            mark_synced(name, ids)      -- only after the server confirms it
+            sent = sent + n
+            U.note(string.format("Loot Tracker: %s  +%d  (%d/%d)", name, n, sent, grand))
+            step()
+        end)
+    end
+    step()
+end
+
+function LT.update()
+    if key() == "" then
+        U.warn("Loot Tracker: not authenticated - run 'loot auth' first.")
+        return
+    end
+    U.note("Loot Tracker: fetching the shared pool...")
+    loot_request("GET", nil, function(page)
+        local ok, data = pcall(yajl.to_value, tostring(page or ""))
+        if not ok or type(data) ~= "table" then
+            U.warn("Loot Tracker: update failed - couldn't parse the reply.")
+            return
+        end
+        local added, seen = 0, 0
+        for _, name in ipairs(SHARE_ORDER) do
+            local arr = data[name]
+            if type(arr) == "table" then
+                for _, o in ipairs(arr) do
+                    if type(o) == "table" and o.item then
+                        o.synced = 1        -- came from the pool; don't ship it back
+                        if pcall(db.add, db, T[name], o) then added = added + 1 end
+                        seen = seen + 1
+                    end
+                end
+            end
+        end
+        U.ok("Loot Tracker: update ok - " .. added .. " new row(s) (" .. seen .. " read).")
+    end)
+end
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
