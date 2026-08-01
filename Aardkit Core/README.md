@@ -21,14 +21,14 @@ Shared foundation every other module builds on: the panel manager, saved state u
 | `aardkit probe` | reports which Mudlet Lua functions exist here |
 | `panel` | lists panels with mode and visibility |
 | `panel <name>` | toggles that panel |
-| `panel <name> show|hide` | shows or hides it |
-| `panel <name> dock|embed` | dockable window vs in-window container |
+| `panel <name> show\|hide` | shows or hides it |
+| `panel <name> dock\|embed` | dockable window vs in-window container |
 | `panel <name> clear` | empties its buffer |
 | `panel raise` | raises panels above the stock module's GUI |
-| `panel save|load|reset` | write, reload or clear the saved layout |
+| `panel save\|load\|reset` | write, reload or clear the saved layout |
 | `aardtags` | shows gag state and tag classifications |
-| `aardtags on|off` | turns the gag on or off |
-| `aardtags line|block|marker <tag>` | classify one tag yourself |
+| `aardtags on\|off` | turns the gag on or off |
+| `aardtags line\|block\|marker <tag>` | classify one tag yourself |
 | `aardtags forget <tag>` | drop a custom classification |
 
 Each has its own `help` with the full list.

@@ -25,8 +25,8 @@ that every module here builds on. Without it nothing else loads.
 | `coord <name>` | aim at a Vidblain preset, e.g. `coord omen tor` |
 | `coord run` | send the run command for the straight line |
 | `coord clear` | drop the target |
-| `coord show off|coordareas|always` | when the panel has anything to say |
-| `coord panel [show|hide|dock|embed]` | move the panel or put it away |
+| `coord show off\|coordareas\|always` | when the panel has anything to say |
+| `coord panel [show\|hide\|dock\|embed]` | move the panel or put it away |
 | `vid ...` | every command above also answers to `vid` |
 
 Each has its own `help` with the full list.

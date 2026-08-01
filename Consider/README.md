@@ -21,7 +21,7 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `xcon` | whether the lines are being rewritten |
-| `xcon on | off` | rewrite them, or leave the MUD's own |
+| `xcon on \| off` | rewrite them, or leave the MUD's own |
 
 Each has its own `help` with the full list.
 

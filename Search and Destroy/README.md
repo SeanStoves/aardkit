@@ -21,7 +21,7 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `snd` | toggle the target panel |
-| `snd cp | quest | gq` | ask the MUD for that target list |
+| `snd cp \| quest \| gq` | ask the MUD for that target list |
 | `snd go <n>` | speedwalk to target n |
 | `(panel) click a target` | selects it; the buttons below act on it |
 | `snd next` | walk to the first target listed |
@@ -32,9 +32,9 @@ that every module here builds on. Without it nothing else loads.
 | `mobwhere <kw>` | same lookup, shorter alias |
 | `snd area [text]` | area list with level ranges and start rooms |
 | `snd keywords` | read 'area keyword' so runto works for unmapped areas |
-| `snd scan on|off` | record mobs from room descriptions while moving |
-| `snd rewrite on|off` | tidy 'cp check' into a clickable list (default on) |
-| `snd dock|embed|hide|show` | panel placement |
+| `snd scan on\|off` | record mobs from room descriptions while moving |
+| `snd rewrite on\|off` | tidy 'cp check' into a clickable list (default on) |
+| `snd dock\|embed\|hide\|show` | panel placement |
 
 Each has its own `help` with the full list.
 

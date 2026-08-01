@@ -82,9 +82,11 @@
         -5 (Golden Aura) No Problem! A guard of the Burh is weak compared to you.
         weak       -5  A guard of the Burh          (Golden Aura)
 
-    Aardwolf's verdicts, easiest to hardest. The MUD's own strings:
+    Aardwolf's verdicts, easiest to hardest. The MUD's own strings, all of them
+    counted in 45 sessions of logs rather than remembered:
 
         would be easy, but is it even worth the work out?
+        You would stomp ... into the ground.
         No Problem! ... is weak compared to you.
         snickers nervously.
         looks a little worried about the idea.
@@ -92,7 +94,12 @@
         chuckles at the thought of you fighting
         would crush you like a bug!
         would dance on your grave!
+        Best run away from ... while you can!
+        You would be completely annihilated by ...!
         says 'BEGONE FROM MY SIGHT unworthy!'
+
+    The last three sit mid-sentence rather than after the mob, which is why NAME
+    carries a different shape for them.
 
     'con all' prefixes the level difference; plain 'consider &lt;mob&gt;' doesn't, so
     the number is optional. Flags are parenthesised before the verdict and there
@@ -111,8 +118,14 @@ local U = aardkit.util
 local CFG = U.load("consider", { on = true })
 
 -- label, colour, and the MUD wording that means it. Ranking is ours.
+-- Three of these were missing until a sweep of 45 sessions of logs turned them
+-- up: 'would stomp' (23 hits), 'Best run away from' (26) and 'completely
+-- annihilated by' (3). Without them those lines fell through unrecognised and
+-- printed raw, which looked like the module ignoring the hardest and easiest
+-- mobs in the room - exactly the ones you most want called out.
 local VERDICT = {
     { "trivial",   "#5a7a5a", "would be easy, but is it even worth the work out%?" },
+    { "stomp",     "#4f8f5f", "would stomp .* into the ground%." },
     { "weak",      "#3ad07a", "No Problem!" },
     { "nervous",   "#9ece6a", "snickers nervously%." },
     { "worried",   "#c8d05a", "looks a little worried about the idea%." },
@@ -120,11 +133,18 @@ local VERDICT = {
     { "hard",      "#e08a68", "chuckles at the thought of you fighting" },
     { "crushing",  "#f7768e", "would crush you like a bug!" },
     { "deadly",    "#e94560", "would dance on your grave!" },
+    { "run",       "#d1305a", "Best run away from .* while you can!" },
+    { "doomed",    "#c02048", "would be completely annihilated by" },
     { "no chance", "#b02a4a", "BEGONE FROM MY SIGHT" },
 }
 
+-- The three new ones put the mob in the middle of the sentence rather than at
+-- the front, so they don't fit the '^(.-) verb' shape the rest use.
 local NAME = {
     "^No Problem!%s*(.-) is weak compared to you%.$",
+    "^You would stomp (.-) into the ground%.$",
+    "^You would be completely annihilated by (.-)!$",
+    "^Best run away from (.-) while you can!$",
     "^(.-) would be easy",
     "^(.-) snickers nervously",
     "^(.-) looks a little worried",

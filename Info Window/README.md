@@ -24,7 +24,7 @@ that every module here builds on. Without it nothing else loads.
 | `infowin buffer <n>` | scrollback lines, 10-5000 |
 | `infowin gag` | toggle gagging INFO from the main window |
 | `infowin clear` | empty the panel |
-| `infowin show|hide|dock|embed` | panel placement |
+| `infowin show\|hide\|dock\|embed` | panel placement |
 
 Each has its own `help` with the full list.
 

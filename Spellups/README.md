@@ -27,13 +27,13 @@ that every module here builds on. Without it nothing else loads.
 | `spellup reclass` | re-read and diff against the old spellup set |
 | `spellup sync` | read 'aff' to learn what is already running |
 | `spellup auto` | autocast status and settings |
-| `spellup auto on|off` | enable or disable autocast |
+| `spellup auto on\|off` | enable or disable autocast |
 | `spellup auto <n>` | fire once n spellups are down |
 | `spellup auto cooldown <s>` | minimum seconds between fires |
 | `spellup now` | send 'spellup' now; still blocked while AFK |
-| `spellup warn 30|10` | toggle expiry warnings |
+| `spellup warn 30\|10` | toggle expiry warnings |
 | `spellup decay <secs>` | how long a fallen buff stays listed |
-| `spellup totem|eye|aura|wraith` | the opt-in extras, all off by default |
+| `spellup totem\|eye\|aura\|wraith` | the opt-in extras, all off by default |
 
 Each has its own `help` with the full list.
 

@@ -453,7 +453,7 @@ local function bump(sheet, keys, fields)
     if found and found[1] then
         local row = found[1]
         fields.count = (row.count or 0) + 1
-        db:update(sheet, fields, db:AND(unpack(keys)))
+        U.dbupdate(sheet, row, fields)
     else
         fields.count = 1
         db:add(sheet, fields)
@@ -500,7 +500,7 @@ function LT.on_shop(lvl, price, item)
     }
     local found = db:fetch(T.shop_stock, db:AND(unpack(keys)))
     if found and found[1] then
-        db:update(T.shop_stock, fields, db:AND(unpack(keys)))
+        U.dbupdate(T.shop_stock, found[1], fields)
     else
         db:add(T.shop_stock, fields)
     end
@@ -678,7 +678,7 @@ local function id_store()
     r.synced = 0
     local found = db:fetch(T.item_stats, db:eq(T.item_stats.item, r.item))
     if found and found[1] then
-        db:update(T.item_stats, r, db:eq(T.item_stats.item, r.item))
+        U.dbupdate(T.item_stats, found[1], r)
     else
         db:add(T.item_stats, r)
     end
@@ -1091,14 +1091,12 @@ local function dedupe_variants()
                 end
                 local exists = db:fetch(spec.sheet, db:AND(unpack(where)))
                 if exists and exists[1] then
-                    db:update(spec.sheet,
-                        { count = (exists[1].count or 0) + (r.count or 1), synced = 0 },
-                        db:AND(unpack(where)))
+                    U.dbupdate(spec.sheet, exists[1],
+                        { count = (exists[1].count or 0) + (r.count or 1), synced = 0 })
                     db:delete(spec.sheet, db:eq(spec.sheet._row_id, r._row_id))
                     merged = merged + 1
                 else
-                    db:update(spec.sheet, { item = clean, synced = 0 },
-                        db:eq(spec.sheet._row_id, r._row_id))
+                    U.dbupdate(spec.sheet, r, { item = clean, synced = 0 })
                     renamed = renamed + 1
                 end
             end
@@ -1327,7 +1325,8 @@ function LT.cmd(arg)
         if U.trim(rest):lower() ~= "yes" then
             U.note("'loot resync yes' re-sends everything on the next upload.")
         else
-            for _, t in ipairs(SHARE_ORDER) do db:update(T[t], { synced = 0 }) end
+            -- every row, one column: that's db:set's job, not db:update's
+            for _, t in ipairs(SHARE_ORDER) do db:set(T[t].synced, 0) end
             U.ok("Loot Tracker: all rows marked unsynced - 'loot upload' will re-send everything.")
         end
 
@@ -1587,9 +1586,11 @@ local function serialize_slice(name)
     return '{"' .. name .. '":[' .. table.concat(parts, ",") .. ']}', ids
 end
 
+-- One column across a set of rows, so db:set with a query rather than
+-- db:update, which only ever addresses the single row you hand it.
 local function mark_synced(name, ids)
     for _, id in ipairs(ids) do
-        db:update(T[name], { synced = 1 }, db:eq(T[name]._row_id, id))
+        db:set(T[name].synced, 1, db:eq(T[name]._row_id, id))
     end
 end
 
@@ -1605,7 +1606,7 @@ function LT.upload(force_full)
     -- everyone. So re-declare the whole DB on a slow cadence, deltas in between.
     local full = force_full or (os.time() - (tonumber(cfg().lastfull) or 0)) &gt;= FULL_EVERY
     if full then
-        for _, t in ipairs(SHARE_ORDER) do db:update(T[t], { synced = 0 }) end
+        for _, t in ipairs(SHARE_ORDER) do db:set(T[t].synced, 0) end
     end
 
     local grand = pending_all()

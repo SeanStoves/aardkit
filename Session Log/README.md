@@ -21,8 +21,8 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `aardlog` | status: auto-start, current file, directory, format |
-| `aardlog on|off` | start or stop logging this session |
-| `aardlog auto on|off` | log automatically on connect |
+| `aardlog on\|off` | start or stop logging this session |
+| `aardlog auto on\|off` | log automatically on connect |
 | `aardlog list` | last 15 log files with sizes |
 | `aardlog tidy` | rename stray logs into the profile scheme |
 

@@ -194,6 +194,7 @@ end
 
 db = {
     __data = {},
+    __cols = {},          -- sheet -> column defaults, so a seeded row looks real
     create_returns_handle = true,
     create = function(self, name, sheets)
         db[name] = {}
@@ -201,8 +202,28 @@ db = {
             local s = setmetatable({ __name = name .. "." .. sname }, Sheet)
             db[name][sname] = s
             db.__data[s] = {}
+            -- Real sqlite hands back the schema default for a column nobody set,
+            -- never nil. Keep those so test rows can't be less complete than the
+            -- rows the client actually produces.
+            local d = {}
+            for k, v in pairs(cols) do
+                if k:sub(1, 1) ~= "_" then d[k] = v end
+            end
+            db.__cols[s] = d
         end
         return db[name]
+    end,
+
+    -- a row carrying every column, with the caller's values laid over the
+    -- schema defaults. For harnesses, not something Mudlet has.
+    __seed = function(sheet, row)
+        if not (sheet and db.__data[sheet]) then return end
+        local r = {}
+        for k, v in pairs(db.__cols[sheet] or {}) do r[k] = v end
+        for k, v in pairs(row or {}) do r[k] = v end
+        r._row_id = 1
+        db.__data[sheet] = { r }
+        return r
     end,
     add = function(self, sheet, row)
         local t = db.__data[sheet]
@@ -212,7 +233,26 @@ db = {
         return row._row_id
     end,
     fetch = function(self, sheet, where) return db.__data[sheet] or {} end,
-    update = function(self, sheet, fields, where) return 0 end,
+
+    -- Hold the real contract, not a permissive one. This used to be
+    -- update(self, sheet, fields, where) returning 0, which is why ten call
+    -- sites passed a third argument that Mudlet doesn't have and the harness
+    -- said OK to writes that would have asserted in the client. Mudlet's is
+    -- db:update(sheet, tbl) and it asserts on tbl._row_id (DB.lua:1411).
+    update = function(self, sheet, tbl, extra)
+        if extra ~= nil then error("db:update takes (sheet, tbl) - no query argument", 2) end
+        if type(tbl) ~= "table" or not tbl._row_id then
+            error("db:update needs tbl._row_id - fetch the row first", 2)
+        end
+        return 0
+    end,
+    -- db:set(field, value, query) - one column, many rows
+    set = function(self, field, value, query)
+        if type(field) ~= "table" or not field.__col then
+            error("db:set takes a column (sheet.column), not a sheet", 2)
+        end
+        return 0
+    end,
     delete = function(self, sheet, where) return 0 end,
     eq = function(self, col, v) return { op = "eq" } end,
     like = function(self, col, v) return { op = "like" } end,

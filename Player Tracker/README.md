@@ -28,7 +28,7 @@ that every module here builds on. Without it nothing else loads.
 | `pt count` | tracked, online, average per sweep |
 | `pt export` | write players.csv |
 | `pt clear yes` | wipe the database |
-| `pt dock|embed` | panel placement |
+| `pt dock\|embed` | panel placement |
 
 Each has its own `help` with the full list.
 

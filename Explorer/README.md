@@ -26,7 +26,7 @@ that every module here builds on. Without it nothing else loads.
 | `explore all` | write an SVG for every area |
 | `explore list [filter]` | list areas with room counts |
 | `explore dir [path]` | show or set the output folder |
-| `explore show|hide|dock|embed` | panel placement |
+| `explore show\|hide\|dock\|embed` | panel placement |
 
 Each has its own `help` with the full list.
 

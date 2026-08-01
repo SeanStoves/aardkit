@@ -132,10 +132,21 @@ end
 -- persistence — one table per key, saved as a Lua chunk
 ---
 
+-- table.save does NOT error when it can't open the file - it returns nil plus a
+-- message (mudlet-lua/Other.lua). So pcall's ok flag says "didn't crash", not
+-- "wrote", and a full disk or a read-only profile reported success while your
+-- settings quietly went nowhere. Check what it actually returned.
 function U.save(key, tbl)
-    local ok, err = pcall(table.save, U.datafile(key .. ".lua"), tbl)
-    if not ok then aardkit.util.err("save " .. key .. ": " .. tostring(err)) end
-    return ok
+    local path = U.datafile(key .. ".lua")
+    -- three outcomes: it raised (ok false, a is the error), it returned nil plus
+    -- a message (ok true, b is the message), or it returned nothing and wrote.
+    local ok, a, b = pcall(table.save, path, tbl)
+    local why = (not ok and a) or b
+    if why then
+        aardkit.util.err("save " .. key .. ": " .. tostring(why))
+        return false
+    end
+    return true
 end
 
 -- Defaults are a floor, not a fallback: whatever loads gets laid over them, so a
@@ -156,6 +167,32 @@ function U.load(key, default)
     end
     for k, v in pairs(t) do out[k] = v end
     return out
+end
+
+---
+-- db
+--
+-- Mudlet's db:update is db:update(sheet, tbl) and nothing else. It finds the row
+-- from tbl._row_id and asserts if that's missing (mudlet-lua/DB.lua:1411). There
+-- is no (sheet, fields, query) form - db:set is the by-query one and it writes a
+-- single column. Every call site here passed a third argument that was silently
+-- ignored while the row was picked by an _row_id that wasn't there, so the
+-- assert fired and the write never happened.
+--
+-- All of them already had the fetched row to hand, so: pass it, and let this
+-- carry the id across.
+---
+
+function U.dbupdate(sheet, row, fields)
+    if not (sheet and type(row) == "table" and row._row_id) then
+        U.err("db update: no _row_id - fetch the row first")
+        return false
+    end
+    local t = { _row_id = row._row_id }
+    for k, v in pairs(fields or {}) do t[k] = v end
+    local ok, err = pcall(db.update, db, sheet, t)
+    if not ok then U.err("db update: " .. tostring(err)); return false end
+    return true
 end
 
 ---
@@ -1189,12 +1226,34 @@ local WHY = {
     ["runto rt"] = "hardcodes someone else's speedwalks and leaks a 1/sec timer printing '3'",
 }
 
+-- disableAlias returns false when there's no alias by that name yet - it does
+-- not raise - so pcall's flag only ever meant "didn't crash". We were counting
+-- that as success and saying nothing either way, which is the one outcome this
+-- file exists to prevent: their runaway timer back, and no hint that the guard
+-- had failed. Take the real return, and keep retrying until it takes.
+local tries = 0
+
 function S.apply()
-    local n = 0
+    local n, missing = 0, {}
     for name, want in pairs(CFG.off) do
         if want then
-            local ok = pcall(disableAlias, name)
-            if ok then n = n + 1 end
+            local ok, done = pcall(disableAlias, name)
+            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
+        end
+    end
+
+    tries = tries + 1
+    if #missing &gt; 0 then
+        -- Their package loads on its own schedule, so a fixed handful of retries
+        -- is a guess about someone else's timing. Keep going for a minute, then
+        -- say so once - but only to someone who actually has their package. No
+        -- 'aard' global means it isn't installed and there was never anything
+        -- here to disable, so shut up about it.
+        if tries &lt; 20 then
+            tempTimer(3, S.apply)
+        elseif tries == 20 and aard ~= nil then
+            U.warn("Stock module: couldn't disable " .. table.concat(missing, ", ")
+                .. " - if you see a stray '3' every second, that's why. 'aardkit stock' to retry.")
         end
     end
     -- their runaway timer, if one is already going. Only the newest is tracked
@@ -1240,13 +1299,15 @@ function S.cmd(arg)
 end
 
 -- Their package loads on its own schedule, so once at script time isn't enough:
--- an alias they create after us would come back up enabled.
+-- an alias they create after us would come back up enabled. S.apply re-arms
+-- itself now until it actually takes, so this only has to start it.
 S.apply()
-tempTimer(2, S.apply)
 
 U.killhandler(aardkit_stock_connect)
-aardkit_stock_connect = registerAnonymousEventHandler("sysConnectionEvent",
-    function() tempTimer(3, S.apply) end)
+aardkit_stock_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    tries = 0                 -- their package can reload on connect; earn the retries again
+    tempTimer(3, S.apply)
+end)
 </script>
 				<eventHandlerList />
 			</Script>

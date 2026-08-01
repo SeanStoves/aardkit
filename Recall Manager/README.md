@@ -22,16 +22,16 @@ that every module here builds on. Without it nothing else loads.
 |---|---|
 | `recallmanager` | show/hide the panel |
 | `rm <name>` | fire that button's commands |
-| `recallmanager add <name> <cmd|cmd>` | create a button |
-| `recallmanager edit <name> <cmd|cmd>` | replace its commands |
+| `recallmanager add <name> <cmd\|cmd>` | create a button |
+| `recallmanager edit <name> <cmd\|cmd>` | replace its commands |
 | `recallmanager del <name>` | remove a button and its trigger |
-| `recallmanager at <name> <regex|off>` | arrival line that sets the At: field |
-| `recallmanager var <name> <value|off>` | define $name used inside commands |
+| `recallmanager at <name> <regex\|off>` | arrival line that sets the At: field |
+| `recallmanager var <name> <value\|off>` | define $name used inside commands |
 | `recallmanager vars` | list defined vars |
 | `recallmanager list` | print buttons, commands, counters |
 | `recallmanager reset` | zero the use counters |
 | `recallmanager factoryreset confirm` | wipe all buttons and vars |
-| `recallmanager show|hide|dock|embed` | panel placement |
+| `recallmanager show\|hide\|dock\|embed` | panel placement |
 
 Each has its own `help` with the full list.
 

@@ -441,8 +441,8 @@ function SD.on_scan(mob)
     local where = db:AND(db:eq(T.mobs.mob, mob), db:eq(T.mobs.roomid, roomid))
     local found = db:fetch(T.mobs, where)
     if found and found[1] then
-        db:update(T.mobs, { seen_count = (found[1].seen_count or 0) + 1,
-                            room = room or "", zone = zone or "" }, where)
+        U.dbupdate(T.mobs, found[1], { seen_count = (found[1].seen_count or 0) + 1,
+                                       room = room or "", zone = zone or "" })
     else
         db:add(T.mobs, { mob = mob, room = room or "", roomid = roomid,
                          zone = zone or "", seen_count = 1, kill_count = 0 })
@@ -848,13 +848,18 @@ SD.arm_campaign = cp_start
 local TAIL = { " bent on ", " of ", " in ", " from ", " with ", " on " }
 
 local function huntkey(name)
-    local s = name:gsub("^[Tt]he%s+", ""):gsub("^[Aa]n?%s+", "")
+    local s = tostring(name or ""):gsub("^[Tt]he%s+", ""):gsub("^[Aa]n?%s+", "")
     for _, sep in ipairs(TAIL) do
         local cut = s:lower():find(sep, 1, true)
         if cut then s = s:sub(1, cut - 1); break end
     end
     return (s:match("([%w'-]+)%s*$") or s):lower()
 end
+
+-- ui.lua needs the same answer for its buttons. It used to keep a second copy
+-- and the copy had %%s where it wanted %s, so it silently returned the whole
+-- name. One definition, no drift.
+SD.huntkey = huntkey
 
 function print_block()
     local t = list("campaign")
@@ -1406,8 +1411,8 @@ function SD.keywords()
             local minl, maxl, lock, k, name = matches[2], matches[3], matches[4], matches[5], matches[6]
             local rows = db:fetch(T.area, db:eq(T.area.name, name))
             if rows and rows[1] then
-                db:update(T.area, { key = k, minlvl = tonumber(minl), maxlvl = tonumber(maxl),
-                                    lock = tonumber(lock) or 0 }, db:eq(T.area.name, name))
+                U.dbupdate(T.area, rows[1], { key = k, minlvl = tonumber(minl),
+                                              maxlvl = tonumber(maxl), lock = tonumber(lock) or 0 })
             else
                 db:add(T.area, { name = name, key = k, minlvl = tonumber(minl),
                                  maxlvl = tonumber(maxl), lock = tonumber(lock) or 0,
@@ -1668,14 +1673,11 @@ end
 -- the room-by-room walker is still 'ah &lt;mob&gt;' typed on purpose.
 ---
 
-local function keyword(name)
-    local k = tostring(name or ""):gsub("^[Tt]he%%s+", ""):gsub("^[Aa]n?%%s+", "")
-    for _, sep in ipairs({ " bent on ", " of ", " in ", " from ", " with ", " on " }) do
-        local cut = k:lower():find(sep, 1, true)
-        if cut then k = k:sub(1, cut - 1); break end
-    end
-    return (k:match("([%%w'-]+)%%s*$") or k):lower()
-end
+-- One definition, shared. targets.lua owns it because that's where the output
+-- block needs it too; this file had its own copy and the copy was wrong -
+-- written with %%s and %%w, which in a Lua pattern is a literal percent sign,
+-- so nothing ever matched and the buttons sent the whole mob name.
+local keyword = SD.huntkey
 
 SD.keyword = keyword
 

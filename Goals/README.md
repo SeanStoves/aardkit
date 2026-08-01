@@ -25,7 +25,7 @@ that every module here builds on. Without it nothing else loads.
 | `goal rm <name>` | delete one |
 | `goal <type>` | filter to qp/tp/gold/bank/trains/pracs |
 | `goal report` | send nearest unfinished goal to the channel |
-| `goal channel <name|echo>` | where announcements go |
+| `goal channel <name\|echo>` | where announcements go |
 | `goal worth` | current holdings from gmcp.char.worth |
 | `goal clear yes` | delete every goal |
 
