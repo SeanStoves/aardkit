@@ -305,28 +305,34 @@ function CH.layout()
     end
 end
 
+-- Errors from the constructors are REPORTED, not swallowed. The window came up
+-- empty with a healthy 500x210 container and eight widgets that had never been
+-- built, and a pcall that throws its message away is why that took a round trip
+-- to explain: 'chat' could say nothing was built but not a word about why.
+local said_why = false
+
+local function build(what, fn)
+    local ok, obj = pcall(fn)
+    if ok and obj then return obj end
+    if not said_why then
+        said_why = true
+        U.err("Couldn't build " .. what .. ": " .. tostring(obj))
+    end
+    return nil
+end
+
 function CH.paint()
-
-for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
-
--- guiLoad runs on connect, not at script load, so a profile that starts
--- disconnected has none of their tabs to remove when the timers above fire.
--- Try again after the connection, which is when they actually exist.
-U.killhandler(aardkit_chat_connect)
-aardkit_chat_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
-    for _, t in ipairs({ 2, 6, 12, 20 }) do tempTimer(t, stand_down) end
-end)
     if not panel.container then return end
     local gen = panel.gen or 1
 
     if not back then
-        local ok, b = pcall(function()
+        local b = build("the backdrop", function()
             return Geyser.Label:new({
                 name = "aardkit_chat_bg_" .. gen,
                 x = 0, y = 0, width = "100%", height = "100%",
             }, panel.container)
         end)
-        if ok and b then
+        if b then
             back = b
             -- solid, and behind everything: the container's own background is
             -- painted on the frame rather than the inside, so without this the
@@ -338,20 +344,20 @@ end)
 
     for i, name in ipairs(TABS) do
         if not tabs[name] then
-            local ok, b = pcall(function()
+            local b = build("tab " .. name, function()
                 return Geyser.Label:new({
                     name = "aardkit_chat_tab_" .. name .. "_" .. gen,
                     x = 0, y = 0, width = 10, height = TABH,
                 }, panel.container)
             end)
-            if ok and b then
+            if b then
                 tabs[name] = b
                 -- a function, not a string: no quoting a tab name into Lua
                 pcall(function() b:setClickCallback(function() CH.show(name) end) end)
             end
         end
         if not cons[name] then
-            local ok, c = pcall(function()
+            local c = build("console " .. name, function()
                 return Geyser.MiniConsole:new({
                     name = "aardkit_chat_" .. name .. "_" .. gen,
                     x = 0, y = TABH, width = 10, height = 10,
@@ -359,7 +365,7 @@ end)
                     fontSize = CFG.fontSize or 9,
                 }, panel.container)
             end)
-            if ok and c then
+            if c then
                 cons[name] = c
                 pcall(function() c:setColor("#0d1117") end)
             end
@@ -507,7 +513,7 @@ function CH.cmd(arg)
     end
 
     if verb == "repaint" then
-        cons, tabs, back = {}, {}, nil
+        cons, tabs, back, said_why = {}, {}, nil, false
         CH.paint()
         local w, h, nt, nc = CH.diag()
         U.ok("Rebuilt: " .. nt .. " tab(s), " .. nc .. " console(s), container " .. w .. "x" .. h .. ".")
@@ -654,6 +660,17 @@ aardkit.register("chat", "the channels in tabs, in a window you can move", CH.cm
 aardkit.gmcp.watch("chat", "comm.channel", "aardkit.chat.on_channel", true)
 
 CH.paint()
+
+-- Their tabs, stood down. After the load AND after a connect: guiLoad builds
+-- them when the session connects rather than when this script loads, so a
+-- profile that opens disconnected has nothing to remove when the load timers
+-- fire - every one of them passes before their tabs exist.
+for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
+
+U.killhandler(aardkit_chat_connect)
+aardkit_chat_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    for _, t in ipairs({ 2, 6, 12, 20 }) do tempTimer(t, stand_down) end
+end)
 </script>
 				<eventHandlerList />
 			</Script>
