@@ -1939,29 +1939,48 @@ local tries = 0
 -- 'cp info' lists every target including the ones you have already killed, so
 -- the panel that had just been filled with the 13 you still owe gets replaced
 -- by all 15. The replace("") mangles the line on the way past too.
+-- Tracked by NAME, not per list.
+--
+-- 'aardkit stock off &lt;name&gt;' doesn't know whether the thing is an alias, a
+-- trigger or a script, so it writes the name into all three lists and lets
+-- whichever one answers do the work. Two of the three then fail by definition -
+-- and this used to add a name to `missing` for each failure, so a name that had
+-- been disabled perfectly well as a trigger was still reported as one it
+-- couldn't disable. That's the 'couldn't disable map quest cp gq' warning: it
+-- was disabled, twenty times over, and complained about anyway.
+--
+-- One entry per name, and it survives if ANY of the three took.
 function S.apply()
-    local n, missing = 0, {}
-    for name, want in pairs(CFG.off or {}) do
-        if want then
-            local ok, done = pcall(disableAlias, name)
-            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
+    local n, got, tried = 0, {}, {}
+
+    local function attempt(name, fn)
+        tried[name] = true
+        if not U.has(fn) then return end
+        local ok, done = pcall(_G[fn], name)
+        if ok and done ~= false then
+            got[name] = true
+            n = n + 1
         end
     end
+
+    for name, want in pairs(CFG.off or {}) do
+        if want then attempt(name, "disableAlias") end
+    end
     for name, want in pairs(CFG.trig or {}) do
-        if want then
-            local ok, done = pcall(disableTrigger, name)
-            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
-        end
+        if want then attempt(name, "disableTrigger") end
     end
     -- Scripts are the heavy switch and nothing is in here by default. Disabling
     -- one stops everything of theirs that reads what it wrote, which is the
     -- point when you've replaced it and a foot-gun when you haven't.
     for name, want in pairs(CFG.script or {}) do
-        if want and U.has("disableScript") then
-            local ok, done = pcall(disableScript, name)
-            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
-        end
+        if want then attempt(name, "disableScript") end
     end
+
+    local missing = {}
+    for name in pairs(tried) do
+        if not got[name] then missing[#missing + 1] = name end
+    end
+    table.sort(missing)
 
     -- the whole module, if that's been asked for. Last, so the named switches
     -- above still report honestly on their own.

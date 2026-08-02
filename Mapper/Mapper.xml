@@ -2710,10 +2710,27 @@ end
 -- yet, so no area to mark. That left the map drawn right but unmarked until
 -- 'mapper style aard' was typed, which is a default that isn't one.
 function M.style_area(aid)
-    if CFG.style ~= "aard" or not CFG.symbols then return 0 end
+    if CFG.style ~= "aard" then return 0 end
     aid = tonumber(aid)
     if not aid or stamped[aid] then return 0 end
     stamped[aid] = true
+
+    -- Zoom, on entering the area rather than once at load. Mudlet keeps it per
+    -- area, so setting it in Aylor left every other area on whatever it had -
+    -- which is why one area drew proper rooms and the next drew dots joined by
+    -- lines. Same number everywhere: 20 is one MUSHclient cell in pixels.
+    if U.has("setMapZoom") then pcall(setMapZoom, ZOOM) end
+
+    -- An area we gridded earlier stays gridded - setGridMode writes to the map
+    -- and outlives the session. Grid is the continent's now, so an ordinary area
+    -- that still has it gets it taken off, or it keeps the solid-block drawing
+    -- from a version of this that gridded wherever you happened to stand.
+    if not gridded[aid] and U.has("setGridMode") and U.has("getGridMode") then
+        local okg, on = pcall(getGridMode, aid)
+        if okg and on then pcall(setGridMode, aid, false) end
+    end
+
+    if not CFG.symbols then return 0 end
     return stamp_area(aid)
 end
 
@@ -2814,6 +2831,10 @@ function M.style_aard(quiet)
     M.save()
 
     local aid = area_here()
+    if aid then
+        stamped[aid] = nil          -- re-do this area, whatever it had before
+        M.style_area(aid)
+    end
     local n = stamp_area(aid)
     -- deliberately NOT gridding this area. Grid mode is for the continent and
     -- nothing else: an indoor area drawn as solid blocks loses its exit lines,
