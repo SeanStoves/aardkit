@@ -910,14 +910,29 @@ function M.cexits(scope)
         return tostring(x[4]) &lt; tostring(y[4])
     end)
 
-    U.table({
+    -- Every row saying "The Boot Lyceum" is 21 characters of nothing, and it's
+    -- 21 the command column badly wants. If they're all in one area, say it
+    -- once in the footer and drop the column.
+    local area_name, one_area = rows[1][1], true
+    for _, r in ipairs(rows) do
+        if r[1] ~= area_name then one_area = false; break end
+    end
+
+    local cols = {
         { "area",      max = 24 },
-        { "room name", max = 32 },
+        { "room name", max = 28 },
         { "rm uid",    align = "r" },
-        { "dir",       max = 59 },
+        { "dir",       flex = true },
         { "to uid",    align = "r" },
-    }, rows, "Found " .. #rows .. " custom exit(s).  [del] removes one; "
-       .. "'mapper delete cexits' clears this room.")
+    }
+    if one_area then
+        table.remove(cols, 1)
+        for _, r in ipairs(rows) do table.remove(r, 1) end
+    end
+
+    U.table(cols, rows, "Found " .. #rows .. " custom exit(s)"
+        .. (one_area and (" in " .. tostring(area_name)) or "")
+        .. ".  [del] removes one; 'mapper delete cexits' clears the room.")
 end
 
 ---

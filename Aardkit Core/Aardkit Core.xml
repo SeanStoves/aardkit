@@ -630,19 +630,75 @@ end
 -- three facts per row, and "you can read it at a glance" is most of why that
 -- mapper's output is missed.
 --
--- cols: { { title, align = "l"|"r", max = &lt;chars&gt; }, ... }
--- Anything longer than max is cut with a trailing space, the way theirs does -
--- a wrapped cell would break the grid, and the id beside it is what you'd look
--- the full text up with anyway.
+-- It FITS THE WINDOW. A grid that wraps is worse than no grid - the borders
+-- land mid-row and the columns stop lining up, which is the one thing a table
+-- is for. So the width is measured, and a column marked `flex` gives up
+-- whatever the fixed ones need. If it still won't fit, the flex column shrinks
+-- to a floor and the row is cut there.
+--
+-- cols: { { title, align = "l"|"r", max = &lt;chars&gt;, flex = true }, ... }
+-- rows: lists of values; a row may carry .link = { label, command, hint }
 function U.table(cols, rows, foot)
-    local w = {}
-    for i, c in ipairs(cols) do w[i] = #tostring(c[1] or "") end
+    local avail = 100
+    if U.has("getColumnCount") then
+        local ok, n = pcall(getColumnCount)
+        if ok and tonumber(n) and tonumber(n) &gt; 20 then avail = tonumber(n) end
+    end
+    -- a trailing [del] sits outside the grid but still takes room on the line
+    local linked = false
+    for _, r in ipairs(rows) do if type(r.link) == "table" then linked = true; break end end
+    avail = avail - (linked and 8 or 1)
+
+    -- Cut with a marker, so a value that CONTINUES doesn't read as one that
+    -- ended. 'get bus bag' and 'get bus bag;unlock down;...' are different
+    -- exits and the difference has to survive the column.
+    --
+    -- One ASCII character, not an ellipsis: every width here is counted with #,
+    -- which counts BYTES, and a three-byte '…' would put every column after it
+    -- out by two and break the grid this is all in aid of.
+    local function cut(v, n)
+        if n &lt; 1 then return "" end
+        if #v &lt;= n then return v end
+        if n == 1 then return "~" end
+        return v:sub(1, n - 1) .. "~"
+    end
+
+    local function cell(c, v)
+        v = tostring(v == nil and "" or v)
+        if c.max then v = cut(v, c.max) end
+        return v
+    end
+
+    local w, flex = {}, nil
+    for i, c in ipairs(cols) do
+        w[i] = #tostring(c[1] or "")
+        if c.flex then flex = i end
+    end
     for _, r in ipairs(rows) do
         for i, c in ipairs(cols) do
-            local v = tostring(r[i] == nil and "" or r[i])
-            if c.max and #v &gt; c.max then v = v:sub(1, c.max) end
-            if #v &gt; w[i] then w[i] = #v end
+            local n = #cell(c, r[i])
+            if n &gt; w[i] then w[i] = n end
         end
+    end
+
+    -- '| ' + ' ' per column, plus the closing '|'
+    local function total()
+        local t = 1
+        for i = 1, #cols do t = t + w[i] + 3 end
+        return t
+    end
+
+    if flex and total() &gt; avail then
+        w[flex] = math.max(8, w[flex] - (total() - avail))
+    end
+    -- still over: take it out of the widest non-flex text column
+    while total() &gt; avail do
+        local widest, at = 0, nil
+        for i, c in ipairs(cols) do
+            if i ~= flex and c.align ~= "r" and w[i] &gt; widest then widest, at = w[i], i end
+        end
+        if not at or widest &lt;= 6 then break end
+        w[at] = w[at] - 1
     end
 
     local function rule()
@@ -654,30 +710,28 @@ function U.table(cols, rows, foot)
     local function line(vals, colour)
         local p = {}
         for i, c in ipairs(cols) do
-            local v = tostring(vals[i] == nil and "" or vals[i])
-            if c.max and #v &gt; c.max then v = v:sub(1, c.max) end
+            local v = cut(cell(c, vals[i]), w[i])
             local pad = string.rep(" ", w[i] - #v)
             p[i] = " " .. (c.align == "r" and (pad .. v) or (v .. pad)) .. " "
         end
-        return "&lt;#3a4a6b&gt;|&lt;r&gt;" .. table.concat(p, "&lt;#3a4a6b&gt;|&lt;r&gt;"):gsub("^", "&lt;" .. colour .. "&gt;")
+        return "&lt;#3a4a6b&gt;|&lt;r&gt;&lt;" .. colour .. "&gt;"
+            .. table.concat(p, "&lt;r&gt;&lt;#3a4a6b&gt;|&lt;r&gt;&lt;" .. colour .. "&gt;")
             .. "&lt;r&gt;&lt;#3a4a6b&gt;|&lt;r&gt;"
     end
 
+    local head = {}
+    for i, c in ipairs(cols) do head[i] = c[1] end
+
     U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
-    U.out("\n" .. line((function()
-        local t = {}
-        for i, c in ipairs(cols) do t[i] = c[1] end
-        return t
-    end)(), "#7aa2f7"))
+    U.out("\n" .. line(head, "#7aa2f7"))
     U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
     for _, r in ipairs(rows) do
         U.out("\n" .. line(r, "#c8d0dc"))
-        -- A row can carry a clickable of its own: { label, command, hint }.
-        -- Appended after the closing bar rather than inside a cell, because a
-        -- link has no printable width the column arithmetic can account for and
-        -- putting one in a cell breaks the grid it exists to keep.
+        -- Appended after the closing bar rather than put in a cell: a link has
+        -- no printable width the column arithmetic can account for, and one
+        -- inside a cell breaks the grid the table exists to keep.
         if type(r.link) == "table" and r.link[1] then
-            U.outLink("  " .. r.link[1], r.link[2], r.link[3], true)
+            U.outLink(" " .. r.link[1], r.link[2], r.link[3], true)
         end
     end
     U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
