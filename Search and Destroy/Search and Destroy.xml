@@ -372,7 +372,7 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>(?:ANNIHILATES|ASPHYXIATES|ATOMIZES|BLASTS|CREMATES|DECIMATES|DEMOLISHES|DESTROYS|DEVASTATES|DISEMBOWELS|DISMEMBERS|ERADICATES|EVAPORATES|EXTERMINATES|EXTIRPATES|FISSURES|GLACIATES|IMPLODES|INCINERATES|LACERATES|LIQUIDATES|MASSACRES|METEORITES|MUTILATES|NUKES|OBLITERATES|PULVERIZES|RAVAGES|RENDS|RUPTURES|SHATTERS|SHREDS|SLAUGHTERS|SUNDERS|SUPERNOVAS|TEARS INTO|WASTES|tickles|bruises|scratches|grazes|nicks|scars|hits|injures|wounds|mauls|maims|mangles|mars|damages|shreds|destroys|pulverizes|vaporizes|atomizes|asphyxiates|ravages|fissures|liquidates|evaporates|sunders|wastes|cremates|annihilates|implodes|exterminates|shatters|slaughters|ruptures|nukes|glaciates|meteorites|supernovas|does UNBELIEVABLE things to|does UNIMAGINABLE things to|does UNSPEAKABLE things to|does HUGE things to)\s*(?:[^\w\s]+\s*)*(\S[^!.]*?)\s*[!.] \[\d+\]$</string>
+					<string>(?i)\b(?:exterminates|annihilates|asphyxiates|disembowels|incinerates|obliterates|demolishes|devastates|dismembers|eradicates|evaporates|extirpates|liquidates|meteorites|pulverizes|slaughters|supernovas|tears into|decimates|glaciates|lacerates|massacres|mutilates|scratches|vaporizes|atomizes|cremates|destroys|fissures|implodes|ruptures|shatters|bruises|damages|injures|mangles|ravages|sunders|tickles|blasts|grazes|shreds|wastes|wounds|maims|mauls|nicks|nukes|rends|scars|hits|mars|misses|does \w+ things to)\b\s*(?:[^\w\s]+\s*)*(\S[^!.]*?)\s*[!.] \[\d+\]$</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -511,8 +511,10 @@ local T = SD.t
 --
 -- Self-directed lines are the only real trap: "Omark heals himself" and every
 -- incoming hit ends the same way.
-local SELF = { you = true, yourself = true, himself = true,
-               herself = true, itself = true, themselves = true }
+-- 'Someone' is what Aardwolf calls a player it won't name for you, so it turns
+-- up 629 times in the logs and is never a mob.
+local SELF = { you = true, yourself = true, himself = true, herself = true,
+               itself = true, themselves = true, someone = true }
 
 -- 214 hits on the same mob is one fact, not 214 writes
 local lastdmg, lastdmg_room
