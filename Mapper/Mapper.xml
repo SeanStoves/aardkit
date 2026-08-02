@@ -158,6 +158,10 @@ local CFG = U.load("mapper", {
     -- portal is held, which costs you whatever was in that hand. Off by default
     -- because the held path works for everyone and the worn one doesn't.
     portalwish = false,
+    -- Two things writing one map is how rooms end up in the wrong place. If the
+    -- stock module is installed, its mapping stands down while ours is here -
+    -- everything of theirs that read it has an equivalent on this side.
+    standalone = true,
     -- Ours, not the stock module's. vconfig is part of a setup we don't own and
     -- may not be installed at all, so it's read as a convenience and never
     -- relied on: whatever is set here wins, and with neither set the chain is
@@ -438,8 +442,19 @@ function M.goto_room(id)
         U.warn("No known path to " .. U.rid(id) .. " from here.")
         return
     end
-    U.ok("Walking to " .. U.rid(id) .. " - " .. #speedWalkDir .. " step(s).")
-    doSpeedWalk()
+    -- Not doSpeedWalk(). The stock module replaces that global with its own -
+    -- 'run = buildSpeedWalk(); display(run); send(run)' - so calling it hands
+    -- our route to their implementation and prints the command at you. S&amp;D has
+    -- avoided it since it was written; this had not.
+    local steps = {}
+    for i, d in ipairs(speedWalkDir or {}) do steps[i] = d end
+    if #steps == 0 then U.warn("No route to " .. U.rid(id) .. "."); return end
+    U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s).")
+    -- S&amp;D already folds runs of basic directions into 'run 3n2e'. Use it if
+    -- that module is here; send the steps one at a time if it isn't.
+    local compress = aardkit.snd and aardkit.snd.compress
+    local cmds = compress and compress(steps) or steps
+    for _, c in ipairs(cmds) do send(c, false) end
 end
 
 local next_i = 0
@@ -1157,6 +1172,17 @@ function M.purgezone(name)
     U.warn("No area called '" .. name .. "'.")
 end
 
+-- Theirs, and what replaces it on this side. Named so 'mapper standalone' can
+-- say what it's switching off rather than just doing it.
+local THEIRS = {
+    { "onRoom",          "script",  "writes rooms and exits on every move",
+                                    "this module does the same, from the same GMCP" },
+    { "where",           "trigger", "'Players near you' capture",
+                                    "Player Tracker, and 'mapper where &lt;room&gt;' for directions" },
+    { "map quest cp gq", "trigger", "campaign and quest target capture",
+                                    "Search and Destroy's own capture and panel" },
+}
+
 ---
 -- the command tree
 ---
@@ -1268,15 +1294,14 @@ function M.cmd(arg)
         -- haven't and shouldn't touch this.
         local v = U.trim(rest):lower()
         if v ~= "on" and v ~= "off" then
-            U.help("Standalone mapping", {
-                { "what",  "stops the stock module writing to the map" },
-                { "costs", "their speedwalk, coordrun, 'where' and map triggers stop too" },
-                { "" },
-                { "mapper standalone on",  "ours maps, theirs doesn't" },
-                { "mapper standalone off", "hand it back" },
-                { "" },
-                { "The map panel is separate - 'mapper map' works either way." },
-            })
+            local rows = { { "state", CFG.standalone and "on - ours has the map" or "off - theirs is running too" }, { "" } }
+            for _, t in ipairs(THEIRS) do
+                rows[#rows + 1] = { t[1] .. "  (" .. t[2] .. ")", t[3] }
+                rows[#rows + 1] = { "", "-&gt; " .. t[4] }
+            end
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "mapper standalone on|off", "switch it" }
+            U.help("Standalone mapping", rows)
             return
         end
         if not U.has("disableScript") then
@@ -1287,7 +1312,12 @@ function M.cmd(arg)
             U.note("The stock module isn't installed, so there's nothing to stand down.")
             return
         end
-        aardkit.stock.cmd((v == "on" and "off " or "on ") .. "onRoom")
+        CFG.standalone = (v == "on")
+        save()
+        for _, t in ipairs(THEIRS) do
+            aardkit.stock.cmd((v == "on" and "off " or "on ") .. t[1])
+        end
+        stood_down = (v == "on")
         U.ok(v == "on" and "Stock mapping off - ours has the map to itself."
             or "Stock mapping back on. Reload to be sure it's running.")
 
@@ -1428,13 +1458,26 @@ aardkit.gmcp.watch("mapper_cexit", "room.info", "aardkit.mapper.on_room", true)
 -- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
 -- has to land after that or there's nothing in the frame to remove yet. It
 -- retries because their timing is theirs, not ours.
-local unframed = false
+local unframed, stood_down = false, false
+
+local function stand_down()
+    if stood_down or not CFG.standalone then return end
+    if not (aard and U.has("disableScript")) then return end
+    for _, t in ipairs(THEIRS) do
+        aardkit.stock.cmd("off " .. t[1])
+    end
+    stood_down = true
+    U.note("Stock mapping stood down - two things writing one map is how rooms"
+        .. " end up in the wrong place. 'mapper standalone' lists what moved across.")
+end
+
 local function claim_map()
     if unframed then return end
     if M.unframe_theirs() then
         unframed = true
         U.note("Took the stock module's map out of its fixed frame - 'mapper map' for ours.")
     end
+    stand_down()
 end
 
 M.paint_map()
