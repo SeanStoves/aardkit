@@ -1013,11 +1013,13 @@ local STYLE = {
 -- than blotting it" - and in practice that means the game text shows through
 -- every panel you own, which reads as a rendering fault rather than a choice.
 -- 'panel opacity &lt;0-255&gt;' brings it back for anyone who wants it.
+-- The default every panel inherits. A panel may override it, and the override
+-- wins; unset an override and it goes back to following this.
 P.opacity = 255
 
-local function container_style(clear)
+local function container_style(clear, alpha)
     return [[
-        background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(P.opacity)) .. [[);
+        background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(alpha or P.opacity)) .. [[);
         border: 1px solid ]] .. STYLE.border .. [[;
         border-radius: 3px;
     ]]
@@ -1089,7 +1091,7 @@ function Panel:_build()
             width       = self.w, height = self.h,
             titleText   = self.title,
             titleTxtColor = STYLE.title,
-            adjLabelstyle = container_style(self.clear),
+            adjLabelstyle = container_style(self.clear, self:alpha()),
             padding     = TITLEBAR,
             autoSave    = true,
             autoLoad    = true,
@@ -1130,6 +1132,18 @@ function Panel:_build()
     if self.onbuild then
         local ok, err = pcall(self.onbuild, self)
         if not ok then U.err("panel " .. self.name .. " onbuild: " .. tostring(err)) end
+    end
+end
+
+-- This panel's own setting if it has one, otherwise the shared default.
+function Panel:alpha()
+    local own = st(self.name).opacity
+    return tonumber(own) or P.opacity
+end
+
+function Panel:restyle()
+    if self.holder and self.holder.setStyleSheet then
+        pcall(function() self.holder:setStyleSheet(container_style(self.clear, self:alpha())) end)
     end
 end
 
@@ -1515,14 +1529,16 @@ function P.cmd(arg)
         P.opacity = math.floor(n)
         st("_opacity").value = P.opacity
         save_state()
-        -- restyle every panel that's up, so it takes without a reload
+        -- every panel that's up, so it takes without a reload. A panel with its
+        -- own setting keeps it: that's what an override is for.
+        local kept = 0
         for _, p in pairs(P.reg) do
-            if p.holder and p.holder.setStyleSheet then
-                pcall(function() p.holder:setStyleSheet(container_style(p.clear)) end)
-            end
+            if st(p.name).opacity then kept = kept + 1 end
+            p:restyle()
         end
-        U.ok("Panel background " .. P.opacity .. "/255"
-            .. (P.opacity &lt; 255 and " - the game will show through." or " - solid."))
+        U.ok("Default panel background " .. P.opacity .. "/255"
+            .. (P.opacity &lt; 255 and " - the game will show through." or " - solid.")
+            .. (kept &gt; 0 and ("  (" .. kept .. " with their own setting kept it.)") or ""))
 
     elseif verb == "raise" or verb == "top" then
         P.raiseall()
@@ -1556,7 +1572,9 @@ function P.cmd(arg)
             { "panel &lt;name&gt; clear",   "empty its buffer" },
             { "panel raise",          "bring every panel above the module's GUI" },
             { "panel save",           "write the current layout to disk" },
-            { "panel opacity &lt;0-255&gt;", "how solid every panel is; 255 is solid" },
+            { "panel opacity &lt;0-255&gt;", "the default every panel follows; 255 is solid" },
+            { "panel &lt;name&gt; opacity &lt;n&gt;", "override it for one panel" },
+            { "panel &lt;name&gt; opacity default", "follow the shared setting again" },
             { "panel load",           "reload the saved layout" },
             { "panel reset",          "forget all panel state" },
             { "" },
@@ -1578,7 +1596,34 @@ function P.cmd(arg)
         elseif act == "dock"  then p:setmode("dock")
         elseif act == "embed" then p:setmode("embed")
         elseif act == "clear" then p:clear()
-        else U.warn("panel " .. verb .. " show|hide|dock|embed|clear")
+        elseif act:match("^opacity") then
+            local want = U.trim(act:gsub("^opacity", ""))
+            if want == "" then
+                local own = st(p.name).opacity
+                U.help("panel " .. p.name .. " opacity", {
+                    { "this panel", own and (own .. "/255  (its own)")
+                                    or (P.opacity .. "/255  (following the default)") },
+                    { "default",    P.opacity .. "/255" },
+                    { "" },
+                    { "panel " .. p.name .. " opacity &lt;0-255&gt;", "set just this one" },
+                    { "panel " .. p.name .. " opacity default",  "follow the shared setting again" },
+                    { "panel opacity &lt;0-255&gt;",                   "change the shared setting" },
+                })
+            elseif want == "default" or want == "clear" or want == "reset" then
+                st(p.name).opacity = nil
+                save_state(); p:restyle()
+                U.ok(p.name .. " follows the default again (" .. P.opacity .. "/255).")
+            else
+                local n = tonumber(want)
+                if not n or n &lt; 0 or n &gt; 255 then
+                    U.warn("Usage: panel " .. p.name .. " opacity &lt;0-255&gt; | default")
+                else
+                    st(p.name).opacity = math.floor(n)
+                    save_state(); p:restyle()
+                    U.ok(p.name .. " background " .. math.floor(n) .. "/255, overriding the default.")
+                end
+            end
+        else U.warn("panel " .. verb .. " show|hide|dock|embed|clear|opacity")
         end
     end
 end
