@@ -21,7 +21,7 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `mapper` | the command list |
-| `mapper help exits\|search` | the fuller lists |
+| `mapper help exits\|search\|portals` | the fuller lists |
 | `mapper thisroom` | everything known about where you stand |
 | `mapper areas [name]` | areas and room counts |
 | `mapper showroom <id>` | centre the map elsewhere |
@@ -51,14 +51,14 @@ that every module here builds on. Without it nothing else loads.
 | `mapper style unexplored on\|off` | draw rooms GMCP names and you've never entered, with a '?' (on) |
 | `mapper autocexit on\|off` | record a non-direction move as a custom exit (off: flee and recall move you too) |
 | `mapper style` | how the map draws |
-| `mapper style aard` | the MUSHclient look — solid terrain tiles, no exit lines, symbols |
+| `mapper style aard` | the MUSHclient look — its colours, square rooms, flag fills and symbols |
 | `mapper style restore` | put your own Mudlet map settings back |
 | `mapper style grid on\|off` | this area as solid tiles, or as rooms and exit lines |
 | `mapper style symbols [off]` | mark shops, healers, banks and the rest in this area |
 | `mapper style symbols all` | every room in the map, chunked so the client stays alive — run once |
 | `mapper style clear` | take the symbols off this area |
 | `mapper style ids on\|off` | room numbers painted on the map |
-| `mapper style room\|exit <n>` | the two sizes the presets leave alone |
+| `mapper style exit <n>` | exit line size; room size is Settings > Mapper only, see below |
 | `mapper backup [path]` | write a copy of the map |
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
 | `mapper map` | the Mapper panel — drag it, resize it, dock it, it stays put |
@@ -69,10 +69,15 @@ that every module here builds on. Without it nothing else loads.
 | `mapper zoom in\|out\|<n>` | map zoom — bigger is closer; the style sets 8 |
 | `mapper clickwalk on\|off` | click a room on the map to walk there (on) |
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
-| `mapper database` | where the map lives |
+| `mapper database` | where the map lives on disk |
+| `mapper lockexit` | MUSHclient had level locks; Mudlet has doors and room weights |
 | `mapper portals [here\|<area>]` | hand-held portals you have recorded |
 | `mapper portals learn` | portal items you own, read from Loot Tracker if it is installed |
 | `mapper portal <command>` | record one — stand where it drops you |
+| `mapper portal add <item>` | hold it, enter it, and record where you land |
+| `mapper portalbag <bag>` | where you keep them; empty means already in hand |
+| `mapper portalback <cmd>` | what to re-equip after — also 'portalrestore' |
+| `mapper portalwish on\|off` | you have the portal wish, so portals are worn not held |
 | `mapper portalrecall <#>` | flag it as using a recall |
 | `mapper portallevel <#> <n>` | level lock, 0 for none |
 | `mapper bounceportal [#\|clear]` | which portal to route through for a noportal room |
