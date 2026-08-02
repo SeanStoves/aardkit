@@ -505,6 +505,10 @@ end
 
 function CH.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("chat", verb, rest) then return end
+
     rest = U.trim(rest)
 
     -- a bare tab name switches to it: 'chat clan' reads better than 'chat tab clan'
@@ -534,6 +538,7 @@ function CH.cmd(arg)
             { "chat clear [tab]",  "empty one, or the one you're looking at" },
             { "chat mark on|off",  "colour a tab that has something new" },
             { "chat show|hide|dock|embed", "where the window lives" },
+{ "chat opacity &lt;0-255&gt;", "how solid this window is; 'default' to follow the shared setting" },
             { "chat standalone on|off", "stop the stock module's own tabs" },
             { "chat repaint",      "rebuild the tabs and consoles from scratch" },
             { "" },

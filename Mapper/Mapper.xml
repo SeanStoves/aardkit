@@ -1636,6 +1636,10 @@ end
 
 function M.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("mapper", verb, rest) then return end
+
     rest = U.trim(rest)
 
     -- 'mapper help exits' is offered by the help itself and never worked: verb
@@ -2055,6 +2059,7 @@ function M.help(which)
             { "mapper reframe",    "give it straight back to them" },
             { "mapper standalone on|off", "stop the stock module writing to the map too" },
             { "mapper show|hide|dock|embed", "where the map panel lives" },
+{ "mapper opacity &lt;0-255&gt;", "how solid this window is; 'default' to follow the shared setting" },
             { "mapper shownotes|quicklist|compact|updown", "display toggles" },
             { "mapper database",   "where the map lives on disk" },
             { "mapper zoom in|out|&lt;n&gt;", "map zoom - bigger is closer" },

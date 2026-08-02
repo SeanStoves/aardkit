@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `recallmanager opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `recallmanager` | show/hide the panel |
 | `rm <name>` | fire that button's commands |
 | `recallmanager add <name> <cmd\|cmd>` | create a button |

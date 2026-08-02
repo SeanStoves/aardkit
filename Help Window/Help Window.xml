@@ -251,6 +251,10 @@ end
 
 function HW.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("help", verb, rest) then return end
+
     rest = U.trim(rest):lower()
 
     if verb == "toggle" then
@@ -304,6 +308,7 @@ function HW.cmd(arg)
             { "helpwin clear",       "empty it" },
             { "helpwin retry",       "ask the MUD to tag help output again" },
             { "helpwin dock | embed | show | hide", "panel placement" },
+{ "helpwin opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Read help as you always have - 'help &lt;topic&gt;'. Aardwolf marks" },
             { "the reply and it lands here instead of the scrollback." },

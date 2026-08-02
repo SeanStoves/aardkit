@@ -21,6 +21,7 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `mapper` | the command list |
+| `mapper opacity <0-255>` | how solid the Mapper panel is; 'default' follows the shared setting |
 | `mapper help exits\|search\|portals` | the fuller lists |
 | `mapper thisroom` | everything known about where you stand |
 | `mapper areas [name]` | areas and room counts |

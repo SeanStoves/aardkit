@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `searchwin opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `searchwin` | this list |
 | `searchwin toggle` | show or hide the panel |
 | `searchwin gag` | hide it from the main window, or show it in both |

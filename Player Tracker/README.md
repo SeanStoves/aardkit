@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `pt opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `pt` | this list |
 | `pt toggle` | show or hide the panel |
 | `pt find <text>` | search name, title and clan across all records |

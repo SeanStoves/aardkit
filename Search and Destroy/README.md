@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `snd opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `snd` | this list |
 | `snd toggle` | show or hide the target panel |
 | `snd cp \| quest \| gq` | ask the MUD for that target list |

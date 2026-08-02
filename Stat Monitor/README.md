@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `stats opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `stats` | this list |
 | `stats toggle` | show or hide the panel |
 | `stats fields` | every field, what's on, and what the MUD is sending |

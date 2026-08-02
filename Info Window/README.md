@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `infowin opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `infowin` | this list |
 | `infowin toggle` | show or hide the panel |
 | `infowin buffer <n>` | scrollback lines, 10-5000 |

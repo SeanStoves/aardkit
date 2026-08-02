@@ -532,6 +532,10 @@ end
 
 function SH.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("shop", verb, rest) then return end
+
 
     if verb == "toggle" then
         panel:toggle()
@@ -602,6 +606,7 @@ function SH.cmd(arg)
             { "shopwin qty &lt;list&gt;",    "which buy buttons a row carries, e.g. 1,5,10" },
             { "shopwin clear",    "empty it" },
             { "shopwin dock | embed | show | hide", "panel placement" },
+{ "shopwin opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Type 'list' in a shop. The MUD's own list still prints in the" },
             { "main window; this is a clickable copy. Click the name to appraise" },

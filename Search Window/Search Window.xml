@@ -216,6 +216,10 @@ end
 
 function SW.cmd(arg)
     local verb = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("search", verb, select(2, U.split_verb(arg))) then return end
+
 
     if verb == "toggle" then
         panel:toggle()
@@ -259,6 +263,7 @@ function SW.cmd(arg)
             { "searchwin next | prev", "page through it, same as the buttons" },
             { "searchwin clear",       "empty it" },
             { "searchwin dock | embed | show | hide", "panel placement" },
+{ "searchwin opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Run 'search all' or 'eqsearch all' as you always have. The" },
             { "report still scrolls past in the main window; this is a copy." },

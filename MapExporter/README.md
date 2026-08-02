@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `mapexport opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `mapexport` | this list |
 | `mapexport status` | areas in the map, where you are, where files go |
 | `mapexport toggle` | repaint, and show or hide the panel |

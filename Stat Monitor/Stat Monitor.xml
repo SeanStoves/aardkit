@@ -437,6 +437,10 @@ end
 
 function SM.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("statmon", verb, rest) then return end
+
     rest = U.trim(rest):lower()
 
     if verb == "toggle" then
@@ -505,6 +509,7 @@ function SM.cmd(arg)
             { "stats reset", "back to the default set" },
             { "stats mush | grid", "the old aligned column, or the grouped grid" },
             { "stats dock|embed|show|hide", "panel placement" },
+{ "stats opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Read-only. It draws what GMCP has already sent." },
         })

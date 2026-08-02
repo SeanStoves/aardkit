@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `shopwin opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `(panel) click the name` | appraises it — costs nothing, and fills the stat table |
 | `(panel) 1 5 10 25 50 100` | the buttons beside a row — sends 'buy <n> <num>' and stops there |
 | `shopwin` | this list |

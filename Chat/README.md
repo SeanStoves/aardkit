@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `chat opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `chat` | the tab list and what it is showing |
 | `chat <tab>` | switch — 'chat clan', 'chat tell' |
 | `chat on\|off` | stop collecting altogether |

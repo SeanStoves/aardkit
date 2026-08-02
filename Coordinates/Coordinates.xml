@@ -314,6 +314,10 @@ end
 
 function CO.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("coords", verb, rest) then return end
+
     rest = U.trim(rest)
 
     if verb == "" or verb == "status" then
@@ -335,6 +339,7 @@ function CO.cmd(arg)
         rows[#rows + 1] = { "coord clear", "drop the target" }
         rows[#rows + 1] = { "coord show off|coordareas|always", "when the panel has anything to say" }
         rows[#rows + 1] = { "coord panel [show|hide|dock|embed]", "move it or put it away" }
+        rows[#rows + 1] = { "coord opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" }
         rows[#rows + 1] = { "", "'vid' still works if that's what your fingers type" }
         U.help("Coordinates", rows)
 

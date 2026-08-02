@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `coord opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `coord` | where you are, the target, and the Vidblain presets |
 | `coord 11,8` | aim at a coordinate |
 | `coord <name>` | aim at a Vidblain preset, e.g. `coord omen tor` |

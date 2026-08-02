@@ -521,6 +521,10 @@ end
 
 function PT.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("players", verb, rest) then return end
+
 
     if verb == "toggle" then
         panel:toggle()
@@ -578,6 +582,7 @@ function PT.cmd(arg)
             { "pt export",       "dump players.csv" },
             { "pt clear yes",    "wipe the database" },
             { "pt dock | embed", "" },
+{ "pt opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Click a name in the panel for its record. Online = in the most" },
             { "recent 'who'; a clan logout marks offline right away." },

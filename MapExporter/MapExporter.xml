@@ -685,6 +685,10 @@ end
 
 function EX.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("mapexport", verb, rest) then return end
+
 
     if verb == "toggle" then
         EX.paint()
@@ -755,6 +759,7 @@ function EX.cmd(arg)
             { "mapexport list [f]",    "areas in the map, with room counts" },
             { "mapexport dir [path]",  "where maps get written" },
             { "mapexport dock|embed|hide", "" },
+{ "mapexport opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Reads Mudlet's map only - it never moves you or changes it." },
             { "Each z level gets its own grid, so towers stay towers." },

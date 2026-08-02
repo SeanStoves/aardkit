@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `spellup opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `spellup` | this list |
 | `spellup toggle` | the panel: what is up, what just dropped |
 | `spellup list` | every known spellup and its state |

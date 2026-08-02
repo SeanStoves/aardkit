@@ -20,6 +20,7 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
+| `helpwin opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 | `helpwin` | this list |
 | `helpwin toggle` | show or hide the panel |
 | `helpwin gag` | hide it from the main window, or show it in both |

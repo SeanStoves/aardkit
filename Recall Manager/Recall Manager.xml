@@ -364,6 +364,7 @@ local function help()
         { "recallmanager &lt;name&gt;",                    "fire it (same as clicking)" },
         { "recallmanager list | vars | reset",       "" },
         { "recallmanager dock | embed | show | hide", "" },
+{ "recallmanager opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
         { "recallmanager diag",  "what the panel thinks it built" },
         { "recallmanager factoryreset confirm",      "wipe ALL buttons + vars" },
         { "" },
@@ -377,6 +378,10 @@ function RM.cmd(arg)
     if arg == "" then panel:toggle(); return end
 
     local lverb = arg:match("^(%S+)"):lower()
+
+    -- 'recall opacity 200' where somebody looks for it, rather than only
+    -- 'panel recall opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("recall", lverb, arg:match("^%S+%s*(.*)$")) then return end
 
     -- anything that isn't a management verb is a button name to fire
     if not RESERVED[lverb] then

@@ -1514,6 +1514,22 @@ local function list()
     U.help("Panels", rows)
 end
 
+-- One line per module, rather than every module growing its own copy of this.
+--
+-- A panel belongs to a module, so 'asciimap opacity 200' is where somebody will
+-- look for it - not 'panel asciimap opacity 200'. Both work; this is what makes
+-- the first one a single line in the module's dispatcher rather than a
+-- reimplementation of the second.
+--
+-- Returns true when it handled the verb, so a caller reads:
+--     if aardkit.panel.verb("chat", verb, rest) then return end
+function P.verb(name, verb, rest)
+    verb = tostring(verb or ""):lower()
+    if verb ~= "opacity" then return false end
+    P.cmd(name .. " opacity " .. U.trim(tostring(rest or "")))
+    return true
+end
+
 function P.cmd(arg)
     local verb, rest = U.split_verb(arg)
 

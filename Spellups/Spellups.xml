@@ -1055,6 +1055,10 @@ end
 
 function SP.cmd(arg)
     local verb, rest = U.split_verb(arg)
+    -- 'x opacity 200' where somebody looks for it, rather than only
+    -- 'panel x opacity 200'. One line; core does the work.
+    if aardkit.panel.verb("spellups", verb, rest) then return end
+
 
     -- autocast owns auto/now; extras own totem/eye/aura/wraith
     if SP.autocmd and SP.autocmd(verb, rest) then return end
@@ -1179,6 +1183,7 @@ function SP.cmd(arg)
             { "spellup aura",       "wear an item when its affect drops" },
             { "spellup wraith",     "pre-cast set before wraith form" },
             { "spellup dock|embed|hide", "" },
+{ "spellup opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "It only ever sends 'spellup' - the MUD picks the spells," },
             { "and gates on mana, recoveries, nomagic rooms, sleeping," },
