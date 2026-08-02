@@ -48,11 +48,15 @@ death line that came with it. Regular quests have no such line, so a quest targe
 cleared by re-running `snd quest`. The mob database ships empty: fill it with
 `snd scan on` or a migration.
 
-The mob table learns two ways. `snd scan on` records what room descriptions name as
+The mob table learns three ways, and combat is the best of them: you only ever hit
+the things that matter, and the damage line names them in the same short form the
+campaign list uses. That needs no setting and no command.
+
+The other two: `snd scan on` records what room descriptions name as
 you walk, but most Aardwolf mobs have a custom long description - "An ettin berserker
 charges wantonly around the dug-out encampment" - which that can't read. `con all`
 names every mob in the room in the same short form the campaign and quest lists use,
-so with Consider installed that fills the table properly. Use both.
+so with Consider installed that fills the table properly too.
 
 `ah <mob>` walks you room by room off the MUD's hunt skill, opening doors on the way.
 It stops rather than guessing: portals, warded rooms, a locked door with no key, and
