@@ -1761,22 +1761,37 @@ function SD.walk(dest, cb, what)
         U.warn("S&amp;D: Mudlet doesn't know which room you're in yet - move once and retry.")
         return false
     end
-    -- must actually run: speedWalkDir is whatever the LAST getPath left behind
-    if not getPath(here, dest) then
-        -- Nothing on foot. A portal you've recorded might land somewhere that
-        -- does have a path, so ask the mapper - and only then. No portals
-        -- recorded, or none that helps, and this fails exactly as it used to.
-        local mp = aardkit.mapper and aardkit.mapper.portal_for
-        local p, after = mp and mp(dest)
-        if p then
-            U.note("No path on foot. Portal '" .. p.cmd .. "' lands "
-                .. (after == 0 and "there" or (after .. " room(s) away")) .. " - taking it.")
+    -- Walk first, so we know what the journey costs on foot. getPath writes
+    -- speedWalkDir as a side effect and portal_for calls it again, so the steps
+    -- have to be copied out before anything else runs.
+    local steps = {}
+    if getPath(here, dest) then
+        for i, d in ipairs(speedWalkDir or {}) do steps[i] = d end
+    end
+
+    -- A portal is one command whatever the distance, so it wins whenever it
+    -- lands closer than you'd otherwise walk - not only when there's no path at
+    -- all. Nothing on foot and any portal is an improvement over not going.
+    local mp = aardkit.mapper and aardkit.mapper.portal_for
+    local p, after = mp and mp(dest)
+    if p then
+        local by_portal = 1 + (after or 0)
+        local on_foot   = #steps
+        if on_foot == 0 or by_portal &lt; on_foot then
+            U.note(on_foot == 0
+                and ("No path on foot. Portal '" .. p.cmd .. "' lands "
+                     .. (after == 0 and "there" or (after .. " room(s) away")) .. " - taking it.")
+                or ("Portal '" .. p.cmd .. "': " .. by_portal .. " step(s) against "
+                     .. on_foot .. " on foot - taking it."))
             drop_arrive()
             aardkit.snd.on_arrive = function()
                 local now = getPlayerRoom and getPlayerRoom()
                 if now and now ~= here then
                     drop_arrive()
-                    -- one hop, then the ordinary walk from wherever it put us
+                    -- one hop, then the ordinary walk from wherever it put us.
+                    -- portal_for can't return this portal again from there,
+                    -- because landing on it makes the remaining walk shorter
+                    -- than taking it, so there's no loop to guard against.
                     if now == dest then
                         if cb then cb() end
                     else
@@ -1792,16 +1807,11 @@ function SD.walk(dest, cb, what)
             send(p.cmd, false)
             return true
         end
-        U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
-        U.suggest("mapper", "A recorded portal could bridge the gap.")
-        return false
     end
 
-    -- getPath filled speedWalkDir for us; copy it before anything else can
-    local steps = {}
-    for i, d in ipairs(speedWalkDir or {}) do steps[i] = d end
     if #steps == 0 then
-        U.warn("S&amp;D: no route to " .. (what or U.rid(dest)) .. ".")
+        U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
+        U.suggest("mapper", "A recorded portal could bridge the gap.")
         return false
     end
     local cmds = SD.compress(steps)

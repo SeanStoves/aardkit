@@ -51,7 +51,7 @@ manual step comes up rather than nagging at you on load.
 
 | Module | With it | Without it |
 |---|---|---|
-| [Mapper](../Mapper/README.md) | a recorded portal is used when there's no path on foot | the walk fails as it always did, and you travel there yourself |
+| [Mapper](../Mapper/README.md) | a recorded portal is taken whenever it's shorter than walking — one command instead of forty rooms — and is the only way there when nothing connects on foot | every journey is walked, and one with no route simply fails |
 
 
 ## Worth knowing
