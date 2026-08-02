@@ -84,7 +84,17 @@ local CFG = U.load("mapper", {
     quicklist = false,
     compact   = false,
     updown    = true,
+    -- { { cmd = "enter portal", to = 1234, recall = false, level = 0 }, ... }
+    -- Ordered, because the whole interface addresses them by index: 'delete
+    -- portal #3', 'bounceportal 2'. A map keyed on the command would read
+    -- better and break every command anyone has written down.
+    portals   = {},
+    bounce    = {},   -- { portal = &lt;index&gt;, recall = &lt;index&gt; }
 })
+CFG.portals = CFG.portals or {}
+CFG.bounce  = CFG.bounce or {}
+
+local function save() U.save("mapper", CFG) end
 
 local LONG = {
     n = "north", s = "south", e = "east", w = "west", u = "up", d = "down",
@@ -544,6 +554,190 @@ function M.door(rest)
 end
 
 ---
+-- portals
+--
+-- A hand-held portal is a command that puts you somewhere, and the somewhere is
+-- the room you're standing in when you record it - unlike a cexit, which is
+-- walked to find out. That's the MUSHclient behaviour and it's the right one:
+-- you buy a portal, use it, and record where it landed you.
+--
+-- Recall Manager already does the firing half of this - a named entry holding
+-- commands - so this is the same idea with a destination attached and an index,
+-- because every portal command addresses them by number.
+--
+-- noportal / norecall are room facts, not portal facts, so they live in room
+-- user data beside the notes rather than in this list.
+---
+
+local function portal_line(i, p)
+    local dest = p.to and (getRoomName and getRoomName(p.to) or "?") or "?"
+    local bits = { p.cmd }
+    if p.recall then bits[#bits + 1] = "(recall)" end
+    if (p.level or 0) &gt; 0 then bits[#bits + 1] = "(level " .. p.level .. ")" end
+    if CFG.bounce.portal == i then bits[#bits + 1] = "&lt;bounce portal&gt;" end
+    if CFG.bounce.recall == i then bits[#bits + 1] = "&lt;bounce recall&gt;" end
+    return table.concat(bits, " "), dest .. "  " .. (p.to and U.rid(p.to) or "")
+end
+
+function M.portals(scope)
+    if #CFG.portals == 0 then
+        U.note("No portals recorded. Stand where one drops you and 'mapper portal &lt;command&gt;'.")
+        return
+    end
+    local allowed = scope_rooms(scope)
+    local rows = {}
+    for i, p in ipairs(CFG.portals) do
+        if in_scope(p.to, allowed) then
+            local a, b = portal_line(i, p)
+            rows[#rows + 1] = { "#" .. i .. "  " .. a, b }
+        end
+    end
+    if #rows == 0 then U.note("No portals to there."); return end
+    U.help(#rows .. " portal(s)", rows)
+end
+
+-- you are standing where it put you
+function M.portal(cmd)
+    cmd = U.trim(cmd)
+    if cmd == "" then U.warn("Usage: mapper portal &lt;command&gt;   (stand where it drops you)"); return end
+    local id = here()
+    if not id then U.warn("Mudlet doesn't know which room you're in."); return end
+    for i, p in ipairs(CFG.portals) do
+        if p.cmd:lower() == cmd:lower() then
+            p.to = id; save()
+            U.ok("Portal #" .. i .. " '" .. cmd .. "' now points at " .. U.rid(id) .. ".")
+            return
+        end
+    end
+    CFG.portals[#CFG.portals + 1] = { cmd = cmd, to = id, recall = false, level = 0 }
+    save()
+    U.ok("Portal #" .. #CFG.portals .. ": '" .. cmd .. "' -&gt; " .. U.rid(id) .. ".")
+end
+
+local function portal_at(spec)
+    spec = U.trim(tostring(spec or ""))
+    local n = tonumber(spec:match("^#?(%d+)$"))
+    if n then return n, CFG.portals[n] end
+    for i, p in ipairs(CFG.portals) do
+        if p.cmd:lower() == spec:lower() then return i, p end
+    end
+    return nil
+end
+
+function M.portalrecall(spec)
+    local i, p = portal_at(spec)
+    if not p then U.warn("No portal '" .. tostring(spec) .. "'."); return end
+    p.recall = not p.recall; save()
+    U.ok("Portal #" .. i .. " '" .. p.cmd .. "' " .. (p.recall and "uses a recall." or "no longer flagged as a recall."))
+end
+
+function M.portallevel(spec, lvl)
+    local i, p = portal_at(spec)
+    if not p then U.warn("No portal '" .. tostring(spec) .. "'."); return end
+    local n = math.floor(tonumber(lvl) or -1)
+    if n &lt; 0 then U.warn("Usage: mapper portallevel &lt;index&gt; &lt;level&gt;"); return end
+    p.level = n; save()
+    U.ok("Portal #" .. i .. " level lock: " .. (n == 0 and "none" or n) .. ".")
+end
+
+-- 'bounceportal 2' says which portal to route through for a noportal room;
+-- bare shows it, 'clear' drops it
+function M.bounce(kind, arg)
+    arg = U.trim(tostring(arg or ""))
+    if arg == "" then
+        local i = CFG.bounce[kind]
+        local p = i and CFG.portals[i]
+        U.note("Bounce " .. kind .. ": " .. (p and ("#" .. i .. " '" .. p.cmd .. "'") or "not set"))
+        return
+    end
+    if arg:lower() == "clear" then
+        CFG.bounce[kind] = nil; save()
+        U.ok("Bounce " .. kind .. " cleared.")
+        return
+    end
+    local i, p = portal_at(arg)
+    if not p then U.warn("No portal '" .. arg .. "'."); return end
+    CFG.bounce[kind] = i; save()
+    U.ok("Bounce " .. kind .. ": #" .. i .. " '" .. p.cmd .. "'.")
+end
+
+function M.delportal(spec)
+    local i = portal_at(spec)
+    if not i then U.warn("No portal '" .. tostring(spec) .. "'."); return end
+    local p = table.remove(CFG.portals, i)
+    -- the indexes below it just moved, so a bounce pointing past it has to follow
+    for _, k in ipairs({ "portal", "recall" }) do
+        local b = CFG.bounce[k]
+        if b == i then CFG.bounce[k] = nil
+        elseif b and b &gt; i then CFG.bounce[k] = b - 1 end
+    end
+    save()
+    U.ok("Removed portal '" .. p.cmd .. "'.")
+end
+
+function M.changeportal(spec, newcmd)
+    local i, p = portal_at(spec)
+    if not p then U.warn("No portal '" .. tostring(spec) .. "'."); return end
+    newcmd = U.trim(newcmd)
+    if newcmd == "" then U.warn("Usage: mapper change portal {&lt;old&gt;} {&lt;new&gt;}"); return end
+    local was = p.cmd
+    p.cmd = newcmd; save()
+    U.ok("Portal #" .. i .. ": '" .. was .. "' -&gt; '" .. newcmd .. "'.")
+end
+
+function M.purgeportals()
+    local n = #CFG.portals
+    CFG.portals, CFG.bounce = {}, {}
+    save()
+    U.ok("Removed " .. n .. " portal(s).")
+end
+
+-- room facts, stored beside the notes
+function M.roomflag(which, rest)
+    local id, val = U.split_verb(rest)
+    id = tonumber(U.trim(id)) or here()
+    if not id then U.warn("Usage: mapper " .. which .. " &lt;room id&gt; [true|false]"); return end
+    val = U.trim(val):lower()
+    if val == "" then
+        local ok, v = pcall(getRoomUserData, id, which)
+        U.note(U.rid(id) .. " " .. which .. ": " .. ((ok and v == "1") and "yes" or "no"))
+        return
+    end
+    if val == "true" or val == "yes" or val == "1" then
+        pcall(setRoomUserData, id, which, "1")
+        U.ok(U.rid(id) .. " marked " .. which .. ".")
+    else
+        pcall(clearRoomUserData, id, which)
+        U.ok(U.rid(id) .. " no longer " .. which .. ".")
+    end
+end
+
+-- Which recorded portal, if any, gets us within reach of `dest`. Returns the
+-- portal and how many steps remain after it lands.
+--
+-- Only if one is present. This never invents a route: no portals recorded means
+-- nil, and whatever asked carries on as it did before.
+--
+-- getPath writes speedWalkDir as a side effect, so the caller has to run its own
+-- getPath afterwards - the one left behind here is for whichever portal won.
+function M.portal_for(dest)
+    dest = tonumber(dest)
+    if not (dest and roomExists and roomExists(dest)) then return nil end
+    if #CFG.portals == 0 then return nil end
+    local best, bestn
+    for _, p in ipairs(CFG.portals) do
+        if p.to and roomExists(p.to) then
+            if p.to == dest then return p, 0 end
+            if getPath(p.to, dest) then
+                local n = #(speedWalkDir or {})
+                if not bestn or n &lt; bestn then best, bestn = p, n end
+            end
+        end
+    end
+    return best, bestn
+end
+
+---
 -- utils
 ---
 
@@ -633,15 +827,17 @@ function M.cmd(arg)
         more = U.trim(more)
         if what == "note" then M.delnote()
         elseif what == "cexits" then M.delcexits()
+        elseif what == "portal" then M.delportal(more)
         elseif what == "exits" then
             local dirn, room = U.split_verb(more)
             if dirn == "from" or dirn == "to" then M.delexits(dirn, room)
             else U.warn("Usage: mapper delete exits from|to &lt;room id&gt;") end
-        else U.warn("mapper delete note | cexits | exits from|to &lt;room&gt;") end
+        else U.warn("mapper delete note | cexits | portal &lt;cmd|#n&gt; | exits from|to &lt;room&gt;") end
 
     elseif verb == "purge" then
         local what, more = U.split_verb(rest)
-        if what == "cexits" then
+        if what == "portals" then M.purgeportals()
+        elseif what == "cexits" then
             local scope = U.trim(more):lower() == "area" and "here" or nil
             local rooms = scope and scope_rooms("here") or nil
             local n = 0
@@ -662,7 +858,7 @@ function M.cmd(arg)
             end
             U.ok("Removed " .. n .. " custom exit(s).")
         else
-            U.warn("mapper purge cexits [area]")
+            U.warn("mapper purge cexits [area] | portals")
         end
 
     -- config
@@ -687,10 +883,23 @@ function M.cmd(arg)
         U.note("Mudlet keeps one map per profile: " .. getMudletHomeDir() .. "/map"
             .. "   'mapper backup &lt;path&gt;' writes a copy.")
 
-    elseif verb == "portals" or verb == "portal" or verb == "bounceportal"
-        or verb == "bouncerecall" or verb == "portalrecall" or verb == "portallevel" then
-        U.warn("Portals aren't built yet - they're fifteen commands of their own"
-            .. " bookkeeping and none of it maps onto anything Mudlet already has.")
+    elseif verb == "portals" then M.portals(rest)
+    elseif verb == "portal" then M.portal(rest)
+    elseif verb == "portalrecall" then M.portalrecall(rest)
+    elseif verb == "portallevel" then
+        local a, b = U.trim(rest):match("^(%S+)%s+(%S+)")
+        M.portallevel(a, b)
+    elseif verb == "bounceportal" then M.bounce("portal", rest)
+    elseif verb == "bouncerecall" then M.bounce("recall", rest)
+    elseif verb == "noportal" or verb == "norecall" then M.roomflag(verb, rest)
+
+    elseif verb == "change" then
+        local what, more = U.split_verb(rest)
+        if what ~= "portal" then U.warn("mapper change portal {&lt;old&gt;} {&lt;new&gt;}"); return end
+        local old, new = more:match("^%s*{(.-)}%s*{(.-)}")
+        if not old then old, new = more:match("^%s*(#%d+)%s*{(.-)}") end
+        if not old then U.warn("mapper change portal {&lt;old&gt;} {&lt;new&gt;}   or   #&lt;index&gt; {&lt;new&gt;}"); return end
+        M.changeportal(old, new)
 
     else
         M.help(verb)
@@ -707,6 +916,19 @@ function M.help(which)
             { "mapper delete exits from|to &lt;room&gt;", "remove exits between here and there" },
             { "mapper purge cexits [area]",  "remove them everywhere, or in this area" },
             { "mapper door &lt;dir&gt; none|open|closed|locked", "mark a door (Mudlet draws each differently)" },
+        })
+    elseif which == "portals" then
+        U.help("mapper - portals", {
+            { "mapper portals [here|&lt;area&gt;]", "list them" },
+            { "mapper portal &lt;command&gt;",   "record it - stand where it drops you" },
+            { "mapper portalrecall &lt;#&gt;",   "flag it as using a recall" },
+            { "mapper portallevel &lt;#&gt; &lt;n&gt;", "level lock, 0 for none" },
+            { "mapper bounceportal [#|clear]", "which portal to route through for a noportal room" },
+            { "mapper bouncerecall [#|clear]", "the same for norecall" },
+            { "mapper noportal|norecall [&lt;room&gt;] [true|false]", "mark a room" },
+            { "mapper change portal {&lt;old&gt;} {&lt;new&gt;}", "rename the command" },
+            { "mapper delete portal &lt;cmd|#n&gt;", "remove one" },
+            { "mapper purge portals",      "remove them all" },
         })
     elseif which == "search" or which == "searching" then
         U.help("mapper - searching", {
@@ -735,8 +957,9 @@ function M.help(which)
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
             { "mapper zoom in|out", "map zoom" },
             { "" },
+            { "mapper portals",    "hand-held portals   ('mapper help portals' for more)" },
+            { "" },
             { "Same commands as the MUSHclient mapper, on Mudlet's own map." },
-            { "Portals aren't built yet." },
         })
     end
 end

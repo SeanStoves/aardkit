@@ -1763,6 +1763,35 @@ function SD.walk(dest, cb, what)
     end
     -- must actually run: speedWalkDir is whatever the LAST getPath left behind
     if not getPath(here, dest) then
+        -- Nothing on foot. A portal you've recorded might land somewhere that
+        -- does have a path, so ask the mapper - and only then. No portals
+        -- recorded, or none that helps, and this fails exactly as it used to.
+        local mp = aardkit.mapper and aardkit.mapper.portal_for
+        local p, after = mp and mp(dest)
+        if p then
+            U.note("No path on foot. Portal '" .. p.cmd .. "' lands "
+                .. (after == 0 and "there" or (after .. " room(s) away")) .. " - taking it.")
+            drop_arrive()
+            aardkit.snd.on_arrive = function()
+                local now = getPlayerRoom and getPlayerRoom()
+                if now and now ~= here then
+                    drop_arrive()
+                    -- one hop, then the ordinary walk from wherever it put us
+                    if now == dest then
+                        if cb then cb() end
+                    else
+                        SD.walk(dest, cb, what)
+                    end
+                end
+            end
+            aardkit.gmcp.watch("sndwalk", "room.info", "aardkit.snd.on_arrive", true)
+            arrive_t = tempTimer(WCFG.arrive, function()
+                drop_arrive()
+                U.warn("S&amp;D: the portal didn't land anywhere the map knows.")
+            end)
+            send(p.cmd, false)
+            return true
+        end
         U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
         return false
     end
