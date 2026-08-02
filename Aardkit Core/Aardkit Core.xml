@@ -1837,9 +1837,11 @@ local S = aardkit.stock
 local U = aardkit.util.named("Stock")
 
 local CFG = U.load("stock", {
-    off  = { ["runto rt"] = true },      -- aliases
-    trig = { ["cp check"] = true },      -- triggers
+    off    = { ["runto rt"] = true },      -- aliases
+    trig   = { ["cp check"] = true },      -- triggers
+    script = {},                           -- scripts; empty, see below
 })
+CFG.script = CFG.script or {}
 
 -- why each one is switched off, shown by 'aardkit stock'
 local WHY = {
@@ -1881,6 +1883,15 @@ function S.apply()
             if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
         end
     end
+    -- Scripts are the heavy switch and nothing is in here by default. Disabling
+    -- one stops everything of theirs that reads what it wrote, which is the
+    -- point when you've replaced it and a foot-gun when you haven't.
+    for name, want in pairs(CFG.script or {}) do
+        if want and U.has("disableScript") then
+            local ok, done = pcall(disableScript, name)
+            if ok and done ~= false then n = n + 1 else missing[#missing + 1] = name end
+        end
+    end
 
     tries = tries + 1
     if #missing &gt; 0 then
@@ -1911,7 +1922,8 @@ function S.cmd(arg)
 
     if verb == "" or verb == "list" then
         local rows = {}
-        for _, set in ipairs({ { CFG.off or {}, "alias" }, { CFG.trig or {}, "trigger" } }) do
+        for _, set in ipairs({ { CFG.off or {}, "alias" }, { CFG.trig or {}, "trigger" },
+                               { CFG.script or {}, "script" } }) do
             for name, want in pairs(set[1]) do
                 rows[#rows + 1] = { name, set[2] .. ", " .. (want and "disabled" or "left alone")
                     .. (WHY[name] and ("  - " .. WHY[name]) or "") }
@@ -1924,19 +1936,22 @@ function S.cmd(arg)
         U.help("Stock module", rows)
 
     elseif verb == "on" and rest ~= "" then
-        CFG.off[rest], CFG.trig[rest] = nil, nil
+        CFG.off[rest], CFG.trig[rest], CFG.script[rest] = nil, nil, nil
         U.save("stock", CFG)
         pcall(enableAlias, rest)
         pcall(enableTrigger, rest)
+        if U.has("enableScript") then pcall(enableScript, rest) end
         U.ok("Left '" .. rest .. "' alone. Reload to be sure it's back.")
 
     elseif verb == "off" and rest ~= "" then
         -- we don't know which kind it is, so switch off whichever answers
         CFG.off[rest] = true
         CFG.trig[rest] = true
+        CFG.script[rest] = true
         U.save("stock", CFG)
         pcall(disableAlias, rest)
         pcall(disableTrigger, rest)
+        if U.has("disableScript") then pcall(disableScript, rest) end
         U.ok("Disabled '" .. rest .. "'.")
 
     else

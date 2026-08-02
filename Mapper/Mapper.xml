@@ -1256,6 +1256,41 @@ function M.cmd(arg)
         M.paint_map()
         aardkit.panel.cmd("map " .. verb)
 
+    elseif verb == "standalone" then
+        -- Hiding their map widget leaves their mapping running underneath:
+        -- onRoom is hooked to gmcp.room and writes rooms, exits and coordinates
+        -- on every move, same as ours would. Two things writing one map is how
+        -- you get rooms in the wrong place.
+        --
+        -- This is the switch, and it is not free. Their speedwalk, coordrun,
+        -- 'where', and the cp/quest map triggers all read what onRoom wrote, so
+        -- they stop working too. That's the trade: you've replaced them, or you
+        -- haven't and shouldn't touch this.
+        local v = U.trim(rest):lower()
+        if v ~= "on" and v ~= "off" then
+            U.help("Standalone mapping", {
+                { "what",  "stops the stock module writing to the map" },
+                { "costs", "their speedwalk, coordrun, 'where' and map triggers stop too" },
+                { "" },
+                { "mapper standalone on",  "ours maps, theirs doesn't" },
+                { "mapper standalone off", "hand it back" },
+                { "" },
+                { "The map panel is separate - 'mapper map' works either way." },
+            })
+            return
+        end
+        if not U.has("disableScript") then
+            U.warn("This Mudlet has no disableScript, so their mapping can't be switched off.")
+            return
+        end
+        if not (aard and GUIframe) then
+            U.note("The stock module isn't installed, so there's nothing to stand down.")
+            return
+        end
+        aardkit.stock.cmd((v == "on" and "off " or "on ") .. "onRoom")
+        U.ok(v == "on" and "Stock mapping off - ours has the map to itself."
+            or "Stock mapping back on. Reload to be sure it's running.")
+
     elseif verb == "map" or verb == "panel" then
         M.paint_map()
         panel:toggle()
@@ -1375,6 +1410,7 @@ function M.help(which)
             { "mapper backup [path]", "write a copy of the map" },
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
             { "mapper map",        "the map panel - drag it, resize it, it stays put" },
+            { "mapper standalone on|off", "stop the stock module writing to the map too" },
             { "mapper show|hide|dock|embed", "where the map panel lives" },
             { "mapper zoom in|out", "map zoom" },
             { "" },
