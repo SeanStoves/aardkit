@@ -24,11 +24,21 @@ that every module here builds on. Without it nothing else loads.
 | `gauges on\|off` | stop updating them |
 | `gauges <bar> on\|off` | hide one — enemy, moves, tnl, health, mana, align |
 | `gauges show\|hide\|dock\|embed` | where the window lives |
+| `gauges standalone on\|off` | stop the stock module's own bars |
 | `gauges opacity <0-255>` | how solid this window is; 'default' follows the shared setting |
 
 Each has its own `help` with the full list.
 
 ## Worth knowing
+
+**Installing this takes the bars over.** If the stock AardwolfMudlet module is
+present, its `Footer` comes out of the bottom of its frame — two sets of gauges is worse
+than either, and theirs cannot be moved. `gauges standalone off` puts them back; nothing is
+deleted.
+
+Its `onVitals` and `onStatus` are deliberately left running. They feed the group panel and much
+of `aard.*` besides these six bars, and switching them off to hide six widgets would take a
+good deal else with them.
 
 The bracketed potion count the stock module's bars show — `(0)` — is not carried
 across. It comes from three trigger-driven counters this suite doesn't have, and a bracket that

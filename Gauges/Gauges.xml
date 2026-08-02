@@ -69,6 +69,15 @@ local CFG = U.load("gauges", {
     -- which of the six to draw, in case somebody wants four
     show  = { enemy = true, moves = true, tnl = true,
               health = true, mana = true, align = true },
+    -- ON. Installing this takes the bars over: the stock module's Footer comes
+    -- out of the bottom of its frame, because two sets of gauges is worse than
+    -- either and theirs cannot be moved.
+    --
+    -- A switch, not a one-way door - 'gauges standalone off' puts theirs back.
+    -- Their scripts are left running: onVitals and onStatus feed the group
+    -- panel and much of aard.* besides these bars, and switching them off to
+    -- hide six widgets would take a good deal else with them.
+    standalone = true,
 })
 CFG.show = CFG.show or {}
 
@@ -275,6 +284,7 @@ function GA.cmd(arg)
             { "gauges on|off",        "stop updating them" },
             { "gauges &lt;bar&gt; on|off",  "hide one - enemy, moves, tnl, health, mana, align" },
             { "gauges show|hide|dock|embed", "where the window lives" },
+            { "gauges standalone on|off", "stop the stock module's own bars" },
             { "gauges opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
             { "" },
             { "Colours are the stock module's own, and the layout is its" },
@@ -287,6 +297,37 @@ function GA.cmd(arg)
         CFG.on = (verb == "on"); save()
         U.ok("Gauges " .. verb .. ".")
         if CFG.on then GA.update() end
+
+    elseif verb == "standalone" then
+        local v = rest:lower()
+        if v ~= "on" and v ~= "off" then
+            U.help("Standalone gauges", {
+                { "state", CFG.standalone and "on - ours has the bars"
+                           or "off - theirs is in the frame too" },
+                { "installed", aard and "the stock module is here" or "none, nothing to do" },
+                { "" },
+                { "Footer  (their HBox)", "the six bars along the bottom of their frame" },
+                { "", "-&gt; this panel, which you can move" },
+                { "" },
+                { "Their onVitals and onStatus keep running: they feed the group" },
+                { "panel and much of aard.* besides these bars, so switching them" },
+                { "off to hide six widgets would take a good deal else with them." },
+                { "" },
+                { "gauges standalone on|off", "switch it" },
+            })
+            return
+        end
+        CFG.standalone = (v == "on"); save()
+        if not aard then U.note("The stock module isn't installed - ours already has the bars."); return end
+        if v == "on" then
+            unframed = false
+            stand_down()
+            U.ok("Stock gauges out of the frame - ours has the bars.")
+        else
+            GA.reframe_theirs()
+            unframed = false
+            U.ok("Stock gauges back in their frame.")
+        end
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
         aardkit.panel.cmd("gauges " .. verb)
@@ -303,6 +344,42 @@ function GA.cmd(arg)
     end
 end
 
+---
+-- standing theirs down
+--
+-- Their bars live in an HBox called Footer, put into the frame by guiLoad as
+-- addWindow(Footer, 'Gauges', 'bottom'). Removing it from the frame hides it;
+-- the object stays alive because it isn't ours to destroy, and a reinstall of
+-- theirs just gets removed again next load.
+---
+
+function GA.unframe_theirs()
+    if not (GUIframe and GUIframe.removeWindow and GUIframe.initialized) then return false end
+    local ok = pcall(GUIframe.removeWindow, "Gauges", "bottom")
+    local w = _G.Footer
+    if type(w) == "table" and w.hide then pcall(function() w:hide() end) end
+    return ok or type(w) == "table"
+end
+
+function GA.reframe_theirs()
+    if not (GUIframe and GUIframe.addWindow and GUIframe.initialized) then return false end
+    local w = _G.Footer
+    if type(w) ~= "table" then return false end
+    pcall(function() w:show() end)
+    return (pcall(GUIframe.addWindow, w, "Gauges", "bottom"))
+end
+
+local unframed = false
+
+local function stand_down()
+    if not CFG.standalone or not aard then return end
+    if unframed then return end
+    if GA.unframe_theirs() then
+        unframed = true
+        U.note("Stock gauges taken out of the frame - 'gauges standalone off' puts them back.")
+    end
+end
+
 aardkit.register("gauges", "the bars, in a window you can move", GA.cmd)
 
 -- vitals move constantly; status carries tnl, align and the enemy
@@ -310,6 +387,15 @@ aardkit.gmcp.watch("gauges", { "char.vitals", "char.status", "char.maxstats" },
                    "aardkit.gauges.update", true)
 
 GA.paint()
+
+-- guiLoad builds their footer on connect rather than at script load, so the
+-- load-time attempts pass before it exists. Same lesson as the chat tabs.
+for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
+
+U.killhandler(aardkit_gauges_connect)
+aardkit_gauges_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    for _, t in ipairs({ 2, 6, 12, 20 }) do tempTimer(t, stand_down) end
+end)
 </script>
 				<eventHandlerList />
 			</Script>
