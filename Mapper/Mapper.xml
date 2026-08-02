@@ -158,10 +158,13 @@ local CFG = U.load("mapper", {
     -- portal is held, which costs you whatever was in that hand. Off by default
     -- because the held path works for everyone and the worn one doesn't.
     portalwish = false,
-    -- Two things writing one map is how rooms end up in the wrong place. If the
-    -- stock module is installed, its mapping stands down while ours is here -
-    -- everything of theirs that read it has an equivalent on this side.
-    standalone = true,
+    -- OFF until this module can map. Their onRoom is what creates rooms, sets
+    -- coordinates and connects exits as you walk; this module reads the map and
+    -- has never written to it. Standing theirs down before ours can do the job
+    -- means nothing maps at all, which is worse than two writers.
+    --
+    -- Flip to true once the mapping half below is real.
+    standalone = false,
     -- Ours, not the stock module's. vconfig is part of a setup we don't own and
     -- may not be installed at all, so it's read as a convenience and never
     -- relied on: whatever is set here wins, and with neither set the chain is
