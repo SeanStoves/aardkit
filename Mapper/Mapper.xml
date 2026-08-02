@@ -652,26 +652,44 @@ function M.goto_room(id)
     end
 
     if #steps == 0 then U.warn("No route to " .. U.rid(id) .. "."); return end
+
+    -- One stacked line, the way the MUSHclient mapper does it:
+    --
+    --     run 2s8w47s22w10sw;enter crystal;run 10esd
+    --
+    -- Aardwolf stacks on ';' server-side - the stock module sends exactly that
+    -- shape in three places - so a route with a door in the middle of it goes
+    -- as one command rather than a dozen.
+    --
+    -- S&amp;D's compress already segments it: it folds runs of directions into
+    -- 'run 3n2e' and flushes whenever something that isn't a direction turns
+    -- up, which is precisely where a custom exit goes. Without that module the
+    -- steps go one at a time, same as before.
+    --
+    -- ';;' inside a stored cexit becomes a single ';' on the way out. The double
+    -- was only ever there to get a multi-command cexit past MUSHclient's own
+    -- line parser; the MUD wants one.
+    for i, c in ipairs(steps) do steps[i] = (tostring(c):gsub(";;", ";")) end
+
+    local compress = aardkit.snd and aardkit.snd.compress
+    local cmds = compress and compress(steps) or steps
+
     U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s)"
         .. (used_cexit and ", through a custom exit." or "."))
 
-    -- S&amp;D already folds runs of basic directions into 'run 3n2e'. Use it if
-    -- that module is here - but not once a cexit is in the route: 'open
-    -- south;;south' is not a direction and folding it into a run destroys it.
-    local cmds
-    if used_cexit then
-        cmds = {}
-        for _, c in ipairs(steps) do
-            for part in tostring(c):gmatch("[^;]+") do
-                local one = U.trim(part)
-                if one ~= "" then cmds[#cmds + 1] = one end
-            end
-        end
-    else
-        local compress = aardkit.snd and aardkit.snd.compress
-        cmds = compress and compress(steps) or steps
+    -- Chunked at 240 characters. Aardwolf takes a long line but not an endless
+    -- one, and a route across the world silently truncated in the middle is
+    -- worse than two lines.
+    local line = ""
+    local function flush()
+        if line ~= "" then send(line, false); line = "" end
     end
-    for _, c in ipairs(cmds) do send(c, false) end
+    for _, c in ipairs(cmds) do
+        if line == "" then line = c
+        elseif #line + #c + 1 &lt;= 240 then line = line .. ";" .. c
+        else flush(); line = c end
+    end
+    flush()
 end
 
 -- Click a room on the map and walk to it.
@@ -1671,6 +1689,11 @@ function M.cmd(arg)
             U.note("This is display and mapping only - 'mapper standalone off' is the full swap.")
         end
 
+    elseif verb == "goto" then
+        local n = tonumber(U.trim(rest))
+        if not n then U.warn("Usage: mapper goto &lt;room id&gt;"); return end
+        M.goto_room(n)
+
     elseif verb == "clickwalk" then
         CFG.clickwalk = onoff(rest, CFG.clickwalk); save()
         U.ok("Click a room to walk there: " .. (CFG.clickwalk and "on" or "off"))
@@ -1789,6 +1812,7 @@ function M.help(which)
             { "mapper thisroom",   "everything known about where you're standing" },
             { "mapper areas [name]", "areas and their room counts" },
             { "mapper showroom &lt;id&gt;", "centre the map somewhere else" },
+            { "mapper goto &lt;id&gt;",  "walk there - one stacked line, custom exits first" },
             { "mapper unmapped [here|&lt;area&gt;]", "exits that lead nowhere yet" },
             { "" },
             { "mapper find &lt;text&gt;", "search names and notes   ('mapper help search' for more)" },

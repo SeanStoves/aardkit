@@ -25,6 +25,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper thisroom` | everything known about where you stand |
 | `mapper areas [name]` | areas and room counts |
 | `mapper showroom <id>` | centre the map elsewhere |
+| `mapper goto <id>` | walk there — one stacked line, custom exits taking priority |
 | `mapper unmapped [here\|<area>]` | exits that lead nowhere yet |
 | `mapper find <text>` | search room names and notes |
 | `mapper area <text>` | the same, this area only |
@@ -124,7 +125,7 @@ shifted between areas — only new rooms get placed, and an old one has blanks f
 nothing else. So the worst a bad guess can do is put one new room somewhere daft, and
 `mapper purgeroom` undoes that. Run `mapper mapping` any time to see what it has created.
 
-Clicking a room on the map walks you to it, and **a custom exit beats the plain direction** between the same two rooms. That matters more than it sounds: 1,468 of the cexits that came across from MUSHclient read `open south;;south`, so the direction on its own walks you into a shut door. A route using one is sent step by step rather than folded into a `run 3n2e`, because `open south` is not a direction. `mapper clickwalk off` if you'd rather not.
+`mapper goto <id>` and clicking a room both walk you there, and they build the route the way the MUSHclient mapper does — one stacked line, `run 2s8w47s22w10sw;enter crystal;run 10esd`. Aardwolf stacks on `;` server-side, so a route with a door in the middle of it goes as one command rather than a dozen, chunked at 240 characters so nothing is silently truncated. **A custom exit beats the plain direction** between the same two rooms. That matters more than it sounds: 1,468 of the cexits that came across from MUSHclient read `open south;;south`, so the direction on its own walks you into a shut door. A route using one is sent step by step rather than folded into a `run 3n2e`, because `open south` is not a direction. `mapper clickwalk off` if you'd rather not.
 
 **There is only one map view per Mudlet profile.** Mudlet's own Geyser.Mapper says so — mappers are singleton per profile — so two `Geyser.Mapper` objects aren't two maps, they're two claims on the same one, and the last claim wins. The stock module builds its map on a timer after this module has loaded, so without help theirs wins and the panel here comes up empty.
 
