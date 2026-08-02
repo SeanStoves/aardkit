@@ -145,19 +145,45 @@ aardkit.shopwin = aardkit.shopwin or {}
 local SH = aardkit.shopwin
 local U  = aardkit.util.named("Shop")
 
-local CFG = U.load("shopwin", {
-    on  = true,
-    gag = false,   -- a copy by default; the MUD's own list still prints
-})
-
-local ROW_H, PAD, HEAD_H, BAR_H, FOOT_H = 20, 4, 18, 20, 16
-
 -- Aardwolf's buy takes a count: 'buy 20 2' is twenty of item 2. Presets rather
 -- than a stepper you click twenty times, and per row rather than a quantity
 -- setting that persists - a number remembered from the last purchase is the
 -- kind of state that empties your gold when you forget it's set.
-local QTYS = { 1, 5, 10, 25, 50, 100 }
+--
+-- Which presets is yours: 'shopwin qty 1,5,10,25'. Six is what fits a default
+-- panel; more just narrows the name column, which is why there's a cap rather
+-- than letting a paste of forty numbers squeeze it to nothing.
+local QMAX = 8
 local QW = 30
+local QTYS = {}
+
+local CFG = U.load("shopwin", {
+    on  = true,
+    gag = false,   -- a copy by default; the MUD's own list still prints
+    qty = "1,5,10,25,50,100",
+})
+
+-- Whatever survives being a positive whole number, in the order you wrote them,
+-- deduped and capped. A bad list falls back to one button rather than none, so
+-- the panel is never a shop you can look at and not buy from.
+local function set_qtys(spec)
+    local out, seen = {}, {}
+    for word in tostring(spec or ""):gmatch("[^,%s]+") do
+        local n = math.floor(tonumber(word) or 0)
+        if n &gt; 0 and not seen[n] and #out &lt; QMAX then
+            seen[n] = true
+            out[#out + 1] = n
+        end
+    end
+    if #out == 0 then out = { 1 } end
+    QTYS = out
+    return out
+end
+
+set_qtys(CFG.qty)
+
+local ROW_H, PAD, HEAD_H, BAR_H, FOOT_H = 20, 4, 18, 20, 16
+
 
 -- declared ahead of the closures below so they bind these locals and not
 -- globals of the same name, which are nil forever
@@ -397,8 +423,12 @@ function SH.paint()
         end
     end
     for i = slot + 1, #rows do rows[i]:hide() end
-    for sl = slot + 1, #qbtn do
-        for _, b in pairs(qbtn[sl] or {}) do b:hide() end
+    -- rows that dropped off this page, and buttons left over from a longer
+    -- preset list than the one now configured
+    for sl, set in pairs(qbtn) do
+        for qi, b in pairs(set) do
+            if sl &gt; slot or qi &gt; #QTYS then b:hide() end
+        end
     end
 
     -- page bar, with the warning under it
@@ -498,6 +528,21 @@ function SH.cmd(arg)
     elseif verb == "up"   or verb == "prev" then SH.prev()
     elseif verb == "down" or verb == "next" then SH.next()
 
+    elseif verb == "qty" then
+        local v = U.trim(rest)
+        if v == "" then
+            U.note("Shop: buy buttons are " .. table.concat(QTYS, ", ")
+                .. ".   'shopwin qty 1,5,10' to change, 'shopwin qty reset' for the default.")
+            return
+        end
+        if v:lower() == "reset" then v = "1,5,10,25,50,100" end
+        local got = set_qtys(v)
+        CFG.qty = table.concat(got, ",")
+        U.save("shopwin", CFG)
+        SH.paint()
+        U.ok("Shop: buy buttons are now " .. table.concat(got, ", ")
+            .. (#got == QMAX and "  (" .. QMAX .. " is the most that fits)" or "") .. ".")
+
     elseif verb == "appraise" or verb == "app" then
         local n = tonumber(U.trim(rest))
         if not n then U.warn("Usage: shopwin appraise &lt;row&gt;") else SH.appraise(n) end
@@ -519,6 +564,7 @@ function SH.cmd(arg)
         U.help("Shop window", {
             { "shopwin toggle",       "show or hide the panel" },
             { "state",   CFG.on and "on" or "off" },
+            { "buy buttons", table.concat(QTYS, ", ") },
             { "main window", CFG.gag and "hidden - panel only" or "still prints there too" },
             { "stock",   #items &gt; 0 and (#items .. " item(s) listed") or "nothing listed yet" },
             { "" },
@@ -528,6 +574,7 @@ function SH.cmd(arg)
             { "shopwin up | down", "page through the list, same as the buttons" },
             { "shopwin buy &lt;row&gt; [n]", "same as clicking that row's number button" },
             { "shopwin appraise &lt;row&gt;", "same as clicking the name - costs nothing" },
+            { "shopwin qty &lt;list&gt;",    "which buy buttons a row carries, e.g. 1,5,10" },
             { "shopwin clear",    "empty it" },
             { "shopwin dock | embed | show | hide", "panel placement" },
             { "" },
