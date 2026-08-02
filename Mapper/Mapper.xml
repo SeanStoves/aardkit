@@ -519,6 +519,14 @@ local function scope_rooms(scope)
     scope = U.trim(tostring(scope or "")):lower()
     if scope == "" then return nil end                 -- everywhere
     local id = here()
+    -- Just the room you're standing in. 'here' is the AREA, which is the right
+    -- default for a list and the wrong one when you want to see what THIS room
+    -- has - and every command taking a scope gets it, not just cexits, because
+    -- a scope word that works in one place and not the next is worse than not
+    -- having it.
+    if scope == "thisroom" or scope == "room" then
+        return id and { id } or nil
+    end
     if scope == "here" then
         local a = id and getRoomArea and getRoomArea(id)
         return a and select(2, pcall(getAreaRooms, a)) or nil
@@ -816,7 +824,7 @@ end
 -- an exit that goes nowhere yet: Mudlet calls these stubs
 function M.unmapped(scope)
     local allowed = scope_rooms(scope == "" and "here" or scope)
-    if not allowed then U.warn("Usage: mapper unmapped [here|&lt;area&gt;]"); return end
+    if not allowed then U.warn("Usage: mapper unmapped [thisroom|here|&lt;area&gt;]"); return end
     local rows, total = {}, 0
     for _, id in ipairs(allowed) do
         -- A '?' room is an unmapped exit that got drawn instead of stubbed, so
@@ -849,7 +857,7 @@ end
 
 function M.cexits(scope)
     local allowed = scope_rooms(scope == "" and "here" or scope)
-    if not allowed then U.warn("Usage: mapper cexits [here|&lt;area&gt;]"); return end
+    if not allowed then U.warn("Usage: mapper cexits [thisroom|here|&lt;area&gt;]"); return end
 
     -- The MUSHclient mapper's own layout, because it's the right one: area,
     -- room, id, the command, and where it lands. Five facts per row is not a
@@ -1791,7 +1799,7 @@ end
 function M.help(which)
     if which == "exits" then
         U.help("mapper - exits", {
-            { "mapper cexits [here|&lt;area&gt;]", "list custom exits" },
+            { "mapper cexits [thisroom|here|&lt;area&gt;]", "list custom exits - this room, this area, or one you name" },
             { "mapper cexit &lt;command&gt;",      "run it and link where you end up (';;' between steps)" },
             { "mapper fullcexit {&lt;cmd&gt;} &lt;from&gt; &lt;to&gt;", "link without walking it" },
             { "mapper delete cexits",        "remove this room's custom exits" },
@@ -1821,8 +1829,8 @@ function M.help(which)
         U.help("mapper - searching", {
             { "mapper find &lt;text&gt;",   "search room names and notes, everywhere" },
             { "mapper area &lt;text&gt;",   "the same, this area only" },
-            { "mapper notes [here|&lt;area&gt;]", "rooms you've noted" },
-            { "mapper shops|train|quest [here|&lt;area&gt;]", "rooms flagged as such" },
+            { "mapper notes [thisroom|here|&lt;area&gt;]", "rooms you've noted" },
+            { "mapper shops|train|quest [thisroom|here|&lt;area&gt;]", "rooms flagged as such" },
             { "mapper where &lt;room id&gt;", "directions from here" },
             { "mapper next [n]",      "walk to the next result" },
         })
@@ -1832,7 +1840,7 @@ function M.help(which)
             { "mapper areas [name]", "areas and their room counts" },
             { "mapper showroom &lt;id&gt;", "centre the map somewhere else" },
             { "mapper goto &lt;id&gt;",  "walk there - one stacked line, custom exits first" },
-            { "mapper unmapped [here|&lt;area&gt;]", "exits that lead nowhere yet" },
+            { "mapper unmapped [thisroom|here|&lt;area&gt;]", "exits that lead nowhere yet" },
             { "" },
             { "mapper find &lt;text&gt;", "search names and notes   ('mapper help search' for more)" },
             { "mapper addnote &lt;text&gt;", "note this room" },

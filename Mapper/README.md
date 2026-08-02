@@ -26,16 +26,16 @@ that every module here builds on. Without it nothing else loads.
 | `mapper areas [name]` | areas and room counts |
 | `mapper showroom <id>` | centre the map elsewhere |
 | `mapper goto <id>` | walk there — one stacked line, custom exits taking priority |
-| `mapper unmapped [here\|<area>]` | exits that lead nowhere yet |
+| `mapper unmapped [thisroom\|here\|<area>]` | exits that lead nowhere yet |
 | `mapper find <text>` | search room names and notes |
 | `mapper area <text>` | the same, this area only |
-| `mapper notes [here\|<area>]` | rooms you have noted |
-| `mapper shops\|train\|quest [here\|<area>]` | rooms flagged as such |
+| `mapper notes [thisroom\|here\|<area>]` | rooms you have noted |
+| `mapper shops\|train\|quest [thisroom\|here\|<area>]` | rooms flagged as such |
 | `mapper where <room id>` | directions from here |
 | `mapper next [n]` | walk to the next search result |
 | `mapper addnote <text>` | note this room |
 | `mapper delete note` | remove it |
-| `mapper cexits [here\|<area>]` | list custom exits |
+| `mapper cexits [thisroom\|here\|<area>]` | custom exits, as a table — area, room, id, command, destination |
 | `mapper cexit <command>` | run it and link where you end up (';;' between steps) |
 | `mapper fullcexit {<cmd>} <from> <to>` | link without walking it |
 | `mapper delete cexits` | this room's custom exits |
