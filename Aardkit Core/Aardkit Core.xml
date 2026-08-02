@@ -1269,6 +1269,11 @@ local BLOCK = {
 -- one. Treat the uncorroborated ones as unverified if you change their kind.
 local OWNED = {
     spellheaders = true, recoveries = true, coords = true,
+    -- helpwin clears a panel on {help} and copies every line into it until
+    -- {/help}. If the generic marker triggers below also deleted the wrapper,
+    -- both would be calling deleteLine() on the same line - the exact double-gag
+    -- that left blank gaps in the room description.
+    help = true, helpsearch = true, helpkeywords = true,
 }
 
 -- wrappers around text worth reading; hide only the markers

@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 75 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>helpwin</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>help open</name>
+				<script>aardkit.helpwin.on_open("help")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{help\}$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>help search open</name>
+				<script>aardkit.helpwin.on_open("helpsearch")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{helpsearch\}$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>helpwin</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>helpwin</name>
+				<script>aardkit.helpwin.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^helpwin(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>helpwin</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>helpwin</name>
+				<packageName />
+				<script>--[[
+    Help window
+    Sean Stoves, 2026-08-02
+
+    Help files out of the scrollback and into a panel that starts empty every
+    time you read one, so the last thing you asked about is the only thing in
+    front of you.
+
+    Aardwolf will mark its own help output if you ask it to. Telnet channel 102
+    carries the tag options, one byte for which and one for on/off:
+
+        IAC SB 102 &lt;option&gt; &lt;1 on | 2 off&gt; IAC SE
+
+    Option 3 is helpfiles. With it on, the MUD wraps replies in its tag
+    protocol - {help}...{/help}, and {helpsearch}...{/helpsearch} for
+    'help search' - so there's nothing to scrape. Without it every help is a
+    wall of dashes with no machine-readable start or end, and the dash count
+    moves with your screen width.
+
+    Mudlet has sendTelnetChannel102() for the wrapper, so we only supply the two
+    payload bytes.
+
+    The tag arrives before the first line and after the last, which is all the
+    framing needed: clear on open, copy each line across, stop on close. Lines
+    are copied with copy()/appendBuffer so the MUD's colours survive - the point
+    is to read the file, not a plaintext rendering of it.
+
+    30_tags.lua owns the tag gag and would otherwise treat {help} as an unknown
+    marker and delete the wrapper itself. Two owners deleting the same line is
+    what left blank gaps in the room description, so help is in its OWNED set
+    there and this file is the only thing that touches it.
+]]
+
+aardkit = aardkit or {}
+aardkit.helpwin = aardkit.helpwin or {}
+
+local HW = aardkit.helpwin
+local U  = aardkit.util
+
+local CFG = U.load("helpwin", {
+    on   = true,
+    keep = false,   -- append instead of starting fresh
+})
+
+local panel = aardkit.panel.new({
+    name     = "help",
+    title    = "Help",
+    width    = 700,
+    height   = 460,
+    x        = "120px",
+    y        = "60px",
+    fontSize = 10,
+})
+
+HW.panel = panel
+
+---
+-- asking the MUD to mark it
+---
+
+local HELPS_OPT = 3
+
+-- Mudlet wraps this in IAC SB 102 ... IAC SE for us; the payload is the option
+-- and whether we want it. Wrapped because a Mudlet without it is a nil call,
+-- and a client that can't negotiate should still load the rest of the module.
+local function telopt(on)
+    if not U.has("sendTelnetChannel102") then return false end
+    return (pcall(sendTelnetChannel102, string.char(HELPS_OPT, on and 1 or 2)))
+end
+
+function HW.negotiate()
+    if not CFG.on then return end
+    -- The MUD forgets between sessions, so this goes out on every connect.
+    telopt(true)
+end
+
+---
+-- capture
+---
+
+local capturing, trig, timer
+
+local function stop()
+    if trig  then pcall(killTrigger, trig); trig = nil end
+    if timer then pcall(killTimer, timer); timer = nil end
+    capturing = nil
+end
+
+-- Armed on the open tag and killed on the close, rather than a permanent
+-- catch-all that tests a flag on every line of the session. The closing tag is
+-- recognised in here too: a second trigger for it would race this one, and
+-- whichever fired first would delete the line out from under the other.
+local function arm(kind)
+    trig = tempRegexTrigger([[^.*$]], function()
+        local line = getCurrentLine() or ""
+        if line:match("^%s*{/help") then
+            U.gag()
+            stop()
+            return
+        end
+        panel:capture_line()
+        U.gag()
+    end)
+    -- A help that never closes would eat the rest of the session.
+    timer = tempTimer(15, function()
+        if capturing then
+            stop()
+            U.warn("Help: no closing tag arrived - stopped capturing.")
+        end
+    end)
+    capturing = kind
+end
+
+function HW.on_open(kind)
+    if not CFG.on then return end
+    stop()
+    U.gag()
+    if not CFG.keep then panel:clear() end
+    panel:show()
+    arm(kind or "help")
+end
+
+-- 'help search' with no matches, and a bad keyword, both come back inside the
+-- tags, so they land in the panel like anything else and there's nothing
+-- special to do about them.
+
+---
+-- commands
+---
+
+function HW.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest):lower()
+
+    if verb == "" then
+        panel:toggle()
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on")
+        U.save("helpwin", CFG)
+        telopt(CFG.on)
+        if not CFG.on then stop() end
+        U.ok("Help window " .. verb .. (CFG.on and " - help goes to the panel." or " - help stays in the main window."))
+
+    elseif verb == "keep" then
+        CFG.keep = not CFG.keep
+        U.save("helpwin", CFG)
+        U.ok("Help window: " .. (CFG.keep and "keeping previous helps." or "fresh every time."))
+
+    elseif verb == "clear" then
+        panel:clear()
+        U.ok("Help window cleared.")
+
+    elseif verb == "retry" or verb == "negotiate" then
+        if telopt(true) then
+            U.ok("Asked the MUD to tag help output again.")
+        else
+            U.warn("This Mudlet has no sendTelnetChannel102 - can't negotiate.")
+        end
+
+    elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
+        aardkit.panel.cmd("help " .. verb)
+
+    else
+        U.help("Help window", {
+            { "state",   CFG.on and "on" or "off" },
+            { "on open", CFG.keep and "appends" or "starts fresh" },
+            { "tagging", U.has("sendTelnetChannel102") and "negotiated on connect" or "unavailable in this Mudlet" },
+            { "" },
+            { "helpwin",          "show or hide the panel" },
+            { "helpwin on | off", "capture help, or leave it in the main window" },
+            { "helpwin keep",     "append rather than starting fresh" },
+            { "helpwin clear",    "empty it" },
+            { "helpwin retry",    "ask the MUD to tag help output again" },
+            { "helpwin dock | embed | show | hide", "panel placement" },
+            { "" },
+            { "Read help as you always have - 'help &lt;topic&gt;'. Aardwolf marks" },
+            { "the reply and it lands here instead of the scrollback." },
+        })
+    end
+end
+
+aardkit.register("helpwin", "help files in their own panel, fresh each read", HW.cmd)
+
+U.killhandler(aardkit_helpwin_connect)
+aardkit_helpwin_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    stop()
+    -- the MUD isn't listening the instant the socket opens
+    tempTimer(2, HW.negotiate)
+end)
+
+HW.negotiate()
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

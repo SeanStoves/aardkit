@@ -107,6 +107,10 @@ postHTTP = function(body, url, headers)
     return true
 end
 
+-- Aardwolf's tag channel. Mudlet wraps the IAC SB 102 ... IAC SE around
+-- whatever payload you hand it.
+sendTelnetChannel102 = note("sendTelnetChannel102")
+
 getHTTP = function(url, headers)
     if http_reply.fail then raiseEvent("sysGetHttpError", http_reply.body, url)
     else raiseEvent("sysGetHttpDone", url, http_reply.body) end
