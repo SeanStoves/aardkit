@@ -1,6 +1,6 @@
 # Mapper
 
-The MUSHclient mapper's commands, on Mudlet's own map — same words, same arguments, so moving across isn't a change of process. Notes live in room user data (saved inside the map, and searchable), custom exits are Mudlet special exits the whole client can speedwalk through, and doors are real: Mudlet draws open, closed and locked differently, which MUSHclient had no notion of. It also carries the map itself in a panel you can actually move — the stock AardwolfMudlet module nails its mapper into a fixed frame, and if that module is installed this takes the map out of it. Search and Destroy uses a recorded portal when there's no path on foot — only if one is present, otherwise it fails as before.
+The MUSHclient mapper's commands, on Mudlet's own map — same words, same arguments, so moving across isn't a change of process. Notes live in room user data (saved inside the map, and searchable), custom exits are Mudlet special exits the whole client can speedwalk through, and doors are real: Mudlet draws open, closed and locked differently, which MUSHclient had no notion of. It maps as you walk, too: rooms, coordinates, exits, doors and terrain colours straight from GMCP, with the rule that an existing room is never moved, renamed or shifted between areas — only new rooms get placed, so an imported map can't be spoiled by a bad guess. 'mapper style aard' draws it the way the MUSHclient mapper does: solid terrain-coloured tiles with no exit lines on the continent, ordinary rooms-and-corridors everywhere else, and a symbol in the shops and healers. It also carries the map itself in a panel you can actually move — the stock AardwolfMudlet module nails its mapper into a fixed frame, and if that module is installed this takes the map out of it. Search and Destroy uses a recorded portal when there's no path on foot — only if one is present, otherwise it fails as before.
 
 ## Install
 
@@ -41,6 +41,19 @@ that every module here builds on. Without it nothing else loads.
 | `mapper delete exits from\|to <room>` | exits between here and there |
 | `mapper purge cexits [area]` | everywhere, or this area |
 | `mapper door <dir> none\|open\|closed\|locked` | mark a door |
+| `mapper mapping [on\|off]` | the mapping engine — what it has created, and whether it is writing |
+| `mapper mapping forget` | drop the zone-to-area table — after an 'aardmap import' renumbers everything |
+| `mapper style autogrid on\|off` | draw continent areas as tiles automatically (on) |
+| `mapper style unexplored on\|off` | draw rooms GMCP names and you've never entered, with a '?' (on) |
+| `mapper autocexit on\|off` | record a non-direction move as a custom exit (off: flee and recall move you too) |
+| `mapper style` | how the map draws |
+| `mapper style aard` | the MUSHclient look — solid terrain tiles, no exit lines, symbols |
+| `mapper style restore` | put your own Mudlet map settings back |
+| `mapper style grid on\|off` | this area as solid tiles, or as rooms and exit lines |
+| `mapper style symbols [off]` | mark shops, healers, banks and the rest in this area |
+| `mapper style clear` | take the symbols off this area |
+| `mapper style ids on\|off` | room numbers painted on the map |
+| `mapper style room\|exit <n>` | the two sizes the presets leave alone |
 | `mapper backup [path]` | write a copy of the map |
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
 | `mapper map` | the map panel — drag it, resize it, dock it, it stays put |
@@ -73,6 +86,43 @@ manual step comes up rather than nagging at you on load.
 |---|---|---|
 | [Loot Tracker](../Loot%20Tracker/README.md) | 'mapper portals learn' lists the portal items you've identified, reading 'Type: Portal' and 'Leads to:' off the id box | record portals by hand with 'mapper portal <command>' while standing where one drops you |
 
+
+## Worth knowing
+
+**Installing this takes the map over.** If the stock AardwolfMudlet module is
+present, three of its pieces are switched off on load, because two things writing one map is
+how rooms end up in the wrong place:
+
+| Theirs | What it did | What does it here |
+|---|---|---|
+| `onRoom` (script) | wrote rooms and exits on every move | this module, from the same GMCP |
+| `where` (trigger) | the 'Players near you' capture | Player Tracker, and `mapper where <room>` |
+| `map quest cp gq` (triggers) | campaign and quest target capture | Search and Destroy's own capture and panel |
+
+**It is a switch, not a one-way door.** `mapper standalone off` hands the map straight back to
+theirs; `mapper standalone on` takes it again; `mapper standalone` on its own lists exactly what
+moves in each direction and which way round you are now. Nothing of theirs is deleted — only
+disabled — and if that module isn't installed there is nothing to stand down and this changes
+nothing. Their `tools` script is deliberately left alone: their own init calls it.
+
+Swapping back costs you what theirs provides and this doesn't: their speedwalk, their coordrun.
+Swapping to ours costs you nothing you haven't been given a replacement for, which is what the
+table above is for.
+
+**Your existing map is safe.** A room already in the map is never moved, never renamed, and never
+shifted between areas — only new rooms get placed, and an old one has blanks filled in and
+nothing else. So the worst a bad guess can do is put one new room somewhere daft, and
+`mapper purgeroom` undoes that. Run `mapper mapping` any time to see what it has created.
+
+Rooms Aardwolf names in its exit list but you've never walked into are drawn one step away with
+a `?` in them, so an area you've half-explored looks half-explored. They fill in the moment you
+step in. `mapper style unexplored off` if you'd rather not.
+
+The continent draws as solid terrain-coloured tiles with no exit lines — GMCP flags continent
+rooms, so it's per area and an inn keeps its corridors. `mapper style autogrid off` stops that,
+`mapper style grid on|off` does one area by hand, and `mapper style aard` turns on the rest of
+the MUSHclient look. Anything `mapper style` changes is a Mudlet preference of yours, so it
+writes the old values down first and `mapper style restore` puts them back exactly.
 
 ## Config
 

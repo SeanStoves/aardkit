@@ -135,48 +135,230 @@ getHTTP = function(url, headers)
     return true
 end
 
+---
 -- map api
-getAreaTableSwap = function() return { Midgaard = 1 } end
-getAreaRooms = function() return { 1234 } end
-searchRoom = function() return {} end
-searchRoomUserData = function() return {} end
-getExitStubs = function() return {} end
-getSpecialExits = function() return {} end
-removeSpecialExit = function() return nil end
-clearSpecialExits = function() return nil end
-deleteRoom = function() return nil end
-deleteArea = function() return nil end
-getDoors = function() return {} end
-setDoor = function() return nil end
-getRoomExits = function() return {} end
-getRoomName = function() return "Somewhere" end
+--
+-- A real little map, not a shelf of stubs that answer politely.
+--
+-- The old version had roomExists() return true for everything, which means the
+-- mapping engine would have found every room already present, created nothing,
+-- and the harness would have called that a pass. Same trap as the db stub and
+-- the http stub before it: a permissive stub is worse than no stub, because it
+-- turns "untested" into "tested, green".
+--
+-- So this holds rooms, areas, coordinates, exits, stubs and user data, and the
+-- harness asserts against what actually ended up in it.
+---
+
+MAP = { rooms = {}, areas = {}, envcolor = {}, nextarea = 0, centered = nil }
+
+local EXITNUM = { n = 1, ne = 2, nw = 3, e = 4, w = 5, s = 6, se = 7, sw = 8, u = 9, d = 10 }
+local EXITNAME = { "n", "ne", "nw", "e", "w", "s", "se", "sw", "u", "d" }
+for long, short in pairs({ north = "n", northeast = "ne", northwest = "nw", east = "e",
+                           west = "w", south = "s", southeast = "se", southwest = "sw",
+                           up = "u", down = "d" }) do
+    EXITNUM[long] = EXITNUM[short]
+end
+
+local function dirnum(d)
+    if type(d) == "number" then return d end
+    return EXITNUM[tostring(d or ""):lower()]
+end
+
+function MAP.reset()
+    MAP.rooms, MAP.areas, MAP.envcolor, MAP.nextarea, MAP.centered = {}, {}, {}, 0, nil
+end
+
+function MAP.room(id) return MAP.rooms[tonumber(id)] end
+
+roomExists = function(id) return MAP.rooms[tonumber(id)] ~= nil end
+
+addRoom = function(id)
+    id = tonumber(id)
+    if not id or MAP.rooms[id] then return false end
+    MAP.rooms[id] = { id = id, name = "", area = -1, x = 0, y = 0, z = 0, env = 0,
+                      exits = {}, stubs = {}, special = {}, doors = {}, user = {} }
+    return true
+end
+
+deleteRoom = function(id) MAP.rooms[tonumber(id)] = nil end
+
+addAreaName = function(name)
+    name = tostring(name or "")
+    for id, n in pairs(MAP.areas) do if n == name then return id end end
+    MAP.nextarea = MAP.nextarea + 1
+    MAP.areas[MAP.nextarea] = name
+    return MAP.nextarea
+end
+
+deleteArea = function(id) MAP.areas[tonumber(id)] = nil end
+
+getAreaTable = function()
+    local t = {}
+    for id, n in pairs(MAP.areas) do t[n] = id end
+    return t
+end
+getAreaTableSwap = getAreaTable
+
+getAreaRooms = function(aid)
+    aid = tonumber(aid)
+    local out = {}
+    for id, r in pairs(MAP.rooms) do if r.area == aid then out[#out + 1] = id end end
+    table.sort(out)
+    return out
+end
+
+getRooms = function()
+    local t = {}
+    for id, r in pairs(MAP.rooms) do t[id] = r.name end
+    return t
+end
+
+setRoomName = function(id, n) local r = MAP.room(id); if r then r.name = tostring(n or "") end end
+getRoomName = function(id) local r = MAP.room(id); return r and r.name or "" end
+
+setRoomArea = function(id, a) local r = MAP.room(id); if r then r.area = tonumber(a) or -1 end end
+getRoomArea = function(id) local r = MAP.room(id); return r and r.area or nil end
+
+setRoomEnv = function(id, e) local r = MAP.room(id); if r then r.env = tonumber(e) or 0 end end
+getRoomEnv = function(id) local r = MAP.room(id); return r and r.env or 0 end
+
+setRoomCoordinates = function(id, x, y, z)
+    local r = MAP.room(id)
+    if r then r.x, r.y, r.z = tonumber(x) or 0, tonumber(y) or 0, tonumber(z) or 0 end
+end
+getRoomCoordinates = function(id)
+    local r = MAP.room(id)
+    if not r then return nil end
+    return r.x, r.y, r.z
+end
+
+getRoomsByPosition = function(aid, x, y, z)
+    aid, x, y, z = tonumber(aid), tonumber(x), tonumber(y), tonumber(z)
+    local out = {}
+    for id, r in pairs(MAP.rooms) do
+        if r.area == aid and r.x == x and r.y == y and r.z == z then out[#out + 1] = id end
+    end
+    table.sort(out)
+    return out
+end
+
+setExit = function(from, to, d)
+    local r, n = MAP.room(from), dirnum(d)
+    if not (r and n and MAP.room(to)) then return false end
+    r.exits[n] = tonumber(to)
+    r.stubs[n] = nil
+    return true
+end
+
+setExitStub = function(id, d, on)
+    local r, n = MAP.room(id), dirnum(d)
+    if not (r and n) then return false end
+    if on == false then r.stubs[n] = nil else r.stubs[n] = true end
+    return true
+end
+
+getExitStubs = function(id)
+    local r = MAP.room(id)
+    local out = {}
+    if r then for n in pairs(r.stubs) do out[#out + 1] = n end end
+    table.sort(out)
+    return out
+end
+
+getRoomExits = function(id)
+    local r = MAP.room(id)
+    local t = {}
+    if r then for n, to in pairs(r.exits) do t[EXITNAME[n] or tostring(n)] = to end end
+    return t
+end
+
+addSpecialExit = function(from, to, cmd)
+    local r = MAP.room(from)
+    if not (r and MAP.room(to)) then return false end
+    r.special[tostring(cmd)] = tonumber(to)
+    return true
+end
+getSpecialExits = function(id)
+    local r = MAP.room(id)
+    local t = {}
+    if r then for cmd, to in pairs(r.special) do t[to] = cmd end end
+    return t
+end
+removeSpecialExit = function(id, cmd)
+    local r = MAP.room(id)
+    if r then r.special[tostring(cmd)] = nil end
+end
+clearSpecialExits = function(id) local r = MAP.room(id); if r then r.special = {} end end
+
+setDoor = function(id, d, st)
+    local r = MAP.room(id)
+    if r then r.doors[tostring(d)] = tonumber(st) or 0 end
+    return true
+end
+getDoors = function(id) local r = MAP.room(id); return r and r.doors or {} end
+
+setRoomUserData = function(id, k, v) local r = MAP.room(id); if r then r.user[k] = tostring(v) end end
+getRoomUserData = function(id, k) local r = MAP.room(id); return (r and r.user[k]) or "" end
+clearRoomUserData = function(id, k) local r = MAP.room(id); if r then r.user[k] = nil end end
+
+searchRoomUserData = function(key, want)
+    local out = {}
+    for id, r in pairs(MAP.rooms) do
+        local v = r.user[key]
+        if v and v:find(tostring(want), 1, true) then out[#out + 1] = id end
+    end
+    table.sort(out)
+    return out
+end
+
+searchRoom = function(text)
+    local out = {}
+    for id, r in pairs(MAP.rooms) do
+        if r.name:lower():find(tostring(text):lower(), 1, true) then out[id] = r.name end
+    end
+    return out
+end
+
+setCustomEnvColor = function(e, r, g, b, a) MAP.envcolor[tonumber(e)] = { r, g, b, a } end
+
+-- appearance. Real values, because the style presets snapshot what was there
+-- before they change it and 'mapper style restore' has to put it back.
+MAP.config = {
+    mapRoundRooms = true, mapShowRoomBorders = true, mapShowGrid = false,
+    showRoomIdsOnMap = false, show3dMapView = false, showUpperLowerLevels = false,
+    mapRoomSize = 5, mapExitSize = 10,
+}
+setConfig = function(k, v) MAP.config[k] = v; return true end
+getConfig = function(k) return MAP.config[k] end
+setGridMode = function(aid, on) MAP.grid = MAP.grid or {}; MAP.grid[tonumber(aid)] = on and true or nil; return true end
+getGridMode = function(aid) return (MAP.grid or {})[tonumber(aid)] and true or false end
+setRoomChar = function(id, c) local r = MAP.room(id); if r then r.char = tostring(c or "") end end
+getRoomChar = function(id) local r = MAP.room(id); return r and r.char or "" end
+setRoomCharColor = note("setRoomCharColor")
+setMapBackgroundColor = note("setMapBackgroundColor")
+setMapRoomExitsColor = note("setMapRoomExitsColor")
+centerview = function(id) MAP.centered = tonumber(id) end
+deleteMap = function() MAP.reset() end
+saveMap = function() return true end
+getPlayerRoom = function() return MAP.centered or 1234 end
+getPath = function() return true end
+doSpeedWalk = note("doSpeedWalk")
+speedWalkDir = {}
 getTime = function() return "20260802-1300" end
-clearRoomUserData = function() return nil end
-getRoomUserData = function() return "" end
-addRoom = note("addRoom")
-addAreaName = function() return 1 end
-setRoomArea = note("setRoomArea")
-setRoomCoordinates = note("setRoomCoordinates")
-setRoomName = note("setRoomName")
-setRoomEnv = note("setRoomEnv")
-setRoomUserData = note("setRoomUserData")
-setExit = note("setExit")
-addSpecialExit = note("addSpecialExit")
-setCustomEnvColor = note("setCustomEnvColor")
 setLabelWheelCallback = note("setLabelWheelCallback")
 raiseWindow = note("raiseWindow")
 lowerWindow = note("lowerWindow")
 setMapZoom = note("setMapZoom")
 getMapZoom = function() return 3 end
-roomExists = function() return true end
-getRooms = function() return {} end
-getPlayerRoom = function() return 1 end
-getPath = function() return true end
-doSpeedWalk = note("doSpeedWalk")
-speedWalkDir = {}
-deleteMap = note("deleteMap")
-saveMap = function() return true end
-centerview = note("centerview")
+
+-- A couple of rooms to stand in, so the command paths that read the map have
+-- something to read. Midgaard is area 1 because everything else assumes it is.
+addAreaName("Midgaard")
+addRoom(1234); setRoomName(1234, "Somewhere"); setRoomArea(1234, 1); setRoomCoordinates(1234, 0, 0, 0)
+addRoom(1235); setRoomName(1235, "Somewhere Else"); setRoomArea(1235, 1); setRoomCoordinates(1235, 0, 2, 0)
+setExit(1234, 1235, 1)
+setExit(1235, 1234, 6)
 
 matches = { "", "", "", "" }
 gmcp = { room = { info = { num = 1234, name = "Somewhere", zone = "midgaard" } },

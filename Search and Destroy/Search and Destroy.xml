@@ -1772,8 +1772,13 @@ function SD.walk(dest, cb, what)
     -- A portal is one command whatever the distance, so it wins whenever it
     -- lands closer than you'd otherwise walk - not only when there's no path at
     -- all. Nothing on foot and any portal is an improvement over not going.
+    -- 'mp and mp(dest)' keeps the first return and throws the second away, so
+    -- `after` was always nil and every portal costed out at a flat 1 step - it
+    -- won against any walk of two or more no matter how far from `dest` it
+    -- actually landed you. An `and` is not a multi-value context.
     local mp = aardkit.mapper and aardkit.mapper.portal_for
-    local p, after = mp and mp(dest)
+    local p, after
+    if mp then p, after = mp(dest) end
     if p then
         local by_portal = 1 + (after or 0)
         local on_foot   = #steps

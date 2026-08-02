@@ -158,13 +158,38 @@ local CFG = U.load("mapper", {
     -- portal is held, which costs you whatever was in that hand. Off by default
     -- because the held path works for everyone and the worn one doesn't.
     portalwish = false,
-    -- OFF until this module can map. Their onRoom is what creates rooms, sets
-    -- coordinates and connects exits as you walk; this module reads the map and
-    -- has never written to it. Standing theirs down before ours can do the job
-    -- means nothing maps at all, which is worse than two writers.
+    -- ON. Installing this module takes the map over: if the stock AardwolfMudlet
+    -- module is present its onRoom, its 'where' capture and its cp/quest map
+    -- triggers are stood down, because two things writing one map is how rooms
+    -- end up in the wrong place. If it isn't present there's nothing to stand
+    -- down and this changes nothing.
     --
-    -- Flip to true once the mapping half below is real.
-    standalone = false,
+    -- It is a switch, not a one-way door. 'mapper standalone off' hands the map
+    -- straight back to theirs and 'mapper standalone' lists exactly what moved
+    -- across in each direction. Nothing of theirs is deleted - only disabled.
+    standalone = true,
+    -- The master switch for walk.lua, separate from the one above so there's a
+    -- way to stop writing without handing the map back to a module that may not
+    -- be installed.
+    mapwrite   = true,
+    -- Record a move that wasn't a direction as a custom exit, automatically.
+    -- Off, and off on purpose: 'flee', 'recall' and 'enter' all change rooms,
+    -- and a map that learns those ends up with a special exit out of every room
+    -- you ever panicked in. 'mapper cexit &lt;command&gt;' is the deliberate version.
+    autocexit  = false,
+    -- how the map draws; see style.lua. Empty means Mudlet's own settings,
+    -- untouched, which is where everyone starts.
+    style      = "",
+    stylewas   = {},    -- your settings, saved before a style was applied
+    symbols    = false, -- $ in shops, + in healers, and so on
+    -- On. The continent drawn as boxes joined by strings is the thing that
+    -- looks worst next to the MUSHclient map, and GMCP flags continent rooms so
+    -- there's no guessing involved. Per area, so an inn keeps its corridors.
+    autogrid   = true,
+    -- Draw the rooms GMCP has named but you've never entered, one step away
+    -- with a '?' in them. On, because "there are four ways out of here I never
+    -- took" is the single most useful thing a map can tell you.
+    unexplored = true,
     -- Ours, not the stock module's. vconfig is part of a setup we don't own and
     -- may not be installed at all, so it's read as a convenience and never
     -- relied on: whatever is set here wins, and with neither set the chain is
@@ -176,6 +201,12 @@ CFG.portals = CFG.portals or {}
 CFG.bounce  = CFG.bounce or {}
 
 local function save() U.save("mapper", CFG) end
+
+-- walk.lua is the other half of this module and wants the same config and the
+-- same direction handling. Split across two files because the engine is a
+-- different job from the command tree, not because they're different modules.
+M.CFG  = CFG
+M.save = save
 
 local LONG = {
     n = "north", s = "south", e = "east", w = "west", u = "up", d = "down",
@@ -190,6 +221,9 @@ local function short_dir(cmd)
     if SHORT[cmd] then return SHORT[cmd] end
     return nil
 end
+
+M.LONG = LONG
+M.short_dir = short_dir
 
 local function here()
     local id = getPlayerRoom and getPlayerRoom()
@@ -208,6 +242,8 @@ local function areaname(id)
     end
     return tostring(a)
 end
+
+M.areaname = areaname
 
 ---
 -- the map panel
@@ -499,8 +535,10 @@ function M.thisroom()
         { "name",  getRoomName and getRoomName(id) or "?" },
         { "area",  areaname(id) },
     }
-    local x, y, z = getRoomCoordinates and getRoomCoordinates(id)
-    if x then rows[#rows + 1] = { "coords", string.format("%d, %d, %d", x, y, z or 0) } end
+    -- 'a and f()' keeps one return value, not three, so y and z came back nil
+    local x, y, z
+    if U.has("getRoomCoordinates") then x, y, z = getRoomCoordinates(id) end
+    if x then rows[#rows + 1] = { "coords", string.format("%d, %d, %d", x, y or 0, z or 0) } end
     local okd, info = pcall(getRoomUserData, id, "info")
     if okd and info and info ~= "" then rows[#rows + 1] = { "flags", info } end
     local n = get_note(id)
@@ -564,12 +602,23 @@ function M.unmapped(scope)
     if not allowed then U.warn("Usage: mapper unmapped [here|&lt;area&gt;]"); return end
     local rows, total = {}, 0
     for _, id in ipairs(allowed) do
-        local ok, stubs = pcall(getExitStubs, id)
-        if ok and type(stubs) == "table" and #stubs &gt; 0 then
-            total = total + #stubs
+        -- A '?' room is an unmapped exit that got drawn instead of stubbed, so
+        -- it belongs in this list or the count reads as zero the moment the
+        -- engine starts drawing them.
+        local oku, u = pcall(getRoomUserData, id, "unexplored")
+        if oku and u == "1" then
+            total = total + 1
             if #rows &lt; 30 then
-                rows[#rows + 1] = { U.rid(id) .. "  " .. (getRoomName and getRoomName(id) or "?"),
-                                    #stubs .. " unmapped" }
+                rows[#rows + 1] = { U.rid(id), "never entered - '?' on the map" }
+            end
+        else
+            local ok, stubs = pcall(getExitStubs, id)
+            if ok and type(stubs) == "table" and #stubs &gt; 0 then
+                total = total + #stubs
+                if #rows &lt; 30 then
+                    rows[#rows + 1] = { U.rid(id) .. "  " .. (getRoomName and getRoomName(id) or "?"),
+                                        #stubs .. " unmapped" }
+                end
             end
         end
     end
@@ -1229,6 +1278,16 @@ function M.cmd(arg)
     -- doors (ours)
     elseif verb == "door" then M.door(rest)
 
+    -- the engine
+    elseif verb == "mapping" then M.mapstat(rest)
+    elseif verb == "style" then M.style(rest)
+    elseif verb == "autocexit" then
+        CFG.autocexit = onoff(rest, CFG.autocexit); save()
+        U.ok("Non-direction moves recorded as custom exits: " .. (CFG.autocexit and "on" or "off"))
+        if CFG.autocexit then
+            U.note("'flee' and 'recall' change rooms too - expect some tidying with 'mapper delete cexits'.")
+        end
+
     -- utils
     elseif verb == "addnote" then M.addnote(rest)
     elseif verb == "backup" then M.backup(rest)
@@ -1297,7 +1356,9 @@ function M.cmd(arg)
         -- haven't and shouldn't touch this.
         local v = U.trim(rest):lower()
         if v ~= "on" and v ~= "off" then
-            local rows = { { "state", CFG.standalone and "on - ours has the map" or "off - theirs is running too" }, { "" } }
+            local rows = { { "state", CFG.standalone and "on - ours has the map" or "off - theirs is running too" },
+                           { "writing", M.mapping() and "ours is creating rooms" or (M.why_not_mapping() or "?") },
+                           { "" } }
             for _, t in ipairs(THEIRS) do
                 rows[#rows + 1] = { t[1] .. "  (" .. t[2] .. ")", t[3] }
                 rows[#rows + 1] = { "", "-&gt; " .. t[4] }
@@ -1312,7 +1373,8 @@ function M.cmd(arg)
             return
         end
         if not (aard and GUIframe) then
-            U.note("The stock module isn't installed, so there's nothing to stand down.")
+            U.note("The stock module isn't installed, so there's nothing to stand down - "
+                .. "ours already has the map. 'mapper mapping' for what it's doing.")
             return
         end
         CFG.standalone = (v == "on")
@@ -1323,6 +1385,10 @@ function M.cmd(arg)
         stood_down = (v == "on")
         U.ok(v == "on" and "Stock mapping off - ours has the map to itself."
             or "Stock mapping back on. Reload to be sure it's running.")
+        if v == "on" then
+            U.note("Walk a few rooms and check 'mapper mapping'. Only new rooms are ever "
+                .. "placed - nothing already in the map gets moved or renamed.")
+        end
 
     elseif verb == "map" or verb == "panel" then
         M.paint_map()
@@ -1440,6 +1506,8 @@ function M.help(which)
             { "mapper cexit &lt;command&gt;", "custom exits   ('mapper help exits' for more)" },
             { "mapper door &lt;dir&gt; closed|locked", "mark a door" },
             { "" },
+            { "mapper mapping",    "what the engine is doing, and whether it's on" },
+            { "mapper style aard", "draw it like the MUSHclient map - tiles and terrain colours" },
             { "mapper backup [path]", "write a copy of the map" },
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
             { "mapper map",        "the map panel - drag it, resize it, it stays put" },
@@ -1456,7 +1524,12 @@ end
 
 aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", M.cmd)
 
-aardkit.gmcp.watch("mapper_cexit", "room.info", "aardkit.mapper.on_room", true)
+-- One watcher, not two. walk.lua's engine has to create the room before
+-- on_room() can link a cexit or a portal to it, and two watchers on the same
+-- path fire in pairs() order, which is to say in whichever order they feel like
+-- that session. So the engine is the entry point and calls on_room() when it's
+-- finished.
+aardkit.gmcp.watch("mapper_room", "room.info", "aardkit.mapper.on_move", true)
 
 -- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
 -- has to land after that or there's nothing in the frame to remove yet. It
@@ -1470,21 +1543,940 @@ local function stand_down()
         aardkit.stock.cmd("off " .. t[1])
     end
     stood_down = true
-    U.note("Stock mapping stood down - two things writing one map is how rooms"
-        .. " end up in the wrong place. 'mapper standalone' lists what moved across.")
+    U.note("Stock mapping stood down - two things writing one map is how rooms end up"
+        .. " in the wrong place. 'mapper standalone' lists what moved across, and"
+        .. " 'mapper standalone off' hands it straight back.")
 end
 
 local function claim_map()
+    -- Before the unframed check, not after. Taking their map out of the frame
+    -- can succeed on the first pass while 'aard' isn't loaded yet, and with this
+    -- below the early return the retries never came back round to it - their
+    -- mapping stayed on with ours running too, which is the one state to avoid.
+    stand_down()
     if unframed then return end
     if M.unframe_theirs() then
         unframed = true
         U.note("Took the stock module's map out of its fixed frame - 'mapper map' for ours.")
     end
-    stand_down()
 end
 
 M.paint_map()
 for _, t in ipairs({ 1, 4, 9 }) do tempTimer(t, claim_map) end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>mapper/walk</name>
+				<packageName />
+				<script>--[[
+    Mapper — the mapping engine
+    Sean Stoves, 2026-08-02
+
+    What actually creates rooms as you walk. Until this file existed the module
+    was a reader: it searched, noted, linked cexits, drew a panel — but the rooms
+    themselves came from the stock module's onRoom, which is the whole reason
+    'mapper standalone' had to stay off.
+
+    Built from Aardwolf's GMCP and Mudlet's map API. The arithmetic — two units
+    per step on x and y, one on z, y inverted on the continent — is what the map
+    format needs, not anyone's code.
+
+    One rule shapes everything below: an existing room is never moved, never
+    renamed, never re-areaed. There are 23,000 rooms in an imported map with
+    coordinates that took a layout pass to compute, and a mapper that
+    second-guesses them is a mapper that ruins them. New rooms get placed. Old
+    rooms only ever get blanks filled in.
+
+    So the worst this can do is put a NEW room somewhere daft, and 'mapper
+    purgeroom' undoes that.
+]]
+
+local M   = aardkit.mapper
+local U   = aardkit.util.named("Mapper")
+local CFG = M.CFG
+
+---
+-- direction tables
+--
+-- Mudlet's exit numbering. Not alphabetical, not compass order — this is the
+-- order its map format uses, and the reverse table below is the check: walk the
+-- pairs and every one comes back to itself.
+---
+
+local DIRNUM = { n = 1, ne = 2, nw = 3, e = 4, w = 5, s = 6, se = 7, sw = 8, u = 9, d = 10 }
+local REVNUM = { 6, 8, 7, 5, 4, 1, 3, 2, 10, 9 }
+
+-- two per step on the flat, one per floor. Two so a room can be nudged aside
+-- without landing on its neighbour, which is the only reason it isn't one.
+local STEP = {
+    n  = {  0,  2, 0 }, s  = {  0, -2, 0 }, e  = {  2,  0, 0 }, w  = { -2,  0, 0 },
+    ne = {  2,  2, 0 }, nw = { -2,  2, 0 }, se = {  2, -2, 0 }, sw = { -2, -2, 0 },
+    u  = {  0,  0, 1 }, d  = {  0,  0, -1 },
+}
+
+-- The same directions at one unit. Kept as its own table rather than dividing
+-- STEP by two, because in Lua 5.3 and later '/' hands back a float and Mudlet
+-- wants whole coordinates - and the float propagates into every room reckoned
+-- from that one afterwards.
+local UNIT = {
+    n  = {  0,  1, 0 }, s  = {  0, -1, 0 }, e  = {  1,  0, 0 }, w  = { -1,  0, 0 },
+    ne = {  1,  1, 0 }, nw = { -1,  1, 0 }, se = {  1, -1, 0 }, sw = { -1, -1, 0 },
+    u  = {  0,  0, 1 }, d  = {  0,  0, -1 },
+}
+
+-- where to try when the spot is taken. Flat only: shoving a room up a floor to
+-- avoid an overlap is more confusing than the overlap.
+local NUDGE = {
+    { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+    { 2, 2 }, { -2, 2 }, { 2, -2 }, { -2, -2 },
+}
+
+---
+-- terrain -&gt; environment
+--
+-- The ids are the ones the MUSHclient map used, so a room this engine creates
+-- comes out the same colour as the 23,000 that came across in the import rather
+-- than a second palette sitting next to the first.
+--
+-- Colours are registered on first use, not all at load: 134 setCustomEnvColor
+-- calls for the six terrains you'll actually walk through tonight is work for
+-- nothing.
+---
+
+local PALETTE = {
+    [0] = { 0, 0, 0 },      [1] = { 128, 0, 0 },    [2] = { 0, 128, 0 },
+    [3] = { 128, 128, 0 },  [4] = { 0, 0, 128 },    [5] = { 128, 0, 128 },
+    [6] = { 0, 128, 128 },  [7] = { 192, 192, 192 }, [8] = { 128, 128, 128 },
+    [9] = { 255, 0, 0 },    [10] = { 0, 255, 0 },   [11] = { 255, 255, 0 },
+    [12] = { 0, 0, 255 },   [13] = { 255, 0, 255 }, [14] = { 0, 255, 255 },
+    [15] = { 255, 255, 255 },
+}
+
+-- terrain name -&gt; { env id, palette index }
+local TERRAIN = {
+    inside={1,7}, city={2,7}, field={3,2}, forest={4,10}, hills={5,2}, mountain={6,3},
+    waterswim={7,12}, waternoswim={8,12}, unused={9,7}, air={10,14}, desert={11,11}, ocean={12,4},
+    quicksand={13,3}, underwater={14,4}, ice={15,15}, underground={16,4}, road_eastwest={17,7},
+    road={18,7}, river={19,4}, volcano={20,9}, cave={21,4}, dungeon={22,8}, road_crossroads={23,7},
+    mudschool={24,7}, areaexit={25,5}, hellinside={26,9}, hellfountain={27,9}, hell1={28,9},
+    hell2={29,9}, hell3={30,9}, insideice={31,15}, hellhall={32,9}, hell4={33,9}, smallroad={34,7},
+    smallroad_ew={35,7}, trail_ew={36,3}, beach={37,3}, shore={38,6}, jungle={39,2}, swamp={40,2},
+    bridge={41,7}, plain={42,3}, ocean2={43,12}, ocean3={44,12}, ocean4={45,12}, field3={46,2},
+    field2={47,2}, field4={48,2}, rocks={49,3}, snow={50,15}, icemount={51,15}, icehills={52,15},
+    space1={53,8}, space2={54,8}, space3={55,8}, space4={56,8}, castle={57,7}, pillar={58,7},
+    dark={59,8}, crossroad_nw={60,7}, crossroad_se={61,7}, crossroad_ews={62,7},
+    mountain_cyan={63,6}, moon={64,4}, temple={65,7}, shop={66,2}, clanexit={67,7},
+    chessblack={68,4}, chesswhite={69,15}, lottery={70,7}, alley={71,8}, fountain={72,6},
+    archive={73,7}, bookshelves={74,7}, bookshelves_ns={75,7}, office={76,5}, electric={77,7},
+    well={78,7}, bloodyhall={79,9}, bloodyroom={80,9}, dead_forest={81,3}, dead_field={82,3},
+    graveyard={83,8}, palace_room={84,7}, crypt={85,4}, dead_jungle={86,3}, ship={87,7},
+    chaos_sea={88,7}, hut={89,7}, redcarpet={90,9}, city_underground={91,8}, mist={92,8},
+    ashen_field={93,3}, cabin={94,7}, hallway={95,7}, afountain={97,7}, flowers1={98,7},
+    flowers2={99,7}, stairs={100,7}, aylorcity={101,7}, ruins={102,7}, tornado={103,8},
+    dustdevil={104,7}, wind1={105,7}, wind2={106,7}, lightning={107,7}, rain={108,8}, sun={109,11},
+    cloud1={110,7}, cloud2={111,8}, cloud3={112,7}, rainbow={113,14}, fiery_cave={114,7},
+    tunnel={115,7}, vertical_shaft={116,7}, interestpoint={117,7}, redtemple={118,7},
+    redgateway={119,7}, slashone={120,7}, slashtwo={121,7}, slashthree={122,7}, slashfour={123,7},
+    crater={124,7}, forest2={125,10}, xspot={126,9}, spacered={127,1}, redcircle={128,1},
+    bluecircle={129,7}, darkspace={130,8}, whitespace={131,7}, rose={132,9}, peony={133,13},
+    vine={134,11}, violet={135,5},
+}
+
+-- Set every time rather than once per session. There was a cache here and it
+-- bought nothing measurable - this runs when a room is CREATED, not on every
+-- move - while quietly going stale the moment anything wiped the map, which
+-- 'aardmap import' does.
+local function env_for(terrain)
+    local t = TERRAIN[U.trim(tostring(terrain or "")):lower()]
+    if not t then return nil end
+    local rgb = PALETTE[t[2]] or PALETTE[7]
+    pcall(setCustomEnvColor, t[1], rgb[1], rgb[2], rgb[3], 255)
+    return t[1]
+end
+
+---
+-- state
+--
+-- Declared up here on purpose. A table declared below the function that reads it
+-- binds a nil global instead, silently, and that has cost four separate evenings
+-- on this project already.
+---
+
+local current   -- { id, zone, x, y, z } for the room we're standing in
+local lastcmd   -- what was sent most recently, whatever it was
+local lastdir   -- ...and its short direction, if it was one
+
+local stats = { rooms = 0, exits = 0, stubs = 0, filled = 0, specials = 0,
+                nudged = 0, stacked = 0, unexplored = 0 }
+
+-- Room user data flag: GMCP has named this room but we've never stood in it.
+local UNEXPLORED = "unexplored"
+
+M.stats = stats
+
+-- gmcp zone key -&gt; mudlet area.
+--
+-- 'sure' means we read it off a room that was already in the map, which is the
+-- only authoritative source there is: GMCP says 'aardington' and the map says
+-- 'Aardington Estate', and nothing on earth connects those two strings except a
+-- room that is in both.
+--
+-- Anything else is a guess, and a guess that creates an area is how you end up
+-- with 'aardington' sitting next to 'Aardington Estate' holding four rooms. So
+-- guesses stay provisional: the rooms put there are remembered, and the first
+-- time a known room names the real area they all move across and the guess is
+-- deleted. On a map with no import there is never anything to upgrade to, and
+-- the guess is simply the answer — which is correct for that case too.
+local zonearea = {}
+
+---
+-- writing
+---
+
+local function area_of(id)
+    local ok, a = pcall(getRoomArea, id)
+    a = ok and tonumber(a) or nil
+    if a and a &gt; 0 then return a end
+    return nil
+end
+
+local function resolve_zone(zone, id, info)
+    if zone == "" then return nil end
+    local z = zonearea[zone]
+    if z and z.sure then return z.id end
+
+    local real = roomExists(id) and area_of(id) or nil
+
+    if real and z and real ~= z.id then
+        for _, r in ipairs(z.mine) do pcall(setRoomArea, r, real) end
+        pcall(deleteArea, z.id)
+        U.note("'" .. zone .. "' is really " .. M.areaname(real) .. " - moved "
+            .. #z.mine .. " guessed room(s) across.")
+        zonearea[zone] = { id = real, sure = true, mine = {} }
+        return real
+    end
+    if real then
+        zonearea[zone] = { id = real, sure = true, mine = {} }
+        return real
+    end
+    if z then return z.id end
+
+    local aid
+    local ok, t = pcall(getAreaTableSwap)
+    if ok and type(t) == "table" then
+        for name, a in pairs(t) do
+            if tostring(name):lower() == zone:lower() then aid = a; break end
+        end
+    end
+    if aid then
+        zonearea[zone] = { id = aid, sure = true, mine = {} }
+        return aid
+    end
+
+    aid = tonumber(addAreaName(zone))
+    if not aid or aid &lt; 1 then return nil end
+    zonearea[zone] = { id = aid, sure = false, mine = {} }
+    return aid
+end
+
+local function occupied(aid, x, y, z, mine)
+    local ok, t = pcall(getRoomsByPosition, aid, x, y, z)
+    if not ok or type(t) ~= "table" then return false end
+    for _, r in pairs(t) do
+        if tonumber(r) ~= mine then return true end
+    end
+    return false
+end
+
+local function free_spot(aid, x, y, z, id)
+    if not aid or not occupied(aid, x, y, z, id) then return x, y, z end
+    for mul = 1, 2 do
+        for _, n in ipairs(NUDGE) do
+            local nx, ny = x + n[1] * mul, y + n[2] * mul
+            if not occupied(aid, nx, ny, z, id) then
+                stats.nudged = stats.nudged + 1
+                return nx, ny, z
+            end
+        end
+    end
+    -- Sixteen tries deep and still busy. Stack it rather than wander off: an
+    -- overlap you can see beats a room forty units away from its neighbours.
+    stats.stacked = stats.stacked + 1
+    return x, y, z
+end
+
+-- Hang a new room off a neighbour that's already on the map, in reverse. This is
+-- what saves the first room after a login, a recall, or a portal — none of which
+-- have a previous room to reckon from, and all of which usually drop you next to
+-- somewhere you've been.
+local function anchor(info, aid)
+    if type(info.exits) ~= "table" or not aid then return nil end
+    local dirs = {}
+    for d in pairs(info.exits) do dirs[#dirs + 1] = d end
+    table.sort(dirs)                      -- pairs() order is not stable; placement must be
+    for _, d in ipairs(dirs) do
+        local sd = M.short_dir(d)
+        local s  = sd and STEP[sd]
+        local to = tonumber(info.exits[d])
+        -- An unexplored placeholder is itself sitting where we guessed it goes,
+        -- so anchoring off one compounds a guess instead of correcting it.
+        if s and to and roomExists(to) and area_of(to) == aid
+           and getRoomUserData(to, UNEXPLORED) ~= "1" then
+            local x, y, z = getRoomCoordinates(to)
+            if x then return x - s[1], y - s[2], z - s[3] end
+        end
+    end
+    return nil
+end
+
+-- Best information first, guesses last.
+local function place(info, aid, dir)
+    local co = info.coord
+    if co and (tonumber(co.cont) or 0) &gt; 0 and tonumber(co.x) and tonumber(co.y) then
+        -- Aardwolf counts y downward, Mudlet counts it up
+        return tonumber(co.x), -tonumber(co.y), 0
+    end
+
+    -- walked there in a straight line: reckon from where we were
+    local same = current and current.zone == info.zone and current.x
+    if same and dir and STEP[dir] then
+        local s = STEP[dir]
+        return current.x + s[1], current.y + s[2], current.z + s[3]
+    end
+
+    -- Didn't walk, or didn't walk in a direction. A neighbour that's already on
+    -- the map is a KNOWN position rather than a reckoned one, so it beats
+    -- anything below it - and it's what saves a recall, a portal, and the first
+    -- room after login, none of which have a direction to work from.
+    local x, y, z = anchor(info, aid)
+    if x then return x, y, z end
+
+    -- A special exit inside one zone with nothing known around it. It has to go
+    -- somewhere, and a full step would claim a direction it didn't travel.
+    if same then return current.x + 1, current.y, current.z end
+
+    return 0, 0, 0
+end
+
+-- Aardwolf paints a few room names, and a painted name stored raw is a name you
+-- can never search for.
+local function clean_name(s)
+    return U.trim(U.strip_codes(tostring(s or "")))
+end
+
+local function detail_flags(d)
+    if type(d) == "table" then return table.concat(d, ",") end
+    return U.trim(tostring(d or ""))
+end
+
+-- A stub is Mudlet for "there's an exit here and I don't know where it goes".
+-- When the room it was waiting for finally appears, fill it in — but only if
+-- it's still a stub. Never overwrite an exit that's already pointing somewhere.
+local function fill_stub(from, to, dirn)
+    local ok, stubs = pcall(getExitStubs, from)
+    if not ok or type(stubs) ~= "table" then return false end
+    local short = M.short_dir(dirn) or ""
+    for _, s in pairs(stubs) do
+        -- older Mudlets hand back names here, newer ones numbers
+        if tonumber(s) == dirn or tostring(s):lower() == short then
+            pcall(setExit, from, to, dirn)
+            stats.filled = stats.filled + 1
+            return true
+        end
+    end
+    return false
+end
+
+-- A room GMCP has named but we've never stood in.
+--
+-- Aardwolf hands over the destination id of every exit, so an unexplored
+-- neighbour isn't a guess - we know its number, we just don't know anything else
+-- about it. Drawing it one step away with a '?' in it is what the MUSHclient map
+-- does, and it's the difference between "this area looks finished" and "there
+-- are four ways out of here I never took".
+--
+-- It gets coordinates, an area and nothing else. Name, terrain and flags are
+-- filled in the moment you actually walk in, which is also when the '?' comes
+-- off - see the arrival path in on_move.
+local function sprout(from, id, sd, aid, cont)
+    if not (CFG.unexplored and aid and id and id &gt; 0) then return false end
+    if roomExists(id) then return false end
+    local s = UNIT[sd]
+    if not s then return false end
+    local px, py, pz = getRoomCoordinates(from)
+    if not px then return false end
+
+    -- two apart like everything else we place, except on the continent, where
+    -- rooms sit one apart because those coordinates come from Aardwolf
+    local n = cont and 1 or 2
+    local x, y, z = px + s[1] * n, py + s[2] * n, pz + s[3]
+
+    if not addRoom(id) then return false end
+    x, y, z = free_spot(aid, x, y, z, id)
+    pcall(setRoomCoordinates, id, x, y, z)
+    pcall(setRoomArea, id, aid)
+    pcall(setRoomUserData, id, UNEXPLORED, "1")
+    pcall(setRoomChar, id, "?")
+    pcall(setRoomCharColor, id, 255, 190, 60)
+    stats.unexplored = stats.unexplored + 1
+    return true
+end
+
+local function link_exits(id, info, aid, cont)
+    if type(info.exits) ~= "table" then return end
+    -- pairs() order decides which unexplored neighbour claims a contested spot,
+    -- and that shouldn't change between two identical walks
+    local dirs = {}
+    for d in pairs(info.exits) do dirs[#dirs + 1] = d end
+    table.sort(dirs)
+
+    for _, d in ipairs(dirs) do
+        local sd = M.short_dir(d)
+        local n  = sd and DIRNUM[sd]
+        local dest = tonumber(info.exits[d])
+        if n then
+            local made = false
+            if dest and dest &gt; 0 and not roomExists(dest) then
+                -- draw it as a room with a '?' rather than a nub on ours
+                made = sprout(id, dest, sd, aid, cont)
+                if made then
+                    -- an exit back, unknown where to. A real reverse exit would
+                    -- be inventing one, and a one-way arrow into a room you've
+                    -- never seen reads as a trap that isn't there.
+                    pcall(setExitStub, dest, REVNUM[n], true)
+                end
+            end
+            if dest and dest &gt; 0 and roomExists(dest) then
+                pcall(setExit, id, dest, n)
+                stats.exits = stats.exits + 1
+                -- and the way back, if that room was still waiting on us.
+                -- Never for one we just sprouted: that stub is the whole point,
+                -- and filling it here would invent the exit we just refused to.
+                if not made then fill_stub(dest, id, REVNUM[n]) end
+            else
+                pcall(setExitStub, id, n, true)
+                stats.stubs = stats.stubs + 1
+            end
+        end
+    end
+end
+
+---
+-- the engine
+---
+
+-- Does this module write to the map? Not a preference so much as a question of
+-- who else is doing it: the stock module's onRoom writes on every move, and two
+-- writers is how rooms end up in the wrong place. With that module installed we
+-- only write once it has stood down; without it, nobody else is going to.
+function M.mapping()
+    if not CFG.mapwrite then return false end
+    if aard and GUIframe then return CFG.standalone and true or false end
+    return true
+end
+
+function M.why_not_mapping()
+    if not CFG.mapwrite then return "'mapper mapping on' to switch it back on" end
+    if aard and GUIframe and not CFG.standalone then
+        return "the stock module is mapping - 'mapper standalone on' to take over"
+    end
+    return nil
+end
+
+-- Every command that goes to the MUD, so dead reckoning knows which way you
+-- went. Ours, deliberately: the stock module keeps the same fact in aard.command
+-- and reading it would make this module depend on the one it replaces.
+function M.on_send(_, cmd)
+    lastcmd = U.trim(tostring(cmd or ""))
+    lastdir = M.short_dir(lastcmd)
+end
+
+function M.on_move()
+    local info = gmcp and gmcp.room and gmcp.room.info
+    if not info then return end
+    local id = tonumber(info.num)
+    if not id or id &lt; 1 then return end
+
+    local dir, cmd = lastdir, lastcmd
+    lastdir, lastcmd = nil, nil          -- consumed; the next move brings its own
+
+    local zone = tostring(info.zone or "")
+    local prev = current
+
+    if M.mapping() and U.playing() then
+        local aid = resolve_zone(zone, id, info)
+        local new = not roomExists(id)
+
+        if new then
+            addRoom(id)
+            stats.rooms = stats.rooms + 1
+            local x, y, z = place(info, aid, dir)
+            x, y, z = free_spot(aid, x, y, z, id)
+            pcall(setRoomCoordinates, id, x, y, z)
+            if aid then
+                pcall(setRoomArea, id, aid)
+                local za = zonearea[zone]
+                if za and not za.sure then za.mine[#za.mine + 1] = id end
+            end
+            pcall(setRoomName, id, clean_name(info.name))
+            local env = env_for(info.terrain)
+            if env then pcall(setRoomEnv, id, env) end
+            local flags = detail_flags(info.details)
+            if flags ~= "" then
+                pcall(setRoomUserData, id, "info", flags)
+                -- style.lua, if it loaded: the flags are what the symbol is
+                -- picked from, so it has to happen after they're written
+                if M.mark_room then M.mark_room(id) end
+            end
+        elseif getRoomUserData(id, UNEXPLORED) == "1" then
+            -- A '?' we drew earlier and have now actually walked into. Its
+            -- coordinates were reckoned from the room next door, which is the
+            -- same arithmetic arriving would use, so they stay - everything else
+            -- was never known and gets filled in now.
+            pcall(clearRoomUserData, id, UNEXPLORED)
+            pcall(setRoomChar, id, "")
+            pcall(setRoomName, id, clean_name(info.name))
+            local env = env_for(info.terrain)
+            if env then pcall(setRoomEnv, id, env) end
+            local flags = detail_flags(info.details)
+            if flags ~= "" then
+                pcall(setRoomUserData, id, "info", flags)
+                if M.mark_room then M.mark_room(id) end
+            end
+            stats.rooms = stats.rooms + 1
+            stats.unexplored = math.max(0, stats.unexplored - 1)
+
+        else
+            -- blanks only. An imported room's name, area and coordinates are
+            -- better than anything reckoned from here, and overwriting them is
+            -- how a good map becomes a bad one.
+            local okn, name = pcall(getRoomName, id)
+            if okn and U.trim(tostring(name or "")) == "" then
+                pcall(setRoomName, id, clean_name(info.name))
+            end
+            if aid and not area_of(id) then pcall(setRoomArea, id, aid) end
+            local oke, e = pcall(getRoomEnv, id)
+            if not oke or (tonumber(e) or 0) &lt; 1 then
+                local env = env_for(info.terrain)
+                if env then pcall(setRoomEnv, id, env) end
+            end
+        end
+
+        local co = info.coord
+        link_exits(id, info, aid, co and (tonumber(co.cont) or 0) &gt; 0)
+
+        -- the way in. GMCP already gave us this room's exits, so only the
+        -- forward edge from where we came needs saying - the way back is either
+        -- in that table or genuinely one-way, and guessing it is how one-way
+        -- exits get quietly turned into two.
+        if prev and prev.id ~= id and roomExists(prev.id) then
+            local n = dir and DIRNUM[dir]
+            if n then
+                pcall(setExit, prev.id, id, n)
+                stats.exits = stats.exits + 1
+            elseif CFG.autocexit and cmd and cmd ~= "" then
+                pcall(addSpecialExit, prev.id, id, cmd)
+                stats.specials = stats.specials + 1
+            end
+        end
+
+        pcall(centerview, id)
+    end
+
+    -- Grid mode is how the map DRAWS, not what's in it, so it happens whether or
+    -- not this module is the one creating rooms. GMCP is the only thing that
+    -- knows a room is on the continent, and the continent is the part that
+    -- wants tiles rather than boxes on strings.
+    local co = info.coord
+    if co and (tonumber(co.cont) or 0) &gt; 0 and M.on_continent and roomExists(id) then
+        local aid = area_of(id)
+        if aid then M.on_continent(aid) end
+    end
+
+    local x, y, z
+    if roomExists(id) then x, y, z = getRoomCoordinates(id) end
+    current = { id = id, zone = zone, x = x, y = y, z = z }
+
+    -- 'mapper cexit' and 'mapper portal add' are both waiting on this same
+    -- event, and they need the room to exist before they can link to it. One
+    -- handler, in order, rather than two racing on pairs() order.
+    M.on_room()
+end
+
+---
+-- commands
+---
+
+-- Drop everything learned about the map. The zone-to-area table holds area ids,
+-- and 'aardmap import' calls deleteMap() and renumbers the lot - so after an
+-- import every cached id points at an area that no longer exists.
+function M.forget()
+    current, lastcmd, lastdir = nil, nil, nil
+    zonearea = {}
+    for k in pairs(stats) do stats[k] = 0 end
+end
+
+function M.mapstat(rest)
+    local v = U.trim(tostring(rest or "")):lower()
+    if v == "forget" then
+        M.forget()
+        U.ok("Forgot the zone-to-area table and the room I thought you were in.")
+        return
+    end
+    if v == "on" or v == "off" then
+        CFG.mapwrite = (v == "on")
+        M.save()
+        local why = M.why_not_mapping()
+        if v == "on" and why then U.warn("Switched on, but " .. why .. ".")
+        else U.ok("Map writing " .. v .. ".") end
+        return
+    end
+
+    local live = M.mapping()
+    local rows = {
+        { "writing", live and "yes" or ("no - " .. (M.why_not_mapping() or "?")) },
+        { "here",    current and (U.rid(current.id) .. "  " .. tostring(current.zone)) or "nothing seen yet" },
+        { "" },
+        { "rooms created",  tostring(stats.rooms) },
+        { "exits linked",   tostring(stats.exits) },
+        { "unexplored '?'", tostring(stats.unexplored) .. (CFG.unexplored and "" or "  (off)") },
+        { "stubs left",     tostring(stats.stubs) },
+        { "stubs filled",   tostring(stats.filled) },
+    }
+    if stats.specials &gt; 0 then rows[#rows + 1] = { "custom exits", tostring(stats.specials) } end
+    if stats.nudged &gt; 0 then rows[#rows + 1] = { "nudged aside", tostring(stats.nudged) } end
+    if stats.stacked &gt; 0 then rows[#rows + 1] = { "overlapping", tostring(stats.stacked) .. " - no free spot nearby" } end
+    rows[#rows + 1] = { "" }
+    rows[#rows + 1] = { "mapper mapping on|off", "write rooms as you walk" }
+    rows[#rows + 1] = { "mapper mapping forget", "drop the zone-to-area table (after an 'aardmap import')" }
+    rows[#rows + 1] = { "mapper style unexplored on|off", "draw the rooms you haven't entered ("
+        .. (CFG.unexplored and "on" or "off") .. ")" }
+    rows[#rows + 1] = { "mapper autocexit on|off", "record non-direction moves as custom exits ("
+        .. (CFG.autocexit and "on" or "off") .. ")" }
+    rows[#rows + 1] = { "" }
+    rows[#rows + 1] = { "Counts are this session only." }
+    U.help("Mapping", rows)
+end
+
+U.killhandler(aardkit_mapper_send)
+aardkit_mapper_send = registerAnonymousEventHandler("sysDataSendRequest", "aardkit.mapper.on_send")
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>mapper/style</name>
+				<packageName />
+				<script>--[[
+    Mapper — how the map draws
+    Sean Stoves, 2026-08-02
+
+    The MUSHclient Aardwolf mapper draws the world as solid terrain-coloured
+    tiles butted edge to edge. Mudlet's default is small rounded rooms with exit
+    lines strung between them, which is the right drawing for a dungeon and the
+    wrong one for a continent.
+
+    Mudlet can do both, and the switch is per area: grid mode fills each cell
+    with a solid block and drops the exit lines, which is the same picture
+    MUSHclient's world map is. So none of this is a new widget - it's the map
+    Mudlet already draws, told what kind of area it's drawing.
+
+    Three things together make the difference:
+
+      * grid mode on the continent areas, and only those. An indoor area drawn
+        as blocks loses the corridors, which is the whole shape of the place.
+      * terrain colours, which walk.lua already sets from GMCP - same 134
+        environments and the same palette the MUSHclient map used, so an area
+        you walk today matches one that came across in the import.
+      * a character in the rooms that are worth finding again. MUSHclient marks
+        shops and healers on the map; the flags for that are already in room
+        user data, they just weren't being drawn.
+
+    Nothing here is applied until you ask for it. What it changes are Mudlet
+    preferences, which are yours and are not this module's to rearrange on load
+    - so the first time a style is applied the old values are written down, and
+    'mapper style restore' puts them back exactly.
+]]
+
+local M   = aardkit.mapper
+local U   = aardkit.util.named("Mapper")
+local CFG = M.CFG
+
+-- The preference keys, straight out of Mudlet's own getConfig list. Room and
+-- exit size are deliberately absent: grid mode fills the cell whatever they're
+-- set to, so the world-map look doesn't need them, and silently resizing
+-- somebody's dungeon maps to get there would be rude.
+local KEYS = {
+    "mapRoundRooms", "mapShowRoomBorders", "mapShowGrid",
+    "showRoomIdsOnMap", "show3dMapView", "showUpperLowerLevels",
+}
+
+-- Hard edges, no borders, no ids painted over the tiles, and both floors of a
+-- staircase visible because Aardwolf areas stack.
+local AARD = {
+    mapRoundRooms        = false,
+    mapShowRoomBorders   = false,
+    mapShowGrid          = false,
+    showRoomIdsOnMap     = false,
+    show3dMapView        = false,
+    showUpperLowerLevels = true,
+}
+
+-- What to stamp in a room, and which wins when a room is several things at
+-- once. A shop you can't find again is worse than a pk flag you forgot.
+local SYMORDER = { "shop", "healer", "trainer", "bank", "guild", "quest", "safe", "pk" }
+local SYMBOL   = {
+    shop = "$", healer = "+", trainer = "T", bank = "B",
+    guild = "G", quest = "?", safe = "*", pk = "!",
+}
+
+local gridded = {}   -- areas already switched to grid mode this session
+
+---
+-- symbols
+---
+
+function M.symbol_for(id)
+    local ok, info = pcall(getRoomUserData, id, "info")
+    if not ok or not info or info == "" then return nil end
+    info = "," .. info:lower() .. ","
+    for _, flag in ipairs(SYMORDER) do
+        if info:find("," .. flag .. ",", 1, true) then return SYMBOL[flag] end
+    end
+    return nil
+end
+
+function M.mark_room(id)
+    if not CFG.symbols or not U.has("setRoomChar") then return false end
+    local s = M.symbol_for(id)
+    if not s then return false end
+    pcall(setRoomChar, id, s)
+    pcall(setRoomCharColor, id, 255, 255, 255)
+    return true
+end
+
+-- Bounded on purpose: this area, not the map. 23,000 setRoomChar calls in one
+-- go is the same mistake the first map import made, and it took the client with
+-- it. 'mapper style symbols' again in the next area is a keypress.
+local function stamp_area(aid)
+    if not aid then return 0 end
+    local ok, rooms = pcall(getAreaRooms, aid)
+    if not ok or type(rooms) ~= "table" then return 0 end
+    local n = 0
+    for _, id in pairs(rooms) do
+        if M.mark_room(id) then n = n + 1 end
+    end
+    return n
+end
+
+---
+-- grid mode
+---
+
+local function area_here()
+    local id = getPlayerRoom and getPlayerRoom()
+    if not id or id == -1 then id = U.room() end
+    if not id then return nil end
+    local ok, a = pcall(getRoomArea, id)
+    a = ok and tonumber(a) or nil
+    if a and a &gt; 0 then return a end
+    return nil
+end
+
+function M.grid(aid, on)
+    if not U.has("setGridMode") then return false end
+    aid = tonumber(aid)
+    if not aid then return false end
+    local ok = pcall(setGridMode, aid, on and true or false)
+    if ok then gridded[aid] = on and true or nil end
+    return ok
+end
+
+-- walk.lua calls this the first time it sees a continent room in an area. The
+-- continent is the bit that looks wrong drawn as boxes-and-strings, and it's
+-- also the only bit we can identify without asking - GMCP flags it.
+function M.on_continent(aid)
+    if not CFG.autogrid or not aid or gridded[aid] then return end
+    if M.grid(aid, true) then
+        U.note("Continent area drawn as tiles - 'mapper style grid off' if you'd rather not.")
+    end
+end
+
+---
+-- applying
+---
+
+local function snapshot()
+    if CFG.stylewas and next(CFG.stylewas) then return end
+    if not U.has("getConfig") then return end
+    local was = {}
+    for _, k in ipairs(KEYS) do
+        local ok, v = pcall(getConfig, k)
+        if ok and v ~= nil then was[k] = v end
+    end
+    CFG.stylewas = was
+    M.save()
+end
+
+local function apply(tbl)
+    if not U.has("setConfig") then
+        U.warn("This Mudlet has no setConfig, so the map settings can't be changed from here.")
+        return false
+    end
+    for k, v in pairs(tbl) do pcall(setConfig, k, v) end
+    return true
+end
+
+function M.style_aard()
+    snapshot()
+    if not apply(AARD) then return end
+    CFG.style = "aard"
+    CFG.symbols = true
+    CFG.autogrid = true
+    M.save()
+
+    pcall(setMapBackgroundColor, 0, 0, 0)
+    pcall(setMapRoomExitsColor, 90, 100, 120)
+
+    local aid = area_here()
+    local n = stamp_area(aid)
+    if aid then M.grid(aid, true) end
+
+    U.ok("Map styled like the MUSHclient one - solid tiles, terrain colours, no exit lines.")
+    U.note("Marked " .. n .. " room(s) in this area. 'mapper style symbols' does the next one.")
+    U.note("'mapper style restore' puts your own settings back.")
+end
+
+function M.style_restore()
+    local was = CFG.stylewas or {}
+    if not next(was) then U.note("Nothing saved to go back to - the style was never applied."); return end
+    apply(was)
+    for aid in pairs(gridded) do pcall(setGridMode, aid, false) end
+    gridded = {}
+    CFG.style, CFG.symbols, CFG.autogrid = "", false, false
+    CFG.stylewas = {}
+    M.save()
+    U.ok("Map settings put back the way they were.")
+end
+
+---
+-- the command
+---
+
+function M.style(rest)
+    local verb, more = U.split_verb(rest)
+    more = U.trim(more)
+
+    if verb == "aard" or verb == "world" or verb == "mushclient" then
+        M.style_aard()
+
+    elseif verb == "restore" or verb == "default" or verb == "mudlet" then
+        M.style_restore()
+
+    elseif verb == "grid" then
+        local on = more:lower() ~= "off"
+        local aid = area_here()
+        if not aid then U.warn("Mudlet doesn't know which area you're in."); return end
+        if M.grid(aid, on) then
+            U.ok(M.areaname(aid) .. " drawn as " .. (on and "solid tiles." or "rooms and exit lines."))
+        else
+            U.warn("This Mudlet has no setGridMode.")
+        end
+
+    elseif verb == "symbols" then
+        if more == "off" then
+            CFG.symbols = false; M.save()
+            U.ok("Room symbols off. They stay on rooms already marked - 'mapper style clear' removes them.")
+            return
+        end
+        CFG.symbols = true; M.save()
+        local n = stamp_area(area_here())
+        U.ok("Marked " .. n .. " room(s) in this area.")
+
+    elseif verb == "clear" then
+        local ok, rooms = pcall(getAreaRooms, area_here())
+        local n = 0
+        if ok and type(rooms) == "table" then
+            for _, id in pairs(rooms) do
+                -- the '?' on an unexplored room isn't a symbol, it's the room
+                local oku, u = pcall(getRoomUserData, id, "unexplored")
+                if not (oku and u == "1") then
+                    pcall(setRoomChar, id, ""); n = n + 1
+                end
+            end
+        end
+        U.ok("Cleared symbols from " .. n .. " room(s) in this area.")
+
+    elseif verb == "autogrid" then
+        CFG.autogrid = more:lower() ~= "off"; M.save()
+        U.ok("Continent areas drawn as tiles when first seen: " .. (CFG.autogrid and "on" or "off"))
+        if not CFG.autogrid then
+            U.note("Areas already switched stay that way - 'mapper style grid off' per area.")
+        end
+
+    elseif verb == "unexplored" then
+        CFG.unexplored = more:lower() ~= "off"; M.save()
+        U.ok("Rooms GMCP knows about but you haven't entered: "
+            .. (CFG.unexplored and "drawn with a '?'" or "not drawn"))
+        if not CFG.unexplored then
+            U.note("The ones already on the map stay - they fill in when you walk into them.")
+        end
+
+    elseif verb == "ids" then
+        pcall(setConfig, "showRoomIdsOnMap", more:lower() ~= "off")
+        U.ok("Room ids on the map: " .. (more:lower() ~= "off" and "on" or "off"))
+
+    elseif verb == "room" or verb == "exit" then
+        local n = tonumber(more)
+        local key = verb == "room" and "mapRoomSize" or "mapExitSize"
+        if not n then
+            local okc, cur = pcall(getConfig, key)
+            U.warn("Usage: mapper style " .. verb .. " &lt;number&gt;   (currently "
+                .. (okc and tostring(cur) or "?") .. ")")
+            return
+        end
+        pcall(setConfig, key, n)
+        U.ok(key .. " = " .. n)
+
+    else
+        local cur = {}
+        if U.has("getConfig") then
+            for _, k in ipairs(KEYS) do
+                local ok, v = pcall(getConfig, k)
+                cur[k] = ok and tostring(v) or "?"
+            end
+            local okr, rs = pcall(getConfig, "mapRoomSize")
+            local oke, es = pcall(getConfig, "mapExitSize")
+            cur.mapRoomSize = okr and tostring(rs) or "?"
+            cur.mapExitSize = oke and tostring(es) or "?"
+        end
+        U.help("mapper style", {
+            { "style",      CFG.style ~= "" and CFG.style or "yours, untouched" },
+            { "symbols",    CFG.symbols and "on" or "off" },
+            { "auto grid",  CFG.autogrid and "continent areas become tiles" or "off" },
+            { "unexplored", CFG.unexplored and "drawn with a '?'" or "off" },
+            { "" },
+            { "round rooms",  cur.mapRoundRooms or "?" },
+            { "room borders", cur.mapShowRoomBorders or "?" },
+            { "room ids",     cur.showRoomIdsOnMap or "?" },
+            { "room size",    cur.mapRoomSize or "?" },
+            { "exit size",    cur.mapExitSize or "?" },
+            { "" },
+            { "mapper style aard",     "the MUSHclient look - tiles, terrain colours, symbols" },
+            { "mapper style restore",  "put your own settings back" },
+            { "mapper style grid on|off", "this area as solid tiles, or not" },
+            { "mapper style autogrid on|off", "do that automatically on the continent" },
+            { "mapper style unexplored on|off", "draw rooms GMCP knows and you haven't entered" },
+            { "mapper style symbols [off]", "mark shops, healers and the rest in this area" },
+            { "mapper style clear",    "take the symbols off this area" },
+            { "mapper style ids on|off", "room numbers painted on the map" },
+            { "mapper style room|exit &lt;n&gt;", "the two sizes, left alone by the presets" },
+            { "" },
+            { "Grid mode is per area, which is the point: the continent wants tiles" },
+            { "and an inn does not." },
+        })
+    end
+end
 </script>
 				<eventHandlerList />
 			</Script>
