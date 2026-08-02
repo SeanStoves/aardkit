@@ -3,6 +3,62 @@
 <!-- aardkit-priority: 22 -->
 <MudletPackage version="1.001">
 	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>mapper</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>portal blocked</name>
+				<script>aardkit.mapper.on_blocked()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Magic walls bounce you back\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>recall blocked</name>
+				<script>aardkit.mapper.on_norecall()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You cannot (?:recall|return home) from this room\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
 	<AliasPackage>
@@ -479,6 +535,31 @@ function M.cexit(cmd)
     end
 end
 
+-- "Magic walls bounce you back." is what a room that refuses portals and recalls
+-- actually says. It's instant and certain, which beats waiting six seconds to
+-- conclude nothing happened, and it means a room gets marked the first time you
+-- try rather than after the timeout.
+function M.on_blocked()
+    local id = here()
+    if not id then return end
+    pcall(setRoomUserData, id, "noportal", "1")
+    if adding then
+        local item = adding.item
+        adding = nil
+        U.warn("Magic walls: '" .. item .. "' won't fire here. Room marked noportal.")
+    else
+        U.note("Magic walls here - room marked noportal.")
+    end
+end
+
+-- and its recall counterpart, which is a different flag
+function M.on_norecall()
+    local id = here()
+    if not id then return end
+    pcall(setRoomUserData, id, "norecall", "1")
+    U.note("Can't recall from here - room marked norecall.")
+end
+
 -- room.info arriving after a cexit or a 'portal add' is what tells us where it
 -- went. Both wait on the same event; neither can be pending at once because
 -- each is started by a command you typed.
@@ -740,8 +821,9 @@ function M.portal_add(item)
         .. " step(s), and the room you land in gets recorded.")
     M.fire_portal(adding)
 
-    -- Not a long wait. A portal either moves you within a couple of seconds or
-    -- it didn't fire, and the usual reason it didn't is the room.
+    -- The backstop. "Magic walls bounce you back." arrives instantly when the
+    -- room refuses, so this only fires when something else went wrong - you
+    -- weren't carrying it, the keyword was off, the bag was shut.
     tempTimer(6, function()
         if adding and adding.from == from then
             adding = nil
