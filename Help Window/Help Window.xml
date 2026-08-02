@@ -109,10 +109,19 @@
     Mudlet has sendTelnetChannel102() for the wrapper, so we only supply the two
     payload bytes.
 
-    The tag arrives before the first line and after the last, which is all the
-    framing needed: clear on open, copy each line across, stop on close. Lines
-    are copied with copy()/appendBuffer so the MUD's colours survive - the point
-    is to read the file, not a plaintext rendering of it.
+    Paged, not scrolled. A Mudlet console that is scrolled up splits into a
+    scrollback pane and a live pane with a divider across it - that split IS
+    what being scrolled up looks like, and nothing turns it off. Right for the
+    MUD window, where you want to keep reading while new text arrives. Wrong for
+    a document, which has an end and doesn't move.
+
+    So the whole file goes into an invisible buffer and the panel shows one
+    screenful copied out of it. Never scrolled, so never split, and page one is
+    the top of the file. Resizing re-pages against the new height.
+
+    The buffer is also what keeps the colours: copy() and appendBuffer move a
+    line with its formatting intact, the same trick the panel manager uses to
+    carry a scrollback across a dock/embed flip.
 
     30_tags.lua owns the tag gag and would otherwise treat {help} as an unknown
     marker and delete the wrapper itself. Two owners deleting the same line is
@@ -126,26 +135,19 @@ aardkit.helpwin = aardkit.helpwin or {}
 local HW = aardkit.helpwin
 local U  = aardkit.util
 
-local CFG = U.load("helpwin", {
-    on   = true,
-    keep = false,   -- append instead of starting fresh
-})
+local CFG = U.load("helpwin", { on = true })
 
-local panel = aardkit.panel.new({
-    name     = "help",
-    title    = "Help",
-    width    = 700,
-    height   = 460,
-    x        = "120px",
-    y        = "60px",
-    fontSize = 10,
-    -- put up by a help file arriving and by nothing else. Where and how big it
-    -- is still persists - Adjustable.Container saves that itself on exit and
-    -- reloads it by name; it's only whether it's showing that gets forced.
-    transient = true,
-})
+-- The off-screen copy of the whole file. createBuffer makes a console that is
+-- never shown and never laid out - somewhere to hold formatted lines and read
+-- them back by number.
+local STORE = "aardkit_help_buffer"
+local BAR_H = 20
 
-HW.panel = panel
+local page, pages, total = 1, 1, 0
+
+-- declared ahead of the closures below so they bind these locals rather than
+-- globals of the same name, which are nil forever
+local panel, buttons, render
 
 ---
 -- asking the MUD to mark it
@@ -163,9 +165,117 @@ end
 
 function HW.negotiate()
     if not CFG.on then return end
-    -- The MUD forgets between sessions, so this goes out on every connect.
+    -- the MUD forgets between sessions, so this goes out on every connect
     telopt(true)
 end
+
+---
+-- panel
+---
+
+panel = aardkit.panel.new({
+    name     = "help",
+    title    = "Help",
+    width    = 700,
+    height   = 460,
+    x        = "120px",
+    y        = "60px",
+    fontSize = 10,
+    -- put up by a help file arriving and by nothing else. Where and how big it
+    -- is still persists - Adjustable.Container saves that itself on exit and
+    -- reloads it by name; it's only whether it's showing that gets forced.
+    transient = true,
+    -- a taller panel is more lines per page, so the page has to be recut
+    onresize  = function() if render then render() end end,
+    onbuild   = function() buttons = {} end,
+})
+
+HW.panel = panel
+buttons = {}
+
+local function button(key, cb)
+    if not buttons[key] then
+        buttons[key] = Geyser.Label:new({
+            name = "aardkit_help_" .. key .. "_" .. (panel.gen or 1),
+            x = 0, y = 0, width = 10, height = BAR_H - 2,
+        }, panel.container)
+        if cb then buttons[key]:setClickCallback(cb) end
+    end
+    return buttons[key]
+end
+
+-- How many lines fit. getRowCount is the console's own answer and the only one
+-- that stays right as you drag the panel about; the fallback is for the moment
+-- before it has been laid out.
+local function fits()
+    local c = panel.console
+    if not c then return 20 end
+    local ok, n = pcall(getRowCount, c.name)
+    if ok and type(n) == "number" and n &gt; 0 then return n end
+    return 20
+end
+
+local function style(on)
+    return string.format("background-color: %s; border: 1px solid %s; border-radius: 3px;",
+        on and "#1b2540" or "#141b2d", on and "#3a4a6b" or "#232c44")
+end
+
+local function lab(on, s)
+    return string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+        on and "#c8d0dc" or "#4a5468", s)
+end
+
+render = function()
+    local c = panel.console
+    if not c or not panel.container then return end
+
+    local per = math.max(1, fits())
+    pages = math.max(1, math.ceil(total / per))
+    page  = math.min(math.max(1, page), pages)
+
+    local h = U.px(panel.container.get_height and panel.container:get_height()
+                   or panel.container.height)
+    local w = U.px(panel.container.get_width and panel.container:get_width()
+                   or panel.container.width)
+    if w &lt; 60 then w = 700 end
+
+    -- console above, one row of chrome below it
+    pcall(function()
+        c:move(0, 0)
+        c:resize("100%", "-" .. BAR_H .. "px")
+    end)
+
+    pcall(clearWindow, c.name)
+    local first = (page - 1) * per
+    local last  = math.min(total - 1, first + per - 1)
+    for i = first, last do
+        moveCursor(STORE, 0, i)
+        selectCurrentLine(STORE)
+        copy(STORE)
+        appendBuffer(c.name)
+    end
+
+    local y, bw = math.max(0, h - BAR_H), 70
+
+    local prev = button("prev", "aardkit.helpwin.prev")
+    prev:move(4, y); prev:resize(bw, BAR_H - 2)
+    prev:setStyleSheet(style(page &gt; 1)); prev:echo(lab(page &gt; 1, "&amp;lt; prev")); prev:show()
+
+    local nxt = button("next", "aardkit.helpwin.next")
+    nxt:move(w - bw - 4, y); nxt:resize(bw, BAR_H - 2)
+    nxt:setStyleSheet(style(page &lt; pages)); nxt:echo(lab(page &lt; pages, "next &amp;gt;")); nxt:show()
+
+    local mid = button("page")
+    mid:move(bw + 8, y); mid:resize(math.max(10, w - (bw + 8) * 2), BAR_H - 2)
+    mid:setStyleSheet("background-color: #0d1117; border: 0px;")
+    mid:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+        pages &gt; 1 and "#8a93a8" or "#4a5468",
+        total == 0 and "" or ("page " .. page .. " of " .. pages)))
+    mid:show()
+end
+
+function HW.prev() if page &gt; 1 then page = page - 1; render() end end
+function HW.next() if page &lt; pages then page = page + 1; render() end end
 
 ---
 -- capture
@@ -189,7 +299,10 @@ local function arm(kind)
         if line:match("^%s*{/help") then
             U.gag()
             stop()
-            panel:scrolltop()
+            local ok, n = pcall(getLineCount, STORE)
+            total = (ok and type(n) == "number") and n or 0
+            page = 1
+            render()
             return
         end
         -- Not every tag is a line of its own. {helpkeywords} arrives welded to
@@ -199,10 +312,12 @@ local function arm(kind)
         if tag then
             if pcall(selectString, tag, 1) then pcall(replace, "") end
         end
-        panel:capture_line()
+        selectCurrentLine()
+        copy()
+        appendBuffer(STORE)
         U.gag()
     end)
-    -- A help that never closes would eat the rest of the session.
+    -- a help that never closes would eat the rest of the session
     timer = tempTimer(15, function()
         if capturing then
             stop()
@@ -216,14 +331,13 @@ function HW.on_open(kind)
     if not CFG.on then return end
     stop()
     U.gag()
-    if not CFG.keep then panel:clear() end
+    pcall(createBuffer, STORE)     -- a no-op once it exists
+    pcall(clearWindow, STORE)
+    total, page, pages = 0, 1, 1
+    if panel.console then pcall(clearWindow, panel.console.name) end
     panel:show()
     arm(kind or "help")
 end
-
--- 'help search' with no matches, and a bad keyword, both come back inside the
--- tags, so they land in the panel like anything else and there's nothing
--- special to do about them.
 
 ---
 -- commands
@@ -243,13 +357,14 @@ function HW.cmd(arg)
         if not CFG.on then stop() end
         U.ok("Help window " .. verb .. (CFG.on and " - help goes to the panel." or " - help stays in the main window."))
 
-    elseif verb == "keep" then
-        CFG.keep = not CFG.keep
-        U.save("helpwin", CFG)
-        U.ok("Help window: " .. (CFG.keep and "keeping previous helps." or "fresh every time."))
+    elseif verb == "next" then HW.next()
+    elseif verb == "prev" then HW.prev()
 
     elseif verb == "clear" then
-        panel:clear()
+        pcall(clearWindow, STORE)
+        if panel.console then pcall(clearWindow, panel.console.name) end
+        total, page, pages = 0, 1, 1
+        render()
         U.ok("Help window cleared.")
 
     elseif verb == "retry" or verb == "negotiate" then
@@ -265,14 +380,16 @@ function HW.cmd(arg)
     else
         U.help("Help window", {
             { "state",   CFG.on and "on" or "off" },
-            { "on open", CFG.keep and "appends" or "starts fresh" },
-            { "tagging", U.has("sendTelnetChannel102") and "negotiated on connect" or "unavailable in this Mudlet" },
+            { "showing", total &gt; 0 and (total .. " lines, page " .. page .. " of " .. pages)
+                         or "nothing yet" },
+            { "tagging", U.has("sendTelnetChannel102") and "negotiated on connect"
+                         or "unavailable in this Mudlet" },
             { "" },
-            { "helpwin",          "show or hide the panel" },
-            { "helpwin on | off", "capture help, or leave it in the main window" },
-            { "helpwin keep",     "append rather than starting fresh" },
-            { "helpwin clear",    "empty it" },
-            { "helpwin retry",    "ask the MUD to tag help output again" },
+            { "helpwin",             "show or hide the panel" },
+            { "helpwin on | off",    "capture help, or leave it in the main window" },
+            { "helpwin next | prev", "page through the file, same as the buttons" },
+            { "helpwin clear",       "empty it" },
+            { "helpwin retry",       "ask the MUD to tag help output again" },
             { "helpwin dock | embed | show | hide", "panel placement" },
             { "" },
             { "Read help as you always have - 'help &lt;topic&gt;'. Aardwolf marks" },

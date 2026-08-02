@@ -54,6 +54,11 @@ getAnsiColor = function(i) local c = ANSI[i] or {0,0,0}; return c[1], c[2], c[3]
 copy = note("copy")
 replace = note("replace")
 appendBuffer = note("appendBuffer")
+createBuffer = note("createBuffer")
+clearWindow = note("clearWindow")
+-- a console's own answer for how many lines fit; the pager reads it every repaint
+getRowCount = function() return 24 end
+getColumnCount = function() return 80 end
 getCurrentLine = function() return "" end
 getLineCount = function() return 0 end
 moveCursor = note("moveCursor")
