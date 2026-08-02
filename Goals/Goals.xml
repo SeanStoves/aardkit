@@ -51,7 +51,7 @@ aardkit = aardkit or {}
 aardkit.goals = aardkit.goals or {}
 
 local G = aardkit.goals
-local U = aardkit.util
+local U = aardkit.util.named("Goals")
 
 -- Aardwolf's own currencies, as gmcp.char.worth reports them.
 -- alias -&gt; {gmcp field, display}

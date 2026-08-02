@@ -469,7 +469,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 local ok, handle = pcall(db.create, db, "aardkitsnd", {
     mobs = {
@@ -880,7 +880,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 -- kind -&gt; ordered list of { name, area, qty, killed }
 SD.targets = SD.targets or { quest = {}, campaign = {}, gquest = {} }
@@ -1306,7 +1306,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 -- epochs, not durations. nil = we haven't been told.
 local deadline      -- current quest runs out
@@ -1511,7 +1511,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 local CFG = U.load("sndhunt", { gap = 0.4, maxsteps = 120 })
 
@@ -1711,7 +1711,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 local WCFG = U.load("sndwalk", { arrive = 45, where = 4, gap = 0.25 })
 
@@ -2087,7 +2087,7 @@ aardkit = aardkit or {}
 aardkit.snd = aardkit.snd or {}
 
 local SD = aardkit.snd
-local U  = aardkit.util
+local U  = aardkit.util.named("S&amp;D")
 
 local TAB_H, ROW_H, PAD = 24, 22, 4
 local BTN_H, SEL_H = 22, 18

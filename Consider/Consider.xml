@@ -113,7 +113,7 @@ aardkit = aardkit or {}
 aardkit.con = aardkit.con or {}
 
 local C = aardkit.con
-local U = aardkit.util
+local U = aardkit.util.named("Consider")
 
 local CFG = U.load("consider", { on = true })
 

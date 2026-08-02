@@ -477,7 +477,24 @@ function U.unevery(key)
     U.timers[key] = (U.timers[key] or 0) + 1      -- orphans any tick in flight
 end
 
-local TAG = "&lt;#7aa2f7&gt;[&lt;#e94560&gt;aardkit&lt;#7aa2f7&gt;]&lt;r&gt; "
+-- The prefix on everything the client says. It used to be "[aardkit]" on every
+-- line, which is the same nine characters repeated forever and tells you nothing
+-- you didn't know - you typed the command. The module's own name is information:
+-- when a warning arrives unprompted mid-fight, which part is talking is the
+-- first thing you want.
+--
+-- Padded to a common width so the messages line up rather than stepping in and
+-- out with the length of the name.
+local TAGW = 11
+
+local function tagof(label)
+    local t = "[" .. label .. "]"
+    local pad = TAGW - #t
+    return "&lt;#7aa2f7&gt;[&lt;#e94560&gt;" .. label .. "&lt;#7aa2f7&gt;]&lt;r&gt;"
+        .. string.rep(" ", pad &gt; 0 and pad or 1)
+end
+
+local TAG = tagof("aardkit")
 
 function U.note(msg)
     U.out("\n" .. TAG .. "&lt;#c8d0dc&gt;" .. msg .. "&lt;r&gt;")
@@ -493,6 +510,24 @@ end
 
 function U.err(msg)
     U.out("\n" .. TAG .. "&lt;#f7768e&gt;" .. msg .. "&lt;r&gt;")
+end
+
+-- A module-scoped view of U. Same functions, except the four that print carry
+-- the module's own name; everything else falls through by metatable, so a module
+-- changes one line at the top and not a single call site.
+local named = {}
+
+function U.named(label)
+    label = tostring(label or "aardkit")
+    if named[label] then return named[label] end
+    local tag = tagof(label)
+    local t = setmetatable({}, { __index = U })
+    t.note = function(m) U.out("\n" .. tag .. "&lt;#c8d0dc&gt;" .. tostring(m) .. "&lt;r&gt;") end
+    t.ok   = function(m) U.out("\n" .. tag .. "&lt;#9ece6a&gt;" .. tostring(m) .. "&lt;r&gt;") end
+    t.warn = function(m) U.out("\n" .. tag .. "&lt;#e0af68&gt;" .. tostring(m) .. "&lt;r&gt;") end
+    t.err  = function(m) U.out("\n" .. tag .. "&lt;#f7768e&gt;" .. tostring(m) .. "&lt;r&gt;") end
+    named[label] = t
+    return t
 end
 
 -- help blocks: pass a list of {cmd, description} and it lines them up
@@ -719,7 +754,7 @@ aardkit = aardkit or {}
 aardkit.panel = aardkit.panel or {}
 
 local P = aardkit.panel
-local U = aardkit.util
+local U = aardkit.util.named("Panels")
 
 P.reg   = P.reg or {}      -- name -&gt; panel
 P.state = P.state or {}    -- name -&gt; {mode=, hidden=}
@@ -1328,7 +1363,7 @@ aardkit_panel_connect_handler = registerAnonymousEventHandler("sysConnectionEven
 ]]
 
 aardkit = aardkit or {}
-local U = aardkit.util
+local U = aardkit.util.named("Aardkit")
 
 -- plugins register themselves here so 'aardkit' can list what's loaded
 aardkit.plugins = aardkit.plugins or {}
@@ -1498,7 +1533,7 @@ aardkit = aardkit or {}
 aardkit.tags = aardkit.tags or {}
 
 local T = aardkit.tags
-local U = aardkit.util
+local U = aardkit.util.named("Tags")
 
 -- the payload IS the tag; nothing to keep
 local LINE = {
@@ -1744,7 +1779,7 @@ aardkit = aardkit or {}
 aardkit.stock = aardkit.stock or {}
 
 local S = aardkit.stock
-local U = aardkit.util
+local U = aardkit.util.named("Stock")
 
 local CFG = U.load("stock", {
     off  = { ["runto rt"] = true },      -- aliases
@@ -1913,7 +1948,7 @@ aardkit = aardkit or {}
 aardkit.gmcp = aardkit.gmcp or {}
 
 local G = aardkit.gmcp
-local U = aardkit.util
+local U = aardkit.util.named("GMCP")
 
 local CFG = U.load("gmcp", { rate = 1 })
 

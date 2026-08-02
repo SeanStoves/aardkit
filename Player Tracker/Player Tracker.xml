@@ -155,7 +155,7 @@ aardkit = aardkit or {}
 aardkit.pt = aardkit.pt or {}
 
 local PT = aardkit.pt
-local U  = aardkit.util
+local U  = aardkit.util.named("Players")
 
 local CFG = U.load("playertracker", {
     players  = {},              -- name:lower -&gt; rec

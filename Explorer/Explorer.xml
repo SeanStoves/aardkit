@@ -397,7 +397,7 @@ aardkit = aardkit or {}
 aardkit.explorer = aardkit.explorer or {}
 
 local EX = aardkit.explorer
-local U  = aardkit.util
+local U  = aardkit.util.named("Explorer")
 
 local CFG = U.load("explorer", { dir = "maps" })
 

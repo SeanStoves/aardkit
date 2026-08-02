@@ -56,7 +56,7 @@ aardkit = aardkit or {}
 aardkit.statmon = aardkit.statmon or {}
 
 local SM = aardkit.statmon
-local U  = aardkit.util
+local U  = aardkit.util.named("Stats")
 
 local DEFAULT = {
     hp = true, mana = true, moves = true,

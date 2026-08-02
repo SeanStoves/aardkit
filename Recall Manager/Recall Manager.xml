@@ -53,7 +53,7 @@ aardkit = aardkit or {}
 aardkit.recall = aardkit.recall or {}
 
 local RM = aardkit.recall
-local U  = aardkit.util
+local U  = aardkit.util.named("Recall")
 
 local ROW_H  = 22
 local FOOT_H = 34

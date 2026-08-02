@@ -379,7 +379,7 @@ aardkit = aardkit or {}
 aardkit.loot = aardkit.loot or {}
 
 local LT = aardkit.loot
-local U  = aardkit.util
+local U  = aardkit.util.named("Loot")
 local T  = LT.t
 
 local API_URL = "https://api.aardwolf.muds.fyi"
@@ -1717,7 +1717,7 @@ aardkit = aardkit or {}
 aardkit.loot = aardkit.loot or {}
 
 local LT = aardkit.loot
-local U  = aardkit.util
+local U  = aardkit.util.named("Loot")
 local T  = LT.t
 
 local API_URL = "https://api.aardwolf.muds.fyi"

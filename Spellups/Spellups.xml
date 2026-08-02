@@ -457,7 +457,7 @@ aardkit = aardkit or {}
 aardkit.spellup = aardkit.spellup or {}
 
 local SP = aardkit.spellup
-local U  = aardkit.util
+local U  = aardkit.util.named("Spellups")
 
 local CFG = U.load("spellups", {
     warn30 = true, warn10 = true, channel = "echo",
@@ -1348,7 +1348,7 @@ aardkit = aardkit or {}
 aardkit.spellup = aardkit.spellup or {}
 
 local SP = aardkit.spellup
-local U  = aardkit.util
+local U  = aardkit.util.named("Spellups")
 
 local AC = U.load("spellauto", {
     on        = true,
@@ -1508,7 +1508,7 @@ aardkit = aardkit or {}
 aardkit.spellup = aardkit.spellup or {}
 
 local SP = aardkit.spellup
-local U  = aardkit.util
+local U  = aardkit.util.named("Spellups")
 
 local EX = U.load("spellextras", {
     totem = { on = false, kind = nil, autocast = false, announce = true },

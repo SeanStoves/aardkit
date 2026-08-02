@@ -126,7 +126,7 @@ aardkit = aardkit or {}
 aardkit.coords = aardkit.coords or {}
 
 local CO = aardkit.coords
-local U  = aardkit.util
+local U  = aardkit.util.named("Coords")
 
 local CFG = U.load("coords", {
     show   = "coordareas",   -- coordareas | always | off  (when to fill the panel)

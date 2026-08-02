@@ -111,7 +111,7 @@ aardkit = aardkit or {}
 aardkit.searchwin = aardkit.searchwin or {}
 
 local SW = aardkit.searchwin
-local U  = aardkit.util
+local U  = aardkit.util.named("Search")
 
 local CFG = U.load("searchwin", {
     on  = true,

@@ -61,7 +61,7 @@ aardkit = aardkit or {}
 aardkit.sessionlog = aardkit.sessionlog or {}
 
 local L = aardkit.sessionlog
-local U = aardkit.util
+local U = aardkit.util.named("Log")
 
 local CFG = U.load("logging", { auto = true })
 

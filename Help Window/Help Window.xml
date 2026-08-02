@@ -133,7 +133,7 @@ aardkit = aardkit or {}
 aardkit.helpwin = aardkit.helpwin or {}
 
 local HW = aardkit.helpwin
-local U  = aardkit.util
+local U  = aardkit.util.named("Help")
 
 local CFG = U.load("helpwin", {
     on  = true,

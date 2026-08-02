@@ -100,7 +100,7 @@ aardkit = aardkit or {}
 aardkit.infowin = aardkit.infowin or {}
 
 local IW = aardkit.infowin
-local U  = aardkit.util
+local U  = aardkit.util.named("Info")
 
 local CFG = U.load("infowin", { buffer = 100, gag = true })
 
