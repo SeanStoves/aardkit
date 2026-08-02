@@ -198,6 +198,9 @@ local CFG = U.load("mapper", {
     -- with a '?' in them. On, because "there are four ways out of here I never
     -- took" is the single most useful thing a map can tell you.
     unexplored = true,
+    -- Click a room on the map and walk there. On, because it's the thing every
+    -- graphical mapper does and the reason to have the map on screen at all.
+    clickwalk  = true,
     -- Ours, not the stock module's. vconfig is part of a setup we don't own and
     -- may not be installed at all, so it's read as a convenience and never
     -- relied on: whatever is set here wins, and with neither set the chain is
@@ -623,15 +626,74 @@ function M.goto_room(id)
     -- 'run = buildSpeedWalk(); display(run); send(run)' - so calling it hands
     -- our route to their implementation and prints the command at you. S&amp;D has
     -- avoided it since it was written; this had not.
-    local steps = {}
-    for i, d in ipairs(speedWalkDir or {}) do steps[i] = d end
+    -- Custom exits beat the plain direction between the same two rooms.
+    --
+    -- That is the whole point of them here: 1,468 of the cexits that came
+    -- across from MUSHclient read 'open south;;south', so the direction alone
+    -- walks you into a shut door and the cexit opens it first. Mudlet's path
+    -- gives us the rooms as well as the directions, so for each step we can ask
+    -- whether these two are joined by one and use it instead.
+    local path = {}
+    for i, r in ipairs(speedWalkPath or {}) do path[i] = tonumber(r) end
+
+    local steps, used_cexit, prev = {}, false, from
+    for i, d in ipairs(speedWalkDir or {}) do
+        local to, cmd = path[i], d
+        if to then
+            local oks, sp = pcall(getSpecialExits, prev)
+            if oks and type(sp) == "table" then
+                for dest, c in pairs(sp) do
+                    if tonumber(dest) == to then cmd = c; used_cexit = true; break end
+                end
+            end
+            prev = to
+        end
+        steps[#steps + 1] = cmd
+    end
+
     if #steps == 0 then U.warn("No route to " .. U.rid(id) .. "."); return end
-    U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s).")
+    U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s)"
+        .. (used_cexit and ", through a custom exit." or "."))
+
     -- S&amp;D already folds runs of basic directions into 'run 3n2e'. Use it if
-    -- that module is here; send the steps one at a time if it isn't.
-    local compress = aardkit.snd and aardkit.snd.compress
-    local cmds = compress and compress(steps) or steps
+    -- that module is here - but not once a cexit is in the route: 'open
+    -- south;;south' is not a direction and folding it into a run destroys it.
+    local cmds
+    if used_cexit then
+        cmds = {}
+        for _, c in ipairs(steps) do
+            for part in tostring(c):gmatch("[^;]+") do
+                local one = U.trim(part)
+                if one ~= "" then cmds[#cmds + 1] = one end
+            end
+        end
+    else
+        local compress = aardkit.snd and aardkit.snd.compress
+        cmds = compress and compress(steps) or steps
+    end
     for _, c in ipairs(cmds) do send(c, false) end
+end
+
+-- Click a room on the map and walk to it.
+--
+-- Mudlet raises no room-clicked event; it raises sysMapWindowMousePressEvent
+-- for a press anywhere in the map, and getMapSelection() says what is selected.
+-- Behind a short timer because the press comes first and the selection lands
+-- after it - reading it in the handler reads the PREVIOUS selection.
+--
+-- One room only. A drag across several is somebody selecting, not choosing a
+-- destination, and setting off across the world on that would be its own bug.
+function M.on_map_click()
+    if not CFG.clickwalk then return end
+    tempTimer(0.05, function()
+        local ok, sel = pcall(getMapSelection)
+        if not ok or type(sel) ~= "table" then return end
+        local rooms = sel.rooms
+        if type(rooms) ~= "table" or #rooms ~= 1 then return end
+        local id = tonumber(rooms[1])
+        if not id or id == here() then return end
+        M.goto_room(id)
+    end)
 end
 
 local next_i = 0
@@ -1387,6 +1449,15 @@ function M.cmd(arg)
     local verb, rest = U.split_verb(arg)
     rest = U.trim(rest)
 
+    -- 'mapper help exits' is offered by the help itself and never worked: verb
+    -- is "help" and the topic is in rest, so it fell through to the default and
+    -- printed the same page it was called from.
+    if verb == "help" then
+        local topic = U.trim(rest):lower()
+        M.help(topic == "cexits" and "exits" or topic)
+        return
+    end
+
     -- exploring
     if verb == "thisroom" then M.thisroom()
     elseif verb == "showroom" then M.showroom(rest)
@@ -1600,6 +1671,10 @@ function M.cmd(arg)
             U.note("This is display and mapping only - 'mapper standalone off' is the full swap.")
         end
 
+    elseif verb == "clickwalk" then
+        CFG.clickwalk = onoff(rest, CFG.clickwalk); save()
+        U.ok("Click a room to walk there: " .. (CFG.clickwalk and "on" or "off"))
+
     elseif verb == "unframe" then
         if not GUIframe then
             U.note("The stock module isn't installed - there's no embedded map to remove.")
@@ -1732,7 +1807,8 @@ function M.help(which)
             { "mapper reframe",    "give it straight back to them" },
             { "mapper standalone on|off", "stop the stock module writing to the map too" },
             { "mapper show|hide|dock|embed", "where the map panel lives" },
-            { "mapper zoom in|out", "map zoom" },
+            { "mapper zoom in|out|&lt;n&gt;", "map zoom - bigger is closer" },
+            { "mapper clickwalk on|off", "click a room on the map to walk there" },
             { "" },
             { "mapper portals",    "hand-held portals   ('mapper help portals' for more)" },
             { "" },
@@ -1749,6 +1825,10 @@ aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", 
 -- that session. So the engine is the entry point and calls on_room() when it's
 -- finished.
 aardkit.gmcp.watch("mapper_room", "room.info", "aardkit.mapper.on_move", true)
+
+U.killhandler(aardkit_mapper_click)
+aardkit_mapper_click = registerAnonymousEventHandler("sysMapWindowMousePressEvent",
+                                                     "aardkit.mapper.on_map_click")
 
 -- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
 -- has to land after that or there's nothing in the frame to remove yet. It

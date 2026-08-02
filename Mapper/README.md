@@ -62,7 +62,8 @@ that every module here builds on. Without it nothing else loads.
 | `mapper reframe` | give their map widget straight back to them |
 | `mapper standalone on\|off` | stop the stock module writing to the map — costs you its speedwalk, coordrun and 'where' |
 | `mapper show\|hide\|dock\|embed` | where the Mapper panel lives |
-| `mapper zoom in\|out\|<n>` | map zoom — bigger is closer; the MUSHclient map measures 20 |
+| `mapper zoom in\|out\|<n>` | map zoom — bigger is closer; the style sets 8 |
+| `mapper clickwalk on\|off` | click a room on the map to walk there (on) |
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
 | `mapper database` | where the map lives |
 | `mapper portals [here\|<area>]` | hand-held portals you have recorded |
@@ -122,6 +123,8 @@ table above is for.
 shifted between areas — only new rooms get placed, and an old one has blanks filled in and
 nothing else. So the worst a bad guess can do is put one new room somewhere daft, and
 `mapper purgeroom` undoes that. Run `mapper mapping` any time to see what it has created.
+
+Clicking a room on the map walks you to it, and **a custom exit beats the plain direction** between the same two rooms. That matters more than it sounds: 1,468 of the cexits that came across from MUSHclient read `open south;;south`, so the direction on its own walks you into a shut door. A route using one is sent step by step rather than folded into a `run 3n2e`, because `open south` is not a direction. `mapper clickwalk off` if you'd rather not.
 
 **There is only one map view per Mudlet profile.** Mudlet's own Geyser.Mapper says so — mappers are singleton per profile — so two `Geyser.Mapper` objects aren't two maps, they're two claims on the same one, and the last claim wins. The stock module builds its map on a timer after this module has loaded, so without help theirs wins and the panel here comes up empty.
 

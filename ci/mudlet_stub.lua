@@ -366,7 +366,14 @@ centerview = function(id) MAP.centered = tonumber(id) end
 deleteMap = function() MAP.reset() end
 saveMap = function() return true end
 getPlayerRoom = function() return MAP.centered or 1234 end
-getPath = function() return true end
+-- getPath writes both globals as a side effect; the path is what lets the
+-- walker ask "is there a custom exit between these two rooms" per step.
+speedWalkPath = {}
+getPath = function(from, to)
+    speedWalkDir  = { "n", "e" }
+    speedWalkPath = { 1235, tonumber(to) or 1234 }
+    return true
+end
 doSpeedWalk = note("doSpeedWalk")
 speedWalkDir = {}
 getTime = function() return "20260802-1300" end
