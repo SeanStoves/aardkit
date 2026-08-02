@@ -617,6 +617,65 @@ end
 -- strings
 ---
 
+-- A bordered table, the shape the MUSHclient mapper prints its lists in:
+--
+--   +------------+--------------------+---------+
+--   | area       | room name          |  rm uid |
+--   +------------+--------------------+---------+
+--   | bootcamp   | The Common Room    |   47195 |
+--   +------------+--------------------+---------+
+--
+-- Worth having in core rather than in whichever module wanted it first. A
+-- two-column U.help is right for a list of commands and wrong for anything with
+-- three facts per row, and "you can read it at a glance" is most of why that
+-- mapper's output is missed.
+--
+-- cols: { { title, align = "l"|"r", max = &lt;chars&gt; }, ... }
+-- Anything longer than max is cut with a trailing space, the way theirs does -
+-- a wrapped cell would break the grid, and the id beside it is what you'd look
+-- the full text up with anyway.
+function U.table(cols, rows, foot)
+    local w = {}
+    for i, c in ipairs(cols) do w[i] = #tostring(c[1] or "") end
+    for _, r in ipairs(rows) do
+        for i, c in ipairs(cols) do
+            local v = tostring(r[i] == nil and "" or r[i])
+            if c.max and #v &gt; c.max then v = v:sub(1, c.max) end
+            if #v &gt; w[i] then w[i] = #v end
+        end
+    end
+
+    local function rule()
+        local p = {}
+        for i = 1, #cols do p[i] = string.rep("-", w[i] + 2) end
+        return "+" .. table.concat(p, "+") .. "+"
+    end
+
+    local function line(vals, colour)
+        local p = {}
+        for i, c in ipairs(cols) do
+            local v = tostring(vals[i] == nil and "" or vals[i])
+            if c.max and #v &gt; c.max then v = v:sub(1, c.max) end
+            local pad = string.rep(" ", w[i] - #v)
+            p[i] = " " .. (c.align == "r" and (pad .. v) or (v .. pad)) .. " "
+        end
+        return "&lt;#3a4a6b&gt;|&lt;r&gt;" .. table.concat(p, "&lt;#3a4a6b&gt;|&lt;r&gt;"):gsub("^", "&lt;" .. colour .. "&gt;")
+            .. "&lt;r&gt;&lt;#3a4a6b&gt;|&lt;r&gt;"
+    end
+
+    U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
+    U.out("\n" .. line((function()
+        local t = {}
+        for i, c in ipairs(cols) do t[i] = c[1] end
+        return t
+    end)(), "#7aa2f7"))
+    U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
+    for _, r in ipairs(rows) do U.out("\n" .. line(r, "#c8d0dc")) end
+    U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
+    if foot then U.out("\n&lt;#8a93a8&gt;" .. foot .. "&lt;r&gt;") end
+    echo("\n")
+end
+
 function U.trim(s)
     return (tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", ""))
 end

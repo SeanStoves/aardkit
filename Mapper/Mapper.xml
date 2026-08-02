@@ -850,18 +850,38 @@ end
 function M.cexits(scope)
     local allowed = scope_rooms(scope == "" and "here" or scope)
     if not allowed then U.warn("Usage: mapper cexits [here|&lt;area&gt;]"); return end
+
+    -- The MUSHclient mapper's own layout, because it's the right one: area,
+    -- room, id, the command, and where it lands. Five facts per row is not a
+    -- two-column help list, and being able to read a column of destinations at
+    -- a glance is most of what that command was for.
     local rows = {}
     for _, id in ipairs(allowed) do
         local ok, sp = pcall(getSpecialExitsSwap, id)
         if ok and type(sp) == "table" then
-            for cmd, dest in pairs(sp) do
-                rows[#rows + 1] = { tostring(cmd), U.rid(id) .. " -&gt; " .. U.rid(dest) }
+            local cmds = {}
+            for cmd in pairs(sp) do cmds[#cmds + 1] = cmd end
+            table.sort(cmds)
+            for _, cmd in ipairs(cmds) do
+                rows[#rows + 1] = { M.areaname(id), (getRoomName and getRoomName(id)) or "?",
+                                    id, cmd, sp[cmd] }
             end
         end
     end
+
     if #rows == 0 then U.note("No custom exits there."); return end
-    table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
-    U.help(#rows .. " custom exit(s)", rows)
+    table.sort(rows, function(x, y)
+        if x[3] ~= y[3] then return x[3] &lt; y[3] end
+        return tostring(x[4]) &lt; tostring(y[4])
+    end)
+
+    U.table({
+        { "area",      max = 24 },
+        { "room name", max = 32 },
+        { "rm uid",    align = "r" },
+        { "dir",       max = 59 },
+        { "to uid",    align = "r" },
+    }, rows, "Found " .. #rows .. " custom exit(s).")
 end
 
 -- 'mapper cexit &lt;command&gt;' - run it, see where you end up, link it. MUSHclient
