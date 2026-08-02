@@ -84,12 +84,30 @@ local CFG = U.load("mapper", {
     quicklist = false,
     compact   = false,
     updown    = true,
-    -- { { cmd = "enter portal", to = 1234, recall = false, level = 0 }, ... }
+    -- { { cmd, to, area, item, recall, level }, ... }
+    --
+    -- 'to' is the room and 'area' is what the item's id box claims - "Leads to:
+    -- The Amusement Park". They're different facts with different sources: the
+    -- area comes off the item and is known before you ever use it, the room is
+    -- only knowable by standing in it. Keeping both means a portal you haven't
+    -- used yet is still listed, with what it's for, rather than absent until it
+    -- has a room id.
     -- Ordered, because the whole interface addresses them by index: 'delete
     -- portal #3', 'bounceportal 2'. A map keyed on the command would read
     -- better and break every command anyone has written down.
     portals   = {},
     bounce    = {},   -- { portal = &lt;index&gt;, recall = &lt;index&gt; }
+    -- The portal wish gives you a wear location of its own, so a portal goes on
+    -- without displacing anything and there's nothing to put back. Without it a
+    -- portal is held, which costs you whatever was in that hand. Off by default
+    -- because the held path works for everyone and the worn one doesn't.
+    portalwish = false,
+    -- Ours, not the stock module's. vconfig is part of a setup we don't own and
+    -- may not be installed at all, so it's read as a convenience and never
+    -- relied on: whatever is set here wins, and with neither set the chain is
+    -- just hold-and-enter, which works if the portal is already in your hand.
+    portalbag = "",
+    portalback = "",   -- what to put back after, e.g. "dual 3855651834"
 })
 CFG.portals = CFG.portals or {}
 CFG.bounce  = CFG.bounce or {}
@@ -461,8 +479,19 @@ function M.cexit(cmd)
     end
 end
 
--- room.info arriving after a cexit is what tells us where it went
+-- room.info arriving after a cexit or a 'portal add' is what tells us where it
+-- went. Both wait on the same event; neither can be pending at once because
+-- each is started by a command you typed.
 function M.on_room()
+    if adding then
+        local to = here()
+        local a = adding
+        if to and to ~= a.from then
+            adding = nil
+            M.portal_record(a.cmd, to, a.item)
+            return
+        end
+    end
     if not pending then return end
     local to = here()
     local p = pending
@@ -570,13 +599,19 @@ end
 ---
 
 local function portal_line(i, p)
-    local dest = p.to and (getRoomName and getRoomName(p.to) or "?") or "?"
+    local dest
+    if p.to then
+        dest = (getRoomName and getRoomName(p.to) or "?") .. "  " .. U.rid(p.to)
+    else
+        dest = (p.area or "?") .. "   &lt;#e0af68&gt;room unknown - use it and 'mapper portal'&lt;r&gt;"
+    end
     local bits = { p.cmd }
+    if p.item then bits[#bits + 1] = "(" .. p.item .. ")" end
     if p.recall then bits[#bits + 1] = "(recall)" end
     if (p.level or 0) &gt; 0 then bits[#bits + 1] = "(level " .. p.level .. ")" end
     if CFG.bounce.portal == i then bits[#bits + 1] = "&lt;bounce portal&gt;" end
     if CFG.bounce.recall == i then bits[#bits + 1] = "&lt;bounce recall&gt;" end
-    return table.concat(bits, " "), dest .. "  " .. (p.to and U.rid(p.to) or "")
+    return table.concat(bits, " "), dest
 end
 
 function M.portals(scope)
@@ -596,22 +631,166 @@ function M.portals(scope)
     U.help(#rows .. " portal(s)", rows)
 end
 
+-- What the id box said this portal leads to, if the Loot Tracker has seen one.
+-- Optional in both directions: no tracker, no item, or no 'Leads to' just means
+-- the area stays unknown and the room is still recorded.
+local function item_for(cmd)
+    local LT = aardkit.loot
+    if not (LT and LT.t and LT.t.item_stats) then return nil end
+    local kw = tostring(cmd or ""):match("^%s*%a+%s+(%S+)")
+    if not kw then return nil end
+    local ok, rows = pcall(db.fetch, db, LT.t.item_stats,
+        db:AND(db:eq(LT.t.item_stats.type, "Portal"), db:like(LT.t.item_stats.keywords, "%" .. kw .. "%")))
+    if not ok or type(rows) ~= "table" or not rows[1] then return nil end
+    return rows[1]
+end
+
+-- One place that knows how to run a portal, because two would drift: this is
+-- what 'portal add' fires to find the room, and what Search and Destroy fires
+-- when it routes through one. ';;' separates steps, same as a cexit.
+function M.fire_portal(p)
+    local cmd = type(p) == "table" and p.cmd or tostring(p or "")
+    for raw in (cmd .. ";;"):gmatch("(.-);;") do
+        local step = U.trim(raw)
+        if step ~= "" then send(step, false) end
+    end
+end
+
+-- Using a portal is five commands, not one:
+--
+--     get &lt;portal&gt; &lt;bag&gt;;hold &lt;portal&gt;;enter;dual &lt;weapon&gt;;put &lt;portal&gt; &lt;bag&gt;
+--
+-- Take it out, equip it, use it, put back whatever it displaced, stow it. The
+-- bag and the weapon come from the stock module's own vconfig - the same place
+-- Healme reads its potion from - so there's no second copy to go stale and no
+-- serial numbers written down here.
+--
+-- Without that module it falls back to 'hold &lt;item&gt;;;enter', which works if the
+-- portal is already in your hands. Nothing requires anything.
+-- ours first, the stock module's only if it happens to be there
+local function cfgval(mine, theirs)
+    local v = U.trim(tostring(CFG[mine] or ""))
+    if v ~= "" then return v end
+    local c = aard and aard.config
+    v = c and theirs and c[theirs]
+    v = U.trim(tostring(v or ""))
+    return v ~= "" and v or nil
+end
+
+local function portal_chain(item)
+    local bag = cfgval("portalbag", "pbag")
+    local steps = {}
+    if bag and bag ~= "" then steps[#steps + 1] = "get " .. item .. " " .. bag end
+
+    if CFG.portalwish then
+        -- its own wear location: nothing is displaced, so nothing goes back
+        steps[#steps + 1] = "wear " .. item
+        steps[#steps + 1] = "enter"
+    else
+        steps[#steps + 1] = "hold " .. item
+        steps[#steps + 1] = "enter"
+        -- put back whatever that hand was holding
+        local back = U.trim(tostring(CFG.portalback or ""))
+        if back == "" then
+            local c = aard and aard.config
+            local d = c and c["dual"]
+            local w = c and c["wield"]
+            if d and d ~= "" then back = "dual " .. d
+            elseif w and w ~= "" then back = "wield " .. w end
+        end
+        if back ~= "" then steps[#steps + 1] = back end
+    end
+
+    if bag and bag ~= "" then steps[#steps + 1] = "put " .. item .. " " .. bag end
+    return table.concat(steps, ";;")
+end
+
+M.portal_chain = portal_chain
+
+-- 'mapper portal add &lt;item&gt;' - use it here and now, and record where you land.
+--
+-- The alternative was "go and stand where it drops you, then type the command",
+-- which asks you to do the travelling and the bookkeeping both. The client
+-- knows the room the moment room.info arrives.
+local adding
+
+function M.portal_add(item)
+    item = U.trim(item)
+    if item == "" then
+        U.warn("Usage: mapper portal add &lt;item&gt;   (a keyword for the portal you carry)")
+        return
+    end
+    local from = here()
+    if not from then U.warn("Mudlet doesn't know which room you're in."); return end
+
+    -- Rooms that refuse portals are a fact worth checking before spending five
+    -- commands finding out. If you've marked this one, or the MUD told us once
+    -- already, don't try.
+    local ok, np = pcall(getRoomUserData, from, "noportal")
+    if ok and np == "1" then
+        U.warn("This room is marked noportal - a portal won't fire from here.")
+        U.note("Move somewhere it works, or 'mapper noportal " .. from .. " false' if that's wrong.")
+        return
+    end
+
+    local cmd = portal_chain(item)
+    adding = { cmd = cmd, item = item, from = from }
+    local _, joins = cmd:gsub(";;", "")
+    U.note("Using '" .. item .. "' - " .. (joins + 1)
+        .. " step(s), and the room you land in gets recorded.")
+    M.fire_portal(adding)
+
+    -- Not a long wait. A portal either moves you within a couple of seconds or
+    -- it didn't fire, and the usual reason it didn't is the room.
+    tempTimer(6, function()
+        if adding and adding.from == from then
+            adding = nil
+            pcall(setRoomUserData, from, "noportal", "1")
+            U.warn("Portal '" .. item .. "' didn't move you. Marked this room noportal"
+                .. " so it won't be tried from here again.")
+            U.note("If it failed for some other reason: 'mapper noportal " .. from .. " false'.")
+        end
+    end)
+end
+
 -- you are standing where it put you
 function M.portal(cmd)
     cmd = U.trim(cmd)
     if cmd == "" then U.warn("Usage: mapper portal &lt;command&gt;   (stand where it drops you)"); return end
     local id = here()
     if not id then U.warn("Mudlet doesn't know which room you're in."); return end
+    return M.portal_record(cmd, id, nil)
+end
+
+function M.portal_record(cmd, id, kw)
+    local it = item_for(kw and ("enter " .. kw) or cmd)
+    local area = it and U.trim(tostring(it.leads_to or "")) or ""
+    local iname = it and it.item or nil
+    local where = areaname(id)
+
     for i, p in ipairs(CFG.portals) do
         if p.cmd:lower() == cmd:lower() then
-            p.to = id; save()
-            U.ok("Portal #" .. i .. " '" .. cmd .. "' now points at " .. U.rid(id) .. ".")
+            p.to = id
+            if area ~= "" then p.area = area end
+            if iname then p.item = iname end
+            save()
+            U.ok("Portal #" .. i .. " '" .. cmd .. "' now lands in " .. U.rid(id)
+                .. "  (" .. where .. ")")
             return
         end
     end
-    CFG.portals[#CFG.portals + 1] = { cmd = cmd, to = id, recall = false, level = 0 }
+    CFG.portals[#CFG.portals + 1] = {
+        cmd = cmd, to = id, area = area ~= "" and area or nil,
+        item = iname, recall = false, level = 0,
+    }
     save()
-    U.ok("Portal #" .. #CFG.portals .. ": '" .. cmd .. "' -&gt; " .. U.rid(id) .. ".")
+    U.ok("Portal #" .. #CFG.portals .. ": '" .. cmd .. "' -&gt; " .. U.rid(id) .. "  (" .. where .. ")")
+    -- the item said an area; the map says a room. If they disagree it's worth
+    -- seeing, because it usually means the portal was used from the wrong place.
+    if area ~= "" and where ~= "?" and area:lower() ~= where:lower() then
+        U.warn("The item says it leads to '" .. area .. "' but you're in '" .. where
+            .. "'. Recorded the room you're in.")
+    end
 end
 
 local function portal_at(spec)
@@ -740,26 +919,31 @@ function M.portals_learn()
     local known = {}
     for _, p in ipairs(CFG.portals) do known[p.cmd:lower()] = true end
 
-    local out = {}
+    local added, rowsout = 0, {}
     for _, r in ipairs(rows) do
         local dest = U.trim(tostring(r.leads_to or ""))
         local kw   = U.trim(tostring(r.keywords or "")):match("^(%S+)") or ""
         local cmd  = kw ~= "" and ("enter " .. kw) or nil
-        out[#out + 1] = {
-            item = r.item, dest = dest ~= "" and dest or "?",
-            cmd = cmd, have = cmd and known[cmd:lower()] or false,
-        }
+        local have = cmd and known[cmd:lower()]
+        if cmd and not have then
+            -- an entry with the area filled and no room yet. It shows in the
+            -- list as something you own and haven't located, which is the point:
+            -- a portal you've never used is still worth knowing you have.
+            CFG.portals[#CFG.portals + 1] = {
+                cmd = cmd, to = nil, area = dest ~= "" and dest or nil,
+                item = r.item, recall = false, level = 0,
+            }
+            added = added + 1
+        end
+        rowsout[#rowsout + 1] = { r.item,
+            (dest ~= "" and dest or "?") .. (have and "   already recorded" or "") }
     end
-    table.sort(out, function(a, b) return (a.dest or "") &lt; (b.dest or "") end)
-
-    local rowsout = {}
-    for _, e in ipairs(out) do
-        rowsout[#rowsout + 1] = { e.item,
-            e.dest .. (e.have and "   &lt;#3ad07a&gt;recorded&lt;r&gt;" or "   " .. (e.cmd or "no keyword")) }
-    end
-    U.help(#out .. " portal item(s) you've identified", rowsout)
-    U.note("Stand where one drops you and 'mapper portal &lt;command&gt;' to record the room."
-        .. "  The id box only names the area, which isn't a room.")
+    if added &gt; 0 then save() end
+    table.sort(rowsout, function(a, b) return a[1] &lt; b[1] end)
+    U.help(#rowsout .. " portal item(s) you've identified", rowsout)
+    U.ok(added .. " added to the portal list.")
+    U.note("The id box only names an area, which isn't a room. Use one and"
+        .. " 'mapper portal &lt;command&gt;' where it drops you to fill in the room id.")
 end
 
 -- Which recorded portal, if any, gets us within reach of `dest`. Returns the
@@ -935,7 +1119,28 @@ function M.cmd(arg)
 
     elseif verb == "portals" then
         if U.trim(rest):lower() == "learn" then M.portals_learn() else M.portals(rest) end
-    elseif verb == "portal" then M.portal(rest)
+    elseif verb == "portal" then
+        local sub, more = U.split_verb(rest)
+        if sub == "add" then M.portal_add(more) else M.portal(rest) end
+    elseif verb == "portalbag" then
+        CFG.portalbag = U.trim(rest); save()
+        U.ok(CFG.portalbag ~= "" and ("Portals live in '" .. CFG.portalbag .. "'.")
+            or "Portal bag cleared - portals are assumed to be in hand already.")
+        U.note("Chain: " .. portal_chain("&lt;item&gt;"):gsub(";;", "  ;;  "))
+
+    elseif verb == "portalback" or verb == "portalrestore" then
+        CFG.portalback = U.trim(rest); save()
+        U.ok(CFG.portalback ~= "" and ("After entering: '" .. CFG.portalback .. "'.")
+            or "Nothing put back after entering.")
+        U.note("Chain: " .. portal_chain("&lt;item&gt;"):gsub(";;", "  ;;  "))
+
+    elseif verb == "portalwish" then
+        CFG.portalwish = onoff(rest, CFG.portalwish); save()
+        U.ok("Portal wish: " .. (CFG.portalwish
+            and "on - portals are worn, nothing is displaced."
+            or "off - portals are held, and whatever was in that hand goes back after."))
+        U.note("Chain: " .. portal_chain("&lt;item&gt;"):gsub(";;", "  ;;  "))
+
     elseif verb == "portalrecall" then M.portalrecall(rest)
     elseif verb == "portallevel" then
         local a, b = U.trim(rest):match("^(%S+)%s+(%S+)")
@@ -972,7 +1177,11 @@ function M.help(which)
         U.help("mapper - portals", {
             { "mapper portals [here|&lt;area&gt;]", "list them" },
             { "mapper portals learn",      "portal items you own, if Loot Tracker is installed" },
-            { "mapper portal &lt;command&gt;",   "record it - stand where it drops you" },
+            { "mapper portal add &lt;item&gt;",  "hold it, enter it, and record where you land" },
+            { "mapper portal &lt;command&gt;",   "record it by hand - stand where it drops you" },
+            { "mapper portalwish on|off",  "you have the portal wish, so portals are worn not held" },
+            { "mapper portalbag &lt;bag&gt;",    "where you keep them; empty means already in hand" },
+            { "mapper portalback &lt;cmd&gt;",   "what to re-equip after, e.g. 'dual 12345'" },
             { "mapper portalrecall &lt;#&gt;",   "flag it as using a recall" },
             { "mapper portallevel &lt;#&gt; &lt;n&gt;", "level lock, 0 for none" },
             { "mapper bounceportal [#|clear]", "which portal to route through for a noportal room" },
