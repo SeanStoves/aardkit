@@ -93,9 +93,16 @@
               * Enchantments can greatly improve the power of all equipment.
               * Quest Items are almost always the best for your level.
 
-    The first line is the trigger. The end is the prompt, because the Note block
-    is the MUD's advice and can be reworded, while the prompt is structural -
-    hp/mn/mv in brackets, every line, forever.
+    The panel holds the table and nothing else. The opening line is an
+    announcement - you know what you ran - and the Note block underneath is the
+    MUD's standing advice about searchable items, the same three lines every
+    time. Both are skipped, along with the blank runs; the table has no blank
+    rows inside it, so dropping every blank leaves exactly the header, the rule
+    and the rows.
+
+    The Note block also ends the capture. The prompt is the backstop behind it,
+    because Note is wording the MUD can change while hp/mn/mv in brackets is
+    structural.
 
     Nothing is gagged. This is a copy, not a move: the report scrolls past in the
     main window exactly as it always did, and the panel is a second, readable
@@ -161,7 +168,8 @@ function SW.on_start()
     if not CFG.on then return end
     stop()
     panel:page_begin()
-    panel:page_add()      -- the "Finding best..." line is part of the report
+    -- The "Finding best searchable items..." line is an announcement, not the
+    -- report - you know what you ran. It's the trigger, not content.
     if CFG.gag then U.gag() end
     panel:show()
     capturing = true
@@ -172,6 +180,20 @@ function SW.on_start()
         if is_prompt(line) then
             stop()
             panel:page_end()
+            return
+        end
+        -- The Note block is the MUD's standing advice about searchable items -
+        -- the same three lines every single run - and it ends the table.
+        if line:match("^%s*Note:") then
+            stop()
+            panel:page_end()
+            return
+        end
+        -- The table has no blank rows inside it, so dropping every blank leaves
+        -- the header, the rule and the rows and nothing else. It also saves
+        -- having to hold a blank back to see whether anything follows it.
+        if line:match("^%s*$") then
+            if CFG.gag then U.gag() end
             return
         end
         panel:page_add()
