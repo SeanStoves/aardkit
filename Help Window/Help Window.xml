@@ -137,17 +137,9 @@ local U  = aardkit.util
 
 local CFG = U.load("helpwin", { on = true })
 
--- The off-screen copy of the whole file. createBuffer makes a console that is
--- never shown and never laid out - somewhere to hold formatted lines and read
--- them back by number.
-local STORE = "aardkit_help_buffer"
-local BAR_H = 20
-
-local page, pages, total = 1, 1, 0
-
--- declared ahead of the closures below so they bind these locals rather than
--- globals of the same name, which are nil forever
-local panel, buttons, render
+-- declared ahead of the closures below so it binds this local rather than a
+-- global of the same name, which is nil forever
+local panel
 
 ---
 -- asking the MUD to mark it
@@ -185,97 +177,12 @@ panel = aardkit.panel.new({
     -- is still persists - Adjustable.Container saves that itself on exit and
     -- reloads it by name; it's only whether it's showing that gets forced.
     transient = true,
-    -- a taller panel is more lines per page, so the page has to be recut
-    onresize  = function() if render then render() end end,
-    onbuild   = function() buttons = {} end,
+    -- a taller panel is more lines per page, so the page gets recut
+    onresize  = function() if aardkit.helpwin.panel then aardkit.helpwin.panel:page_paint() end end,
+    onbuild   = function() if aardkit.helpwin.panel then aardkit.helpwin.panel.pagebtn = {} end end,
 })
 
 HW.panel = panel
-buttons = {}
-
-local function button(key, cb)
-    if not buttons[key] then
-        buttons[key] = Geyser.Label:new({
-            name = "aardkit_help_" .. key .. "_" .. (panel.gen or 1),
-            x = 0, y = 0, width = 10, height = BAR_H - 2,
-        }, panel.container)
-        if cb then buttons[key]:setClickCallback(cb) end
-    end
-    return buttons[key]
-end
-
--- How many lines fit. getRowCount is the console's own answer and the only one
--- that stays right as you drag the panel about; the fallback is for the moment
--- before it has been laid out.
-local function fits()
-    local c = panel.console
-    if not c then return 20 end
-    local ok, n = pcall(getRowCount, c.name)
-    if ok and type(n) == "number" and n &gt; 0 then return n end
-    return 20
-end
-
-local function style(on)
-    return string.format("background-color: %s; border: 1px solid %s; border-radius: 3px;",
-        on and "#1b2540" or "#141b2d", on and "#3a4a6b" or "#232c44")
-end
-
-local function lab(on, s)
-    return string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
-        on and "#c8d0dc" or "#4a5468", s)
-end
-
-render = function()
-    local c = panel.console
-    if not c or not panel.container then return end
-
-    local per = math.max(1, fits())
-    pages = math.max(1, math.ceil(total / per))
-    page  = math.min(math.max(1, page), pages)
-
-    local h = U.px(panel.container.get_height and panel.container:get_height()
-                   or panel.container.height)
-    local w = U.px(panel.container.get_width and panel.container:get_width()
-                   or panel.container.width)
-    if w &lt; 60 then w = 700 end
-
-    -- console above, one row of chrome below it
-    pcall(function()
-        c:move(0, 0)
-        c:resize("100%", "-" .. BAR_H .. "px")
-    end)
-
-    pcall(clearWindow, c.name)
-    local first = (page - 1) * per
-    local last  = math.min(total - 1, first + per - 1)
-    for i = first, last do
-        moveCursor(STORE, 0, i)
-        selectCurrentLine(STORE)
-        copy(STORE)
-        appendBuffer(c.name)
-    end
-
-    local y, bw = math.max(0, h - BAR_H), 70
-
-    local prev = button("prev", "aardkit.helpwin.prev")
-    prev:move(4, y); prev:resize(bw, BAR_H - 2)
-    prev:setStyleSheet(style(page &gt; 1)); prev:echo(lab(page &gt; 1, "&amp;lt; prev")); prev:show()
-
-    local nxt = button("next", "aardkit.helpwin.next")
-    nxt:move(w - bw - 4, y); nxt:resize(bw, BAR_H - 2)
-    nxt:setStyleSheet(style(page &lt; pages)); nxt:echo(lab(page &lt; pages, "next &amp;gt;")); nxt:show()
-
-    local mid = button("page")
-    mid:move(bw + 8, y); mid:resize(math.max(10, w - (bw + 8) * 2), BAR_H - 2)
-    mid:setStyleSheet("background-color: #0d1117; border: 0px;")
-    mid:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
-        pages &gt; 1 and "#8a93a8" or "#4a5468",
-        total == 0 and "" or ("page " .. page .. " of " .. pages)))
-    mid:show()
-end
-
-function HW.prev() if page &gt; 1 then page = page - 1; render() end end
-function HW.next() if page &lt; pages then page = page + 1; render() end end
 
 ---
 -- capture
@@ -299,10 +206,7 @@ local function arm(kind)
         if line:match("^%s*{/help") then
             U.gag()
             stop()
-            local ok, n = pcall(getLineCount, STORE)
-            total = (ok and type(n) == "number") and n or 0
-            page = 1
-            render()
+            panel:page_end()
             return
         end
         -- Not every tag is a line of its own. {helpkeywords} arrives welded to
@@ -312,9 +216,7 @@ local function arm(kind)
         if tag then
             if pcall(selectString, tag, 1) then pcall(replace, "") end
         end
-        selectCurrentLine()
-        copy()
-        appendBuffer(STORE)
+        panel:page_add()
         U.gag()
     end)
     -- a help that never closes would eat the rest of the session
@@ -331,10 +233,7 @@ function HW.on_open(kind)
     if not CFG.on then return end
     stop()
     U.gag()
-    pcall(createBuffer, STORE)     -- a no-op once it exists
-    pcall(clearWindow, STORE)
-    total, page, pages = 0, 1, 1
-    if panel.console then pcall(clearWindow, panel.console.name) end
+    panel:page_begin()
     panel:show()
     arm(kind or "help")
 end
@@ -357,14 +256,12 @@ function HW.cmd(arg)
         if not CFG.on then stop() end
         U.ok("Help window " .. verb .. (CFG.on and " - help goes to the panel." or " - help stays in the main window."))
 
-    elseif verb == "next" then HW.next()
-    elseif verb == "prev" then HW.prev()
+    elseif verb == "next" then aardkit.panel.page_next("help")
+    elseif verb == "prev" then aardkit.panel.page_prev("help")
 
     elseif verb == "clear" then
-        pcall(clearWindow, STORE)
-        if panel.console then pcall(clearWindow, panel.console.name) end
-        total, page, pages = 0, 1, 1
-        render()
+        panel:page_begin()
+        panel:page_paint()
         U.ok("Help window cleared.")
 
     elseif verb == "retry" or verb == "negotiate" then
@@ -380,7 +277,8 @@ function HW.cmd(arg)
     else
         U.help("Help window", {
             { "state",   CFG.on and "on" or "off" },
-            { "showing", total &gt; 0 and (total .. " lines, page " .. page .. " of " .. pages)
+            { "showing", (panel.total or 0) &gt; 0
+                         and ((panel.total) .. " lines, page " .. (panel.page or 1) .. " of " .. (panel.pages or 1))
                          or "nothing yet" },
             { "tagging", U.has("sendTelnetChannel102") and "negotiated on connect"
                          or "unavailable in this Mudlet" },

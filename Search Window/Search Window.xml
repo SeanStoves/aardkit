@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 76 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>searchwin</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>search start</name>
+				<script>aardkit.searchwin.on_start()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Finding best searchable items</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>searchwin</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>searchwin</name>
+				<script>aardkit.searchwin.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^searchwin(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>searchwin</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>searchwin</name>
+				<packageName />
+				<script>--[[
+    Search window
+    Sean Stoves, 2026-08-02
+
+    'search all' / 'eqsearch all' out of the scrollback and into a panel of its
+    own, paged, fresh every time you run one.
+
+    Unlike help there is no tag for this - Aardwolf's telnet channel 102 has
+    options for helpfiles, the map, channels and a dozen other things, and none
+    for search. So it's read off the output, and the output is fixed-width and
+    self-announcing:
+
+        Finding best searchable items for all equipment slots:
+
+                                                           Item       Current  New
+        Wear Loc New Item                            Level Location   Points  Points
+        -------- ----------------------------------- ----- ---------- ------- ------
+        Light    Bioluminescence of Iviruan Fireflie   171 Seekers        220    315
+        ...
+        Wielded  Topaz Shard                           161 Touchstone    1693   1758
+
+        Note: * Searchable item list is only a small portion of game items.
+              * Enchantments can greatly improve the power of all equipment.
+              * Quest Items are almost always the best for your level.
+
+    The first line is the trigger. The end is the prompt, because the Note block
+    is the MUD's advice and can be reworded, while the prompt is structural -
+    hp/mn/mv in brackets, every line, forever. It stops on that without gagging
+    it, so the prompt still lands where it belongs.
+
+    Paged rather than scrolled, for the reason in the panel manager: a scrolled
+    Mudlet console splits into two panes with a divider across it, which is
+    right for the MUD window and wrong for a document.
+]]
+
+aardkit = aardkit or {}
+aardkit.searchwin = aardkit.searchwin or {}
+
+local SW = aardkit.searchwin
+local U  = aardkit.util
+
+local CFG = U.load("searchwin", { on = true })
+
+-- declared ahead of the closures below so they bind this local rather than a
+-- global of the same name, which is nil forever
+local panel
+
+panel = aardkit.panel.new({
+    name     = "search",
+    title    = "Search",
+    width    = 720,
+    height   = 420,
+    x        = "150px",
+    y        = "90px",
+    fontSize = 10,
+    -- put up by running a search and by nothing else
+    transient = true,
+    onresize  = function() if aardkit.searchwin.panel then aardkit.searchwin.panel:page_paint() end end,
+    onbuild   = function() if aardkit.searchwin.panel then aardkit.searchwin.panel.pagebtn = {} end end,
+})
+
+SW.panel = panel
+
+---
+-- capture
+---
+
+local capturing, trig, timer
+
+local function stop()
+    if trig  then pcall(killTrigger, trig); trig = nil end
+    if timer then pcall(killTimer, timer); timer = nil end
+    capturing = false
+end
+
+-- The Aardwolf prompt, which is what actually ends the block. Matching on the
+-- Note lines instead would tie us to the MUD's wording; hp/mn/mv in brackets is
+-- structural and has been on every prompt for as long as the game has existed.
+local function is_prompt(line)
+    return line:match("%d+/%d+hp") and line:match("%d+/%d+mn") and true or false
+end
+
+function SW.on_start()
+    if not CFG.on then return end
+    stop()
+    panel:page_begin()
+    panel:page_add()      -- the "Finding best..." line is part of the report
+    U.gag()
+    panel:show()
+    capturing = true
+
+    trig = tempRegexTrigger([[^.*$]], function()
+        local line = getCurrentLine() or ""
+        -- the prompt is not ours to take; stop in front of it
+        if is_prompt(line) then
+            stop()
+            panel:page_end()
+            return
+        end
+        panel:page_add()
+        U.gag()
+    end)
+
+    -- a search that never reaches a prompt would eat the rest of the session
+    timer = tempTimer(15, function()
+        if capturing then
+            stop()
+            panel:page_end()
+            U.warn("Search: no prompt arrived - stopped capturing.")
+        end
+    end)
+end
+
+---
+-- commands
+---
+
+function SW.cmd(arg)
+    local verb = U.split_verb(arg)
+
+    if verb == "" then
+        panel:toggle()
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on")
+        U.save("searchwin", CFG)
+        if not CFG.on then stop() end
+        U.ok("Search window " .. verb
+            .. (CFG.on and " - 'search all' goes to the panel." or " - it stays in the main window."))
+
+    elseif verb == "next" then aardkit.panel.page_next("search")
+    elseif verb == "prev" then aardkit.panel.page_prev("search")
+
+    elseif verb == "clear" then
+        panel:page_begin()
+        panel:page_paint()
+        U.ok("Search window cleared.")
+
+    elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
+        aardkit.panel.cmd("search " .. verb)
+
+    else
+        U.help("Search window", {
+            { "state",   CFG.on and "on" or "off" },
+            { "showing", (panel.total or 0) &gt; 0
+                         and (panel.total .. " lines, page " .. (panel.page or 1) .. " of " .. (panel.pages or 1))
+                         or "nothing yet" },
+            { "" },
+            { "searchwin",             "show or hide the panel" },
+            { "searchwin on | off",    "capture it, or leave it in the main window" },
+            { "searchwin next | prev", "page through it, same as the buttons" },
+            { "searchwin clear",       "empty it" },
+            { "searchwin dock | embed | show | hide", "panel placement" },
+            { "" },
+            { "Run 'search all' or 'eqsearch all' as you always have." },
+        })
+    end
+end
+
+aardkit.register("searchwin", "'search all' in its own panel, fresh each run", SW.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

@@ -954,6 +954,139 @@ function Panel:clear()
     if self.console then self.console:clear() end
 end
 
+---
+-- paging
+--
+-- A Mudlet console that is scrolled up splits into a scrollback pane and a live
+-- pane with a divider across it. That split IS what being scrolled up looks
+-- like and nothing turns it off - no setConfig key, no console method, no
+-- upperPane symbol in the binary. Right for the MUD window, where you want to
+-- keep reading while new text arrives. Wrong for a document, which has an end
+-- and doesn't move.
+--
+-- So a paged panel keeps the whole thing in an off-screen createBuffer and
+-- shows one screenful copied out of it. Never scrolled, so never split, and
+-- page one is the top. The buffer is also what keeps the colours: copy() and
+-- appendBuffer move a line with its formatting intact.
+---
+
+local PAGE_H = 20
+
+function Panel:page_begin()
+    self.store = self.store or ("aardkit_" .. self.name .. "_buffer")
+    pcall(createBuffer, self.store)          -- a no-op once it exists
+    pcall(clearWindow, self.store)
+    self.total, self.page, self.pages = 0, 1, 1
+    if self.console then pcall(clearWindow, self.console.name) end
+end
+
+-- copy the line the current trigger fired on into the store, colours and all
+function Panel:page_add()
+    if not self.store then return end
+    selectCurrentLine()
+    copy()
+    appendBuffer(self.store)
+end
+
+function Panel:page_end()
+    if not self.store then return end
+    local ok, n = pcall(getLineCount, self.store)
+    self.total = (ok and type(n) == "number") and n or 0
+    self.page = 1
+    self:page_paint()
+end
+
+-- how many lines fit. getRowCount is the console's own answer and the only one
+-- that stays right as the panel is dragged about; the fallback is for the
+-- moment before it has been laid out.
+local function rows_of(p)
+    if not p.console then return 20 end
+    local ok, n = pcall(getRowCount, p.console.name)
+    if ok and type(n) == "number" and n &gt; 0 then return n end
+    return 20
+end
+
+function Panel:page_paint()
+    local c = self.console
+    if not (c and self.container and self.store) then return end
+
+    local per = math.max(1, rows_of(self))
+    self.total = self.total or 0
+    self.pages = math.max(1, math.ceil(self.total / per))
+    self.page  = math.min(math.max(1, self.page or 1), self.pages)
+
+    local h = U.px(self.container.get_height and self.container:get_height() or self.container.height)
+    local w = U.px(self.container.get_width and self.container:get_width() or self.container.width)
+    if w &lt; 60 then w = 600 end
+
+    pcall(function()
+        c:move(0, 0)
+        c:resize("100%", "-" .. PAGE_H .. "px")
+    end)
+
+    pcall(clearWindow, c.name)
+    local first = (self.page - 1) * per
+    local last  = math.min(self.total - 1, first + per - 1)
+    for i = first, last do
+        moveCursor(self.store, 0, i)
+        selectCurrentLine(self.store)
+        copy(self.store)
+        appendBuffer(c.name)
+    end
+
+    self.pagebtn = self.pagebtn or {}
+    local function btn(key, cb, arg)
+        if not self.pagebtn[key] then
+            self.pagebtn[key] = Geyser.Label:new({
+                name = "aardkit_" .. self.name .. "_pg_" .. key .. "_" .. (self.gen or 1),
+                x = 0, y = 0, width = 10, height = PAGE_H - 2,
+            }, self.container)
+            if cb then self.pagebtn[key]:setClickCallback(cb, arg) end
+        end
+        return self.pagebtn[key]
+    end
+    local function style(on)
+        return string.format("background-color: %s; border: 1px solid %s; border-radius: 3px;",
+            on and "#1b2540" or "#141b2d", on and "#3a4a6b" or "#232c44")
+    end
+    local function lab(on, s)
+        return string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+            on and "#c8d0dc" or "#4a5468", s)
+    end
+
+    local y, bw = math.max(0, h - PAGE_H), 70
+    local back = self.page &gt; 1
+    local fwd  = self.page &lt; self.pages
+
+    local b = btn("prev", "aardkit.panel.page_prev", self.name)
+    b:move(4, y); b:resize(bw, PAGE_H - 2)
+    b:setStyleSheet(style(back)); b:echo(lab(back, "&amp;lt; prev")); b:show()
+
+    b = btn("next", "aardkit.panel.page_next", self.name)
+    b:move(w - bw - 4, y); b:resize(bw, PAGE_H - 2)
+    b:setStyleSheet(style(fwd)); b:echo(lab(fwd, "next &amp;gt;")); b:show()
+
+    b = btn("count")
+    b:move(bw + 8, y); b:resize(math.max(10, w - (bw + 8) * 2), PAGE_H - 2)
+    b:setStyleSheet("background-color: #0d1117; border: 0px;")
+    b:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;",
+        self.pages &gt; 1 and "#8a93a8" or "#4a5468",
+        self.total == 0 and "" or ("page " .. self.page .. " of " .. self.pages)))
+    b:show()
+end
+
+-- setClickCallback passes its extra argument straight through, so the panel
+-- names itself rather than needing a closure per panel
+local function page_move(name, delta)
+    local p = P.reg[tostring(name or "")]
+    if not p then return end
+    p.page = (p.page or 1) + delta
+    p:page_paint()
+end
+
+function P.page_prev(arg) page_move(arg, -1) end
+function P.page_next(arg) page_move(arg,  1) end
+
 -- Put the view back on the first line. A console follows its own tail as lines
 -- arrive, which is right for a log and wrong for a document - nobody opens a
 -- help file to read the last paragraph. Called twice because the buffer is
