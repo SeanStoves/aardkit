@@ -189,6 +189,7 @@ local function arm(kind)
         if line:match("^%s*{/help") then
             U.gag()
             stop()
+            panel:scrolltop()
             return
         end
         -- Not every tag is a line of its own. {helpkeywords} arrives welded to

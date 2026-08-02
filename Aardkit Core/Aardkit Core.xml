@@ -625,6 +625,41 @@ function U.playing()
     return st == 3 or st == 8
 end
 
+-- Run fn once the character is actually in the game, not merely connected.
+--
+-- sysConnectionEvent is the socket opening. The name and password prompts come
+-- after it, so anything sent in that window is typed into one of them - and a
+-- password prompt echoes nothing back, so a module command sent there is taken
+-- as the password, the login fails, and there is nothing on screen saying why.
+--
+-- char.status arriving isn't enough either: Aardwolf sends it during the login
+-- sequence, with state 1 and 2. Only 3, or 8 for fighting, means you're in.
+--
+-- Prefer not sending at all - a refresh button the player presses beats a
+-- command the client decides to send. This is for the cases that genuinely have
+-- to talk to the MUD by themselves.
+local ready_q = {}
+
+function U.ready(fn)
+    if type(fn) ~= "function" then return end
+    if U.playing() then fn(); return end
+    ready_q[#ready_q + 1] = fn
+end
+
+local function drain_ready()
+    if not U.playing() then return end
+    if #ready_q == 0 then return end
+    local q = ready_q
+    ready_q = {}
+    for _, fn in ipairs(q) do
+        local ok, err = pcall(fn)
+        if not ok then U.err("deferred until login: " .. tostring(err)) end
+    end
+end
+
+U.killhandler(aardkit_util_ready_handler)
+aardkit_util_ready_handler = registerAnonymousEventHandler("gmcp.char.status", drain_ready)
+
 -- In combat, in the MUD's own words. Three signals because no one of them
 -- holds on its own: state is 8 while fighting, enemy carries the name for as
 -- long as it lasts, and enemypct is the fallback.
@@ -894,6 +929,17 @@ function Panel:raise()
     -- minimise/close have to stay clickable above everything we just raised
     up(h.minimizeLabel)
     up(h.exitLabel)
+
+    -- A transient panel is on screen because something just put it there and
+    -- you are reading it right now. Anything else coming forward - a repaint,
+    -- the layout sweep on load, dragging another panel - would otherwise land
+    -- on top of what you asked to see. So whenever a normal panel raises, the
+    -- transient ones go back above it.
+    if not self.transient then
+        for _, p in pairs(P.reg) do
+            if p ~= self and p.transient and p:visible() then p:raise() end
+        end
+    end
 end
 
 function Panel:cecho(s)
@@ -906,6 +952,18 @@ end
 
 function Panel:clear()
     if self.console then self.console:clear() end
+end
+
+-- Put the view back on the first line. A console follows its own tail as lines
+-- arrive, which is right for a log and wrong for a document - nobody opens a
+-- help file to read the last paragraph. Called twice because the buffer is
+-- still being filled while the trigger that asked for this is running.
+function Panel:scrolltop()
+    if not (self.console and self.console.name) then return end
+    if not aardkit.util.has("scrollTo") then return end
+    local n = self.console.name
+    pcall(scrollTo, n, 0)
+    tempTimer(0.1, function() pcall(scrollTo, n, 0) end)
 end
 
 -- copy the line the current trigger fired on, colours intact

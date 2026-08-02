@@ -909,6 +909,12 @@ panel = aardkit.panel.new({
 })
 
 function SP.on_view(which)
+    -- refresh shares the tab strip but isn't a view; it asks the MUD and
+    -- leaves you looking at whatever you were already looking at
+    if which == "refresh" then
+        if SP.refresh then SP.refresh() end
+        return
+    end
     CFG.view = (which == "gone") and "gone" or "up"
     U.save("spellups", CFG)
     lastframe = nil          -- the frame differs even when the data hasn't
@@ -950,9 +956,13 @@ function SP.paint()
         local w = U.px(panel.container.get_width and panel.container:get_width()
                        or panel.container.width)
         if w &lt; 60 then w = 300 end
-        local half = math.floor((w - 12) / 2)
+        -- two views and a refresh, the refresh narrow because it's pressed
+        -- rarely and the labels beside it are what you read
+        local rw   = 74
+        local half = math.floor((w - 16 - rw) / 2)
         tab("up",   "Current",  4, half)
         tab("gone", "Dropped",  8 + half, half)
+        tab("refresh", "refresh", 12 + half * 2, rw)
         -- the console starts below the buttons rather than under them
         pcall(function()
             c:move(0, BTN_H + 2)
@@ -1251,17 +1261,37 @@ end
 -- is too early - anything sent then lands on the login prompt and is eaten.
 local greeted = false
 
+-- Nothing is sent from here any more. char.status arrives during the login
+-- sequence with state 1 and 2, so 'greeted' was being set at the name prompt
+-- and the slist went out three seconds later - into the password field, which
+-- echoes nothing, so the login just failed with no sign of why.
+--
+-- Refreshing is a button now. The panel says what it hasn't got and you press
+-- [refresh] when you want it, which is the same information one keystroke later
+-- and never a command the client decided to send on its own.
 function SP.on_login()
     if greeted then return end
+    if not U.playing() then return end     -- state 1/2 is the login prompt
     greeted = true
-    tempTimer(3, function()
-        if next(SP.skills) == nil then
-            U.note("Spellups: no cached skill table - reading it from the MUD.")
-            send("slist spells", false)
-        else
-            SP.sync()      -- table's already here; just learn what's running
-        end
-    end)
+    if next(SP.skills) == nil then
+        U.note("Spellups: no cached skill table - press [refresh] on the panel, or 'spellup slist'.")
+    end
+    SP.paint()
+end
+
+-- what the button does: read the table if we haven't got one, otherwise just
+-- find out what's currently running
+function SP.refresh()
+    if not U.playing() then
+        U.warn("Spellups: not in the game yet.")
+        return
+    end
+    if next(SP.skills) == nil then
+        U.note("Spellups: reading the skill table from the MUD...")
+        send("slist spells", false)
+    else
+        SP.sync()
+    end
 end
 
 -- downcount() sums SP.dropped; leaving it alone across a disconnect means the
