@@ -29,7 +29,7 @@ that every module here builds on. Without it nothing else loads.
 | `shopwin up\|down` | page through the list, same as the buttons |
 | `shopwin buy <row> [n]` | same as clicking that row's number button |
 | `shopwin appraise <row>` | same as clicking the name |
-| `shopwin qty <list>` | which buy buttons a row carries, e.g. 1,5,10 (default 1,5,10,25,50,100) |
+| `shopwin qty <list>` | which buy buttons a row carries, e.g. 1,5,10 (default 1,5,10,25,50,100; anything negative, zero or over 1000 is rejected and named) |
 | `shopwin clear` | empty it |
 | `shopwin dock\|embed\|show\|hide` | panel placement |
 

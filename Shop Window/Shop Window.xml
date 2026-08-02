@@ -154,6 +154,10 @@ local U  = aardkit.util.named("Shop")
 -- panel; more just narrows the name column, which is why there's a cap rather
 -- than letting a paste of forty numbers squeeze it to nothing.
 local QMAX = 8
+-- A button is one click and there is no confirmation, so the biggest one on
+-- screen should still be a quantity you could mean. 1000 of a 9,300 gold item is
+-- nine million; a fat-fingered extra zero shouldn't be reachable in one press.
+local QVALMAX = 1000
 local QW = 30
 local QTYS = {}
 
@@ -166,18 +170,29 @@ local CFG = U.load("shopwin", {
 -- Whatever survives being a positive whole number, in the order you wrote them,
 -- deduped and capped. A bad list falls back to one button rather than none, so
 -- the panel is never a shop you can look at and not buy from.
+-- Second return is everything thrown away and why. Dropping a negative quietly
+-- is how you end up typing 'shopwin qty 1,5,-10' and believing you have three
+-- buttons - the panel would just show two and never say which one it disagreed
+-- with. Nothing here truncates in silence.
 local function set_qtys(spec)
-    local out, seen = {}, {}
+    local out, seen, bad = {}, {}, {}
     for word in tostring(spec or ""):gmatch("[^,%s]+") do
-        local n = math.floor(tonumber(word) or 0)
-        if n &gt; 0 and not seen[n] and #out &lt; QMAX then
+        local raw = tonumber(word)
+        local n   = raw and math.floor(raw) or nil
+        if not n            then bad[#bad + 1] = word .. " (not a number)"
+        elseif n &lt; 0        then bad[#bad + 1] = word .. " (negative)"
+        elseif n == 0       then bad[#bad + 1] = word .. " (zero)"
+        elseif n &gt; QVALMAX  then bad[#bad + 1] = word .. " (over " .. QVALMAX .. ")"
+        elseif seen[n]      then bad[#bad + 1] = word .. " (already listed)"
+        elseif #out &gt;= QMAX then bad[#bad + 1] = word .. " (only " .. QMAX .. " fit)"
+        else
             seen[n] = true
             out[#out + 1] = n
         end
     end
     if #out == 0 then out = { 1 } end
     QTYS = out
-    return out
+    return out, bad
 end
 
 set_qtys(CFG.qty)
@@ -479,7 +494,15 @@ function SH.next() if page &lt; pages then page = page + 1; SH.paint() end end
 function SH.buy(i, qty)
     local e = items[tonumber(i) or 0]
     if not e then return end
-    qty = tonumber(qty) or 1
+    qty = math.floor(tonumber(qty) or 1)
+    -- Belt and braces on the way out: the buttons can only carry what set_qtys
+    -- allowed, but 'shopwin buy' takes a number off the command line and this is
+    -- the last place before it becomes a purchase.
+    if qty &lt; 1 then qty = 1 end
+    if qty &gt; QVALMAX then
+        U.warn("Shop: " .. qty .. " is more than " .. QVALMAX .. " - not sending it.")
+        return
+    end
     -- 'buy 1 3' and 'buy 3' are the same thing; send the shorter one
     if qty &gt; 1 then
         send("buy " .. qty .. " " .. e.num, true)
@@ -536,12 +559,14 @@ function SH.cmd(arg)
             return
         end
         if v:lower() == "reset" then v = "1,5,10,25,50,100" end
-        local got = set_qtys(v)
+        local got, bad = set_qtys(v)
         CFG.qty = table.concat(got, ",")
         U.save("shopwin", CFG)
         SH.paint()
-        U.ok("Shop: buy buttons are now " .. table.concat(got, ", ")
-            .. (#got == QMAX and "  (" .. QMAX .. " is the most that fits)" or "") .. ".")
+        U.ok("Shop: buy buttons are now " .. table.concat(got, ", ") .. ".")
+        if #bad &gt; 0 then
+            U.warn("Ignored: " .. table.concat(bad, ", "))
+        end
 
     elseif verb == "appraise" or verb == "app" then
         local n = tonumber(U.trim(rest))
