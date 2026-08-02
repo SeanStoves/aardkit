@@ -177,9 +177,13 @@ local CFG = U.load("mapper", {
     -- and a map that learns those ends up with a special exit out of every room
     -- you ever panicked in. 'mapper cexit &lt;command&gt;' is the deliberate version.
     autocexit  = false,
-    -- how the map draws; see style.lua. Empty means Mudlet's own settings,
-    -- untouched, which is where everyone starts.
-    style      = "",
+    -- how the map draws; see style.lua. 'aard' is the MUSHclient mapper's own
+    -- look - its background, its exit colour, square rooms, and its colours for
+    -- shops, healers and banks - applied on load. That plugin's appearance is
+    -- most of why people miss it, so matching it is the default rather than a
+    -- command you have to know about. 'mapper style restore' puts your own
+    -- Mudlet settings back; they're written down before anything is changed.
+    style      = "aard",
     stylewas   = {},    -- your settings, saved before a style was applied
     symbols    = false, -- $ in shops, + in healers, and so on
     -- On. The continent drawn as boxes joined by strings is the thing that
@@ -1918,7 +1922,10 @@ local function sprout(from, id, sd, aid, cont)
     pcall(setRoomArea, id, aid)
     pcall(setRoomUserData, id, UNEXPLORED, "1")
     pcall(setRoomChar, id, "?")
-    pcall(setRoomCharColor, id, 255, 190, 60)
+    pcall(setRoomCharColor, id, 255, 255, 255)
+    -- the MUSHclient mapper's own dark red for a room it knows of and hasn't
+    -- been in. style.lua owns the number; without it they just stay uncoloured.
+    if M.UNKNOWNENV then pcall(setRoomEnv, id, M.UNKNOWNENV) end
     stats.unexplored = stats.unexplored + 1
     return true
 end
@@ -2171,31 +2178,41 @@ aardkit_mapper_send = registerAnonymousEventHandler("sysDataSendRequest", "aardk
     Mapper — how the map draws
     Sean Stoves, 2026-08-02
 
-    The MUSHclient Aardwolf mapper draws the world as solid terrain-coloured
-    tiles butted edge to edge. Mudlet's default is small rounded rooms with exit
-    lines strung between them, which is the right drawing for a dungeon and the
-    wrong one for a continent.
+    Mudlet's default map is small rounded rooms on a grey field with exit lines
+    strung between them. The MUSHclient Aardwolf mapper is square rooms on
+    near-black, pale cyan exits, and a handful of loud fills for the rooms you
+    actually go looking for. Its appearance is most of why people miss it, so
+    this is the default rather than a command you have to find out about.
 
-    Mudlet can do both, and the switch is per area: grid mode fills each cell
-    with a solid block and drops the exit lines, which is the same picture
-    MUSHclient's world map is. So none of this is a new widget - it's the map
-    Mudlet already draws, told what kind of area it's drawing.
+    The numbers are its own, read off that plugin's settings rather than
+    eyeballed from a screenshot - #111111 behind, #e0ffff exits, #ffad2f shops,
+    #ffd700 banks, #9acd32 healers, #9b0000 for a room you know is there and
+    have never stood in. None of its code is here; colours and sizes are facts
+    about how a thing looks, and the drawing is Mudlet's own.
 
-    Three things together make the difference:
+    Four things carry the look:
 
-      * grid mode on the continent areas, and only those. An indoor area drawn
-        as blocks loses the corridors, which is the whole shape of the place.
-      * terrain colours, which walk.lua already sets from GMCP - same 134
-        environments and the same palette the MUSHclient map used, so an area
-        you walk today matches one that came across in the import.
-      * a character in the rooms that are worth finding again. MUSHclient marks
-        shops and healers on the map; the flags for that are already in room
-        user data, they just weren't being drawn.
+      * grid mode on continent areas, and only those. It fills each cell with a
+        solid block and drops the exit lines, which is the same picture their
+        world map is. An indoor area drawn as blocks loses the corridors, and
+        the corridors are the shape of the place.
+      * terrain colours, which walk.lua sets from GMCP. Their mapper tiles areas
+        with terrain textures by default; Mudlet has no textures, and a coloured
+        room is the nearest true thing.
+      * fills by what a room IS - shop, healer, bank, guild - which override the
+        terrain there and do here. In Mudlet a room's colour is its environment,
+        so those become environments, numbered above the terrains.
+      * a character in the same rooms, because a colour alone doesn't say which.
 
-    Nothing here is applied until you ask for it. What it changes are Mudlet
-    preferences, which are yours and are not this module's to rearrange on load
-    - so the first time a style is applied the old values are written down, and
-    'mapper style restore' puts them back exactly.
+    What this changes are Mudlet preferences, which are yours. They're written
+    down before anything is touched and 'mapper style restore' puts them back
+    exactly - including the terrain colour under a flag fill, which is why the
+    old environment is parked in room user data rather than thrown away.
+
+    Room size and exit size are the two it won't touch. Their scale isn't
+    discoverable from Mudlet's binary and guessing at somebody's map dimensions
+    is worse than leaving them alone; 'mapper style' prints both, and
+    'mapper style room|exit &lt;n&gt;' sets them.
 ]]
 
 local M   = aardkit.mapper
@@ -2203,32 +2220,64 @@ local U   = aardkit.util.named("Mapper")
 local CFG = M.CFG
 
 -- The preference keys, straight out of Mudlet's own getConfig list. Room and
--- exit size are deliberately absent: grid mode fills the cell whatever they're
--- set to, so the world-map look doesn't need them, and silently resizing
--- somebody's dungeon maps to get there would be rude.
+-- exit size are deliberately absent, for the reason in the header: their scale
+-- isn't discoverable and a wrong guess resizes every map you have.
 local KEYS = {
     "mapRoundRooms", "mapShowRoomBorders", "mapShowGrid",
     "showRoomIdsOnMap", "show3dMapView", "showUpperLowerLevels",
 }
 
--- Hard edges, no borders, no ids painted over the tiles, and both floors of a
--- staircase visible because Aardwolf areas stack.
+-- Square rooms with a border, no ids painted over them, exits drawn flat.
+-- SHOW_ROOM_ID is off in the MUSHclient mapper's own defaults and there is no
+-- upper/lower-level drawing there at all, so both are off here - 'mapper style
+-- ids on' and setConfig put either back.
 local AARD = {
     mapRoundRooms        = false,
-    mapShowRoomBorders   = false,
+    mapShowRoomBorders   = true,
     mapShowGrid          = false,
     showRoomIdsOnMap     = false,
     show3dMapView        = false,
-    showUpperLowerLevels = true,
+    showUpperLowerLevels = false,
 }
+
+-- The MUSHclient mapper's own colours, read off its settings rather than
+-- eyeballed. Room and exit are the two Mudlet lets us set directly; the rest
+-- become environments below, because a room's colour in Mudlet is its
+-- environment and there's nowhere else to put them.
+local BACKGROUND = { 0x11, 0x11, 0x11 }   -- #111111
+local EXITS      = { 0xe0, 0xff, 0xff }   -- #e0ffff
+
+-- A room's fill by what it IS, which overrides its terrain the same way it does
+-- there. Ids start at 200 so they can't collide with the 135 terrains.
+local FLAGENV = {
+    shop    = { 200, 0xff, 0xad, 0x2f },   -- #ffad2f
+    healer  = { 201, 0x9a, 0xcd, 0x32 },   -- #9acd32
+    trainer = { 202, 0x9a, 0xcd, 0x32 },
+    bank    = { 203, 0xff, 0xd7, 0x00 },   -- #ffd700
+    guild   = { 204, 0xff, 0x00, 0xff },   -- magenta
+    quest   = { 205, 0x00, 0xbf, 0xff },   -- deepskyblue
+    safe    = { 206, 0xad, 0xd8, 0xe6 },   -- lightblue
+}
+
+-- theirs too: a room you know is there and have never been in
+local UNKNOWNENV = { 207, 0x9b, 0x00, 0x00 }   -- #9b0000
+
+M.UNKNOWNENV = UNKNOWNENV[1]
 
 -- What to stamp in a room, and which wins when a room is several things at
 -- once. A shop you can't find again is worse than a pk flag you forgot.
+-- The fill above follows the same order, so the symbol and the colour agree.
 local SYMORDER = { "shop", "healer", "trainer", "bank", "guild", "quest", "safe", "pk" }
 local SYMBOL   = {
     shop = "$", healer = "+", trainer = "T", bank = "B",
     guild = "G", quest = "?", safe = "*", pk = "!",
 }
+
+-- Where a room's own environment goes while a flag colour is sitting on it, so
+-- 'mapper style clear' can put the terrain back rather than leaving every shop
+-- amber for ever. A style is a preference; this one writes to the map, so it
+-- has to be undoable.
+local ENV0 = "env0"
 
 local gridded = {}   -- areas already switched to grid mode this session
 
@@ -2236,22 +2285,40 @@ local gridded = {}   -- areas already switched to grid mode this session
 -- symbols
 ---
 
-function M.symbol_for(id)
+-- the first flag this room carries, in priority order
+local function flag_of(id)
     local ok, info = pcall(getRoomUserData, id, "info")
     if not ok or not info or info == "" then return nil end
     info = "," .. info:lower() .. ","
     for _, flag in ipairs(SYMORDER) do
-        if info:find("," .. flag .. ",", 1, true) then return SYMBOL[flag] end
+        if info:find("," .. flag .. ",", 1, true) then return flag end
     end
     return nil
 end
 
+function M.symbol_for(id)
+    local f = flag_of(id)
+    return f and SYMBOL[f] or nil
+end
+
 function M.mark_room(id)
-    if not CFG.symbols or not U.has("setRoomChar") then return false end
-    local s = M.symbol_for(id)
-    if not s then return false end
-    pcall(setRoomChar, id, s)
+    if not CFG.symbols then return false end
+    local f = flag_of(id)
+    if not f then return false end
+
+    pcall(setRoomChar, id, SYMBOL[f])
     pcall(setRoomCharColor, id, 255, 255, 255)
+
+    -- and the fill, which is the half of this that reads from across the map
+    local e = FLAGENV[f]
+    if e then
+        local oke, was = pcall(getRoomEnv, id)
+        if oke and (tonumber(was) or 0) &gt; 0 and (tonumber(was) or 0) &lt; 200 then
+            pcall(setRoomUserData, id, ENV0, tostring(was))
+        end
+        pcall(setCustomEnvColor, e[1], e[2], e[3], e[4], 255)
+        pcall(setRoomEnv, id, e[1])
+    end
     return true
 end
 
@@ -2327,22 +2394,35 @@ local function apply(tbl)
     return true
 end
 
-function M.style_aard()
+-- The settings half, with nothing that needs a room to stand in. Called on load,
+-- because 'aard' is the default style now and a default you have to type isn't
+-- one. Room size and exit size are deliberately absent - they're the two values
+-- whose scale I couldn't establish from the binary, and guessing at somebody's
+-- map dimensions is worse than leaving them where they are. 'mapper style'
+-- prints both, 'mapper style room|exit &lt;n&gt;' sets them.
+function M.style_apply()
     snapshot()
-    if not apply(AARD) then return end
+    if not apply(AARD) then return false end
+    pcall(setMapBackgroundColor, BACKGROUND[1], BACKGROUND[2], BACKGROUND[3])
+    pcall(setMapRoomExitsColor, EXITS[1], EXITS[2], EXITS[3])
+    pcall(setCustomEnvColor, UNKNOWNENV[1], UNKNOWNENV[2], UNKNOWNENV[3], UNKNOWNENV[4], 255)
+    return true
+end
+
+function M.style_aard(quiet)
+    if not M.style_apply() then return end
     CFG.style = "aard"
     CFG.symbols = true
     CFG.autogrid = true
     M.save()
 
-    pcall(setMapBackgroundColor, 0, 0, 0)
-    pcall(setMapRoomExitsColor, 90, 100, 120)
-
     local aid = area_here()
     local n = stamp_area(aid)
     if aid then M.grid(aid, true) end
 
-    U.ok("Map styled like the MUSHclient one - solid tiles, terrain colours, no exit lines.")
+    if quiet then return end
+    U.ok("Map drawn the MUSHclient way - its background, its exit colour, square rooms, "
+        .. "and shops, healers and banks in its colours.")
     U.note("Marked " .. n .. " room(s) in this area. 'mapper style symbols' does the next one.")
     U.note("'mapper style restore' puts your own settings back.")
 end
@@ -2401,11 +2481,18 @@ function M.style(rest)
                 -- the '?' on an unexplored room isn't a symbol, it's the room
                 local oku, u = pcall(getRoomUserData, id, "unexplored")
                 if not (oku and u == "1") then
-                    pcall(setRoomChar, id, ""); n = n + 1
+                    pcall(setRoomChar, id, "")
+                    -- and the terrain colour back from under the flag colour
+                    local okz, was = pcall(getRoomUserData, id, ENV0)
+                    if okz and tonumber(was) then
+                        pcall(setRoomEnv, id, tonumber(was))
+                        pcall(clearRoomUserData, id, ENV0)
+                    end
+                    n = n + 1
                 end
             end
         end
-        U.ok("Cleared symbols from " .. n .. " room(s) in this area.")
+        U.ok("Cleared symbols and flag colours from " .. n .. " room(s) in this area.")
 
     elseif verb == "autogrid" then
         CFG.autogrid = more:lower() ~= "off"; M.save()
@@ -2462,7 +2549,7 @@ function M.style(rest)
             { "room size",    cur.mapRoomSize or "?" },
             { "exit size",    cur.mapExitSize or "?" },
             { "" },
-            { "mapper style aard",     "the MUSHclient look - tiles, terrain colours, symbols" },
+            { "mapper style aard",     "the MUSHclient look - on by default, this re-applies it" },
             { "mapper style restore",  "put your own settings back" },
             { "mapper style grid on|off", "this area as solid tiles, or not" },
             { "mapper style autogrid on|off", "do that automatically on the continent" },
@@ -2476,6 +2563,22 @@ function M.style(rest)
             { "and an inn does not." },
         })
     end
+end
+
+-- The style is on by default, so it applies itself. Only the settings half:
+-- marking rooms needs a room to be standing in and there isn't one yet.
+--
+-- Behind a timer for the same reason the map claim is - the stock module builds
+-- its frame on a 0.1s delay, and anything touching map settings before that is
+-- racing it. Once, not on every reload of this script.
+-- The unknown-room colour is registered straight away rather than inside the
+-- timer below: walk.lua can sprout a '?' room on the first GMCP packet, and an
+-- environment with no colour registered draws as nothing in particular.
+pcall(setCustomEnvColor, UNKNOWNENV[1], UNKNOWNENV[2], UNKNOWNENV[3], UNKNOWNENV[4], 255)
+
+if CFG.style == "aard" and not aardkit_mapper_styled then
+    aardkit_mapper_styled = true
+    tempTimer(2, function() M.style_apply() end)
 end
 </script>
 				<eventHandlerList />

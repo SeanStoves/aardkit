@@ -118,11 +118,27 @@ Rooms Aardwolf names in its exit list but you've never walked into are drawn one
 a `?` in them, so an area you've half-explored looks half-explored. They fill in the moment you
 step in. `mapper style unexplored off` if you'd rather not.
 
-The continent draws as solid terrain-coloured tiles with no exit lines — GMCP flags continent
-rooms, so it's per area and an inn keeps its corridors. `mapper style autogrid off` stops that,
-`mapper style grid on|off` does one area by hand, and `mapper style aard` turns on the rest of
-the MUSHclient look. Anything `mapper style` changes is a Mudlet preference of yours, so it
-writes the old values down first and `mapper style restore` puts them back exactly.
+**The map is drawn the MUSHclient way by default**, not the Mudlet way — that plugin's
+appearance is most of what people miss about it. Square rooms with borders on a #111111 field,
+#e0ffff exit lines, no room ids, and its fills for the rooms you go looking for: shops
+#ffad2f, banks #ffd700, healers and trainers #9acd32, guilds magenta, questors deepskyblue,
+safe rooms lightblue, and #9b0000 for a room you know is there and have never stood in. Those
+numbers are read off that plugin's own settings; none of its code is here.
+
+Continent areas draw as solid terrain-coloured tiles with no exit lines — their mapper
+tiles areas with terrain textures, Mudlet has no textures, and a coloured room is the nearest
+true thing. GMCP flags continent rooms, so it's per area and an inn keeps its corridors.
+
+Everything `mapper style` changes is a Mudlet preference of yours. The old values are written
+down before anything is touched and `mapper style restore` puts them back exactly —
+including the terrain colour sitting under a flag fill, which is parked in room user data
+rather than thrown away. `mapper style autogrid off` stops the continent tiling,
+`mapper style grid on|off` does one area by hand.
+
+Room size and exit size are the two it won't touch: their scale isn't discoverable from
+Mudlet's binary, and a wrong guess resizes every map you own. `mapper style` prints both and
+`mapper style room|exit <n>` sets them — the MUSHclient proportion is a room 12 wide with
+8 between, if you want to match it exactly.
 
 ## Config
 
