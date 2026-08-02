@@ -20,7 +20,8 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `snd` | toggle the target panel |
+| `snd` | this list |
+| `snd toggle` | show or hide the target panel |
 | `snd cp \| quest \| gq` | ask the MUD for that target list |
 | `(panel) quest tab` | time left on the quest, and time until the next one |
 | `snd quest raw` | what gmcp.comm.quest actually sent |

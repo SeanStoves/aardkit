@@ -496,15 +496,28 @@ function U.err(msg)
 end
 
 -- help blocks: pass a list of {cmd, description} and it lines them up
+-- The left column is padded to the widest label, which is right until one entry
+-- is enormous - 'loot api | auth | upload | update | resync yes' is 45
+-- characters and pushed every description in the block far enough right to wrap
+-- off the edge of the screen, which is what made the loot help look truncated.
+-- So the padding is capped, and anything past the cap gets its description on
+-- the next line rather than dragging the other thirty rows with it.
+local HELP_CAP = 32
+
 function U.help(title, rows)
     U.out("\n&lt;#7aa2f7&gt;" .. title .. "&lt;r&gt;")
     local w = 0
-    for _, r in ipairs(rows) do w = math.max(w, #r[1]) end
     for _, r in ipairs(rows) do
-        if r[2] then
-            U.out("\n  &lt;#e0af68&gt;" .. r[1] .. string.rep(" ", w - #r[1]) .. "&lt;r&gt;  &lt;#c8d0dc&gt;" .. r[2] .. "&lt;r&gt;")
-        else
+        if r[2] and #r[1] &lt;= HELP_CAP then w = math.max(w, #r[1]) end
+    end
+    for _, r in ipairs(rows) do
+        if not r[2] then
             U.out("\n  &lt;#8a93a8&gt;" .. r[1] .. "&lt;r&gt;")
+        elseif #r[1] &gt; w then
+            U.out("\n  &lt;#e0af68&gt;" .. r[1] .. "&lt;r&gt;")
+            U.out("\n  " .. string.rep(" ", w) .. "  &lt;#c8d0dc&gt;" .. r[2] .. "&lt;r&gt;")
+        else
+            U.out("\n  &lt;#e0af68&gt;" .. r[1] .. string.rep(" ", w - #r[1]) .. "&lt;r&gt;  &lt;#c8d0dc&gt;" .. r[2] .. "&lt;r&gt;")
         end
     end
     echo("\n")

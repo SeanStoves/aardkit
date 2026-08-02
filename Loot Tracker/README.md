@@ -39,7 +39,11 @@ that every module here builds on. Without it nothing else loads.
 | `loot recent` | last 15 things looted |
 | `loot export [file]` | dump the DB to a file to share |
 | `loot import <file>` | merge a shared export |
-| `loot api \| auth \| upload \| update \| resync yes` | shared-pool sync commands |
+| `loot api` | the shared pool: endpoint, who you are, what is unsynced |
+| `loot auth` | register this character with the pool |
+| `loot upload` | push what is new since last time |
+| `loot update` | pull the pool into your database |
+| `loot resync yes` | re-send everything on the next upload |
 | `loot clear loot\|shop\|gathered\|stats` | wipe a table — writes a backup first |
 | `loot restore [table]` | list clear-time backups, or put the newest back |
 

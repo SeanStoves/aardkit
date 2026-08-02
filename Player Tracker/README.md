@@ -20,7 +20,8 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `pt` | show/hide the panel |
+| `pt` | this list |
+| `pt toggle` | show or hide the panel |
 | `pt find <text>` | search name, title and clan across all records |
 | `pt filter <text>` | filter the panel list, blank clears |
 | `pt info <name>` | full record for one player |

@@ -20,7 +20,8 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `spellup` | the panel: what is up, what just dropped |
+| `spellup` | this list |
+| `spellup toggle` | the panel: what is up, what just dropped |
 | `spellup list` | every known spellup and its state |
 | `spellup why <name>` | reason the last cast of it failed |
 | `spellup slist` | re-read the skill table from the MUD |

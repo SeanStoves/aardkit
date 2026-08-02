@@ -20,7 +20,8 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `explore` | repaint and toggle the panel |
+| `explore` | this list |
+| `explore toggle` | repaint, and show or hide the panel |
 | `explore svg [area]` | write an SVG map, default current area |
 | `explore json [area]` | write rooms and links as JSON |
 | `explore all` | write an SVG for every area |

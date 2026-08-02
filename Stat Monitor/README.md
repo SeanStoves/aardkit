@@ -20,7 +20,8 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `stats` | toggle the panel |
+| `stats` | this list |
+| `stats toggle` | show or hide the panel |
 | `stats fields` | every field, what's on, and what the MUD is sending |
 | `stats on\|off <field>` | add one of the extras, or drop one you never read |
 | `stats reset` | back to the default set |

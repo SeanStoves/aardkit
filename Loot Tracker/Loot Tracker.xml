@@ -1536,7 +1536,11 @@ function LT.cmd(arg)
             { "loot recent",          "last 15 things looted" },
             { "loot export [file]",   "dump the DB to a file to share" },
             { "loot import &lt;file&gt;",   "merge a shared export" },
-            { "loot api | auth | upload | update | resync yes", "" },
+            { "loot api",          "the shared pool: endpoint, who you are, what's unsynced" },
+            { "loot auth",         "register this character with the pool" },
+            { "loot upload",       "push what's new since last time" },
+            { "loot update",       "pull the pool into your database" },
+            { "loot resync yes",   "re-send everything on the next upload" },
             { "loot clear loot|shop|gathered|stats", "wipe a table (backs it up first)" },
             { "loot restore [table]", "list clear-time backups, or put one back" },
         })
