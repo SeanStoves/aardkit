@@ -1468,10 +1468,30 @@ function M.cmd(arg)
 
     -- config
     elseif verb == "zoom" then
+        -- Bigger is closer. This had it the other way round, so 'mapper zoom in'
+        -- zoomed out - settled by watching it: the stock module sets 35 and a
+        -- saved override of 10 is what turned every room into a two-pixel dot.
         local d = U.trim(rest):lower()
-        local z = (getMapZoom and getMapZoom()) or 10
-        pcall(setMapZoom, d == "in" and math.max(1, z - 3) or (z + 3))
-        U.ok("Zoom " .. (d == "in" and "in" or "out") .. ".")
+        local n = tonumber(d)
+        local z = (getMapZoom and getMapZoom()) or 20
+        if n then
+            pcall(setMapZoom, math.max(1, math.floor(n)))
+            U.ok("Zoom " .. math.max(1, math.floor(n)) .. ".")
+        elseif d == "in" or d == "out" then
+            local to = d == "in" and (z + 3) or math.max(1, z - 3)
+            pcall(setMapZoom, to)
+            U.ok("Zoom " .. d .. " - now " .. to .. ".")
+        else
+            U.help("mapper zoom", {
+                { "now", tostring(z) },
+                { "" },
+                { "mapper zoom in | out", "three at a time" },
+                { "mapper zoom &lt;n&gt;", "straight to a number; bigger is closer" },
+                { "" },
+                { "The MUSHclient map draws a 12px room with 8px between it and" },
+                { "the next, so 20 is what its cells measure. That's the style's." },
+            })
+        end
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
         aardkit.panel.cmd("mapper " .. verb)
@@ -2522,6 +2542,12 @@ local FLAGENV = {
     safe    = { 206, 0xad, 0xd8, 0xe6 },   -- lightblue
 }
 
+-- Their map draws a 12-pixel room with 8 between it and the next, so one of its
+-- cells measures 20. Mudlet's setMapZoom is that same pixels-per-cell, which is
+-- why this number transfers directly - and why a saved override of 10 turned
+-- every room into a dot with a long line coming out of it.
+local ZOOM = 20
+
 -- theirs too: a room you know is there and have never been in
 local UNKNOWNENV = { 207, 0x9b, 0x00, 0x00 }   -- #9b0000
 
@@ -2735,6 +2761,11 @@ local function snapshot()
     if not U.has("getConfig") then return end
     local was = CFG.stylewas or {}
     local added = false
+    -- zoom isn't a getConfig key, it has its own pair of functions
+    if was.zoom == nil and U.has("getMapZoom") then
+        local okz, z = pcall(getMapZoom)
+        if okz and tonumber(z) then was.zoom = tonumber(z); added = true end
+    end
     for _, k in ipairs(KEYS) do
         if was[k] == nil then
             local ok, v = pcall(getConfig, k)
@@ -2749,7 +2780,13 @@ local function apply(tbl)
         U.warn("This Mudlet has no setConfig, so the map settings can't be changed from here.")
         return false
     end
-    for k, v in pairs(tbl) do pcall(setConfig, k, v) end
+    for k, v in pairs(tbl) do
+        if k == "zoom" then
+            if U.has("setMapZoom") then pcall(setMapZoom, v) end
+        else
+            pcall(setConfig, k, v)
+        end
+    end
     return true
 end
 
@@ -2765,6 +2802,7 @@ function M.style_apply()
     pcall(setMapBackgroundColor, BACKGROUND[1], BACKGROUND[2], BACKGROUND[3])
     pcall(setMapRoomExitsColor, EXITS[1], EXITS[2], EXITS[3])
     pcall(setCustomEnvColor, UNKNOWNENV[1], UNKNOWNENV[2], UNKNOWNENV[3], UNKNOWNENV[4], 255)
+    if U.has("setMapZoom") then pcall(setMapZoom, ZOOM) end
     return true
 end
 
@@ -2916,6 +2954,8 @@ function M.style(rest)
             { "room borders", cur.mapShowRoomBorders or "?" },
             { "room ids",     cur.showRoomIdsOnMap or "?" },
             { "room size",    cur.mapRoomSize or "?" },
+            { "zoom",         (U.has("getMapZoom") and tostring(select(2, pcall(getMapZoom)))) or "?"
+                              .. "" },
             { "exit size",    cur.mapExitSize or "?" },
             { "" },
             { "mapper style aard",     "the MUSHclient look - on by default, this re-applies it" },

@@ -62,7 +62,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper reframe` | give their map widget straight back to them |
 | `mapper standalone on\|off` | stop the stock module writing to the map — costs you its speedwalk, coordrun and 'where' |
 | `mapper show\|hide\|dock\|embed` | where the Mapper panel lives |
-| `mapper zoom in\|out` | map zoom |
+| `mapper zoom in\|out\|<n>` | map zoom — bigger is closer; the MUSHclient map measures 20 |
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
 | `mapper database` | where the map lives |
 | `mapper portals [here\|<area>]` | hand-held portals you have recorded |
@@ -157,10 +157,13 @@ including the terrain colour sitting under a flag fill, which is parked in room 
 rather than thrown away. `mapper style autogrid off` stops the continent tiling,
 `mapper style grid on|off` does one area by hand.
 
-Room size and exit size are the two it won't touch: their scale isn't discoverable from
-Mudlet's binary, and a wrong guess resizes every map you own. `mapper style` prints both and
-`mapper style room|exit <n>` sets them — the MUSHclient proportion is a room 12 wide with
-8 between, if you want to match it exactly.
+The MUSHclient map draws a 12-pixel room with 8 between it and the next. That gives both of the
+numbers this needs: a room fills 12/20 of its cell, so `mapRoomSize` is 0.6, and a cell
+measures 20 pixels, so the map zoom is 20. Both are set by the style and both are put back by
+`mapper style restore`. `mapper zoom in|out|<n>` overrides by hand — bigger is closer.
+
+`mapExitSize` is left alone: it reads 10 against a room size of 0.5, so it is a different kind
+of number and nothing in their settings converts to it.
 
 ## Config
 
