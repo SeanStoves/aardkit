@@ -32,7 +32,7 @@
 				<name>mapexporter/svg</name>
 				<packageName />
 				<script>--[[
-    Explorer — SVG renderer
+    MapExporter — SVG renderer
     Sean Stoves, 2026-07-31
 
     Draws area maps in the Gaardian house style, because that's the style every
@@ -377,8 +377,13 @@ end
 				<name>mapexporter</name>
 				<packageName />
 				<script>--[[
-    Explorer — area maps from Mudlet's own map
+    MapExporter — area maps out of Mudlet's own map
     Sean Stoves, 2026-07-31
+
+    Mine outright, not a port of anyone's. The Gaardian archives are the model
+    for how a finished map should LOOK - white boxes, black borders, doors as a
+    bar across the link - because that's the visual language Aardwolf players
+    already read. None of their code or data is involved.
 
     The MUSHclient version read the mapper's SQLite file and *inferred* room
     positions by walking the exit graph, nudging boxes sideways whenever two
@@ -556,6 +561,28 @@ local function write(path, body)
     return true
 end
 
+-- Written files are worth opening, and the path alone means selecting it,
+-- copying it and pasting it somewhere. openUrl on a file:// URL hands it to
+-- whatever the machine uses for SVG - a browser, usually - which is the whole
+-- point of generating one.
+--
+-- Spaces and the rest have to be percent-encoded or the URL stops at the first
+-- one. Area names come from the MUD and go straight into the filename.
+local function file_url(path)
+    return "file://" .. (path:gsub("[^%w%-%./_~]", function(c)
+        return string.format("%%%02X", c:byte())
+    end))
+end
+
+local function wrote(path, note)
+    U.ok("Wrote " .. path .. (note and ("  (" .. note .. ")") or ""))
+    U.outLink("  &lt;#3ad07a&gt;[open]&lt;r&gt;", function() openUrl(file_url(path)) end,
+        "Open " .. path)
+    echo("\n")
+end
+
+EX.file_url = file_url
+
 function EX.svg(want)
     local a, err = EX.resolve(want)
     if not a then U.warn(err); return end
@@ -575,7 +602,7 @@ function EX.svg(want)
     local ok, werr = write(path, body)
     if not ok then U.err("Couldn't write " .. path .. ": " .. werr); return end
 
-    U.ok("Wrote " .. path .. "  (" .. sub .. ")")
+    wrote(path, sub)
     EX.paint(a.name .. " -&gt; " .. sub)
 end
 
@@ -604,7 +631,7 @@ function EX.json(want)
     local path = outdir_path() .. "/map_" .. safe(a.name) .. ".json"
     local ok, werr = write(path, yajl.to_string(dump))
     if not ok then U.err("Couldn't write " .. path .. ": " .. werr); return end
-    U.ok("Wrote " .. path .. "  (" .. n .. " rooms)")
+    wrote(path, n .. " rooms")
 end
 
 function EX.all()
@@ -627,6 +654,10 @@ function EX.all()
     end
     U.ok("Wrote " .. done .. " maps to " .. outdir_path()
         .. (empty &gt; 0 and ("  (" .. empty .. " areas had no coordinates)") or ""))
+    -- a folder rather than a file, but the same click
+    U.outLink("  &lt;#3ad07a&gt;[open folder]&lt;r&gt;",
+        function() openUrl(EX.file_url(outdir_path())) end, "Open " .. outdir_path())
+    echo("\n")
 end
 
 ---
@@ -637,7 +668,7 @@ function EX.paint(last)
     if not panel.console then return end
     panel:clear()
     local list = areas()
-    panel:cecho("&lt;#e94560&gt;Explorer&lt;r&gt;\n")
+    panel:cecho("&lt;#e94560&gt;Map Exporter&lt;r&gt;\n")
     panel:cecho("&lt;#8a93a8&gt;" .. #list .. " areas in the map&lt;r&gt;\n\n")
     local a = EX.resolve("")
     if a then
@@ -658,6 +689,22 @@ function EX.cmd(arg)
     if verb == "toggle" then
         EX.paint()
         panel:toggle()
+
+    elseif verb == "status" then
+        -- the panel's four lines, on screen, for when you don't want a panel
+        local list = areas()
+        local rows = { { "areas in the map", tostring(#list) } }
+        local a = EX.resolve("")
+        if a then
+            local _, n = EX.collect(a.id)
+            rows[#rows + 1] = { "here", a.name .. "  (" .. (n or 0) .. " rooms)" }
+        end
+        rows[#rows + 1] = { "writing to", outdir_path() }
+        U.help("Map Exporter", rows)
+        U.outLink("  &lt;#3ad07a&gt;[open folder]&lt;r&gt;",
+            function() openUrl(EX.file_url(outdir_path())) end, "Open " .. outdir_path())
+        echo("\n")
+        EX.paint()
 
     elseif verb == "svg" or verb == "map" then
         EX.svg(rest)
@@ -699,6 +746,7 @@ function EX.cmd(arg)
 
     else
         U.help("Map Exporter", {
+            { "mapexport status",    "areas, where you are, where files go" },
             { "mapexport toggle",       "show or hide the panel" },
             { "mapexport",           "this list" },
             { "mapexport svg [area]",  "Gaardian-style SVG map (default: where you are)" },
