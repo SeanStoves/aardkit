@@ -193,12 +193,21 @@ end
 
 deleteArea = function(id) MAP.areas[tonumber(id)] = nil end
 
+-- These are NOT the same table, and aliasing them here is how six call sites
+-- shipped reading Swap backwards. getAreaTable is name -> id; getAreaTableSwap
+-- is id -> name. Checked against Mudlet's own generic_mapper, which does
+-- `getAreaTableSwap()[areaid]` to get a name and reverses getAreaTable() to
+-- build the same thing.
 getAreaTable = function()
     local t = {}
     for id, n in pairs(MAP.areas) do t[n] = id end
     return t
 end
-getAreaTableSwap = getAreaTable
+getAreaTableSwap = function()
+    local t = {}
+    for id, n in pairs(MAP.areas) do t[id] = n end
+    return t
+end
 
 getAreaRooms = function(aid)
     aid = tonumber(aid)

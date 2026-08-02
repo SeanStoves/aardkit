@@ -185,7 +185,11 @@ local CFG = U.load("mapper", {
     -- Mudlet settings back; they're written down before anything is changed.
     style      = "aard",
     stylewas   = {},    -- your settings, saved before a style was applied
-    symbols    = false, -- $ in shops, + in healers, and so on
+    -- On, because it's half of what the 'aard' style above IS - the loud fills
+    -- for shops, healers and banks, plus a character so the colour says which.
+    -- New rooms are marked as they're created; the ones already in the map need
+    -- 'mapper style symbols' for this area or 'symbols all' for the lot.
+    symbols    = true,
     -- On. The continent drawn as boxes joined by strings is the thing that
     -- looks worst next to the MUSHclient map, and GMCP flags continent rooms so
     -- there's no guessing involved. Per area, so an inn keeps its corridors.
@@ -240,10 +244,11 @@ end
 local function areaname(id)
     local a = getRoomArea and getRoomArea(id)
     if not a then return "?" end
+    -- getAreaTableSwap is id -&gt; name, which is this question exactly. Every
+    -- other call site here wants name -&gt; id, which is getAreaTable - and for a
+    -- while all of them called Swap and read it backwards.
     local ok, t = pcall(getAreaTableSwap)
-    if ok and type(t) == "table" then
-        for name, aid in pairs(t) do if aid == a then return name end end
-    end
+    if ok and type(t) == "table" and t[a] then return t[a] end
     return tostring(a)
 end
 
@@ -386,7 +391,7 @@ local function scope_rooms(scope)
         local a = id and getRoomArea and getRoomArea(id)
         return a and select(2, pcall(getAreaRooms, a)) or nil
     end
-    local ok, t = pcall(getAreaTableSwap)
+    local ok, t = pcall(getAreaTable)
     if ok and type(t) == "table" then
         for name, aid in pairs(t) do
             if name:lower():find(scope, 1, true) then
@@ -458,7 +463,7 @@ function M.notes(scope)
     local ok, hits = pcall(getAllRoomUserData and function() return nil end or function() return nil end)
     -- searchRoomUserData with an empty needle isn't defined, so walk the areas
     local areas = {}
-    local okt, t = pcall(getAreaTableSwap)
+    local okt, t = pcall(getAreaTable)
     if okt and type(t) == "table" then for _, aid in pairs(t) do areas[#areas + 1] = aid end end
     for _, aid in ipairs(areas) do
         local okr, rooms = pcall(getAreaRooms, aid)
@@ -575,7 +580,7 @@ end
 
 function M.areas(filter)
     filter = U.trim(tostring(filter or "")):lower()
-    local ok, t = pcall(getAreaTableSwap)
+    local ok, t = pcall(getAreaTable)
     if not ok or type(t) ~= "table" then U.warn("No areas in the map."); return end
     local names = {}
     for name in pairs(t) do
@@ -1216,7 +1221,7 @@ end
 function M.purgezone(name)
     name = U.trim(name)
     if name == "" then U.warn("Usage: mapper purgezone &lt;area&gt;"); return end
-    local ok, t = pcall(getAreaTableSwap)
+    local ok, t = pcall(getAreaTable)
     if not ok or type(t) ~= "table" then return end
     for area, aid in pairs(t) do
         if area:lower() == name:lower() then
@@ -1320,7 +1325,7 @@ function M.cmd(arg)
             local list = rooms
             if not list then
                 list = {}
-                local okt, t = pcall(getAreaTableSwap)
+                local okt, t = pcall(getAreaTable)
                 if okt then for _, aid in pairs(t) do
                     local okr, rr = pcall(getAreaRooms, aid)
                     if okr and type(rr) == "table" then for _, r in pairs(rr) do list[#list + 1] = r end end
@@ -1767,7 +1772,7 @@ local function resolve_zone(zone, id, info)
     if z then return z.id end
 
     local aid
-    local ok, t = pcall(getAreaTableSwap)
+    local ok, t = pcall(getAreaTable)
     if ok and type(t) == "table" then
         for name, a in pairs(t) do
             if tostring(name):lower() == zone:lower() then aid = a; break end
@@ -2322,9 +2327,57 @@ function M.mark_room(id)
     return true
 end
 
--- Bounded on purpose: this area, not the map. 23,000 setRoomChar calls in one
--- go is the same mistake the first map import made, and it took the client with
--- it. 'mapper style symbols' again in the next area is a keypress.
+-- The whole map, in chunks. Declared above the function that drives it, because
+-- a table read from a function defined earlier binds a nil global instead.
+local sweep
+
+local function sweep_step()
+    if not sweep then return end
+    local budget = 600
+    while budget &gt; 0 do
+        local id = sweep.rooms[sweep.i]
+        if not id then
+            U.ok("Marked " .. sweep.n .. " room(s) of " .. #sweep.rooms .. ".")
+            sweep = nil
+            return
+        end
+        if M.mark_room(id) then sweep.n = sweep.n + 1 end
+        sweep.i = sweep.i + 1
+        budget = budget - 1
+    end
+    if sweep.i - sweep.reported &gt;= 6000 then
+        sweep.reported = sweep.i
+        U.note("Marking rooms... " .. sweep.i .. " of " .. #sweep.rooms)
+    end
+    tempTimer(0.1, sweep_step)
+end
+
+-- Every room in the map, which on an imported one is 23,000 of them. Chunked
+-- through a timer rather than run straight: setRoomChar and setRoomEnv each
+-- re-render the map if the widget is open, and doing the lot in one pass is
+-- exactly what took the client down on the first import attempt.
+function M.stamp_all()
+    if sweep then U.warn("Already marking - let it finish."); return end
+    if not CFG.symbols then U.warn("Symbols are off. 'mapper style symbols' first."); return end
+    local rooms = {}
+    local ok, t = pcall(getAreaTable)
+    if ok and type(t) == "table" then
+        for _, aid in pairs(t) do
+            local okr, rr = pcall(getAreaRooms, aid)
+            if okr and type(rr) == "table" then
+                for _, id in pairs(rr) do rooms[#rooms + 1] = id end
+            end
+        end
+    end
+    if #rooms == 0 then U.warn("No rooms in the map."); return end
+    sweep = { rooms = rooms, i = 1, n = 0, reported = 0 }
+    U.note("Marking " .. #rooms .. " room(s) - this runs in the background, carry on.")
+    sweep_step()
+end
+
+-- Bounded on purpose: this area, not the map. 'mapper style symbols all' does
+-- the lot, in chunks, because doing it in one pass is what took the client down
+-- on the first import attempt.
 local function stamp_area(aid)
     if not aid then return 0 end
     local ok, rooms = pcall(getAreaRooms, aid)
@@ -2464,6 +2517,11 @@ function M.style(rest)
         end
 
     elseif verb == "symbols" then
+        if more:lower() == "all" then
+            CFG.symbols = true; M.save()
+            M.stamp_all()
+            return
+        end
         if more == "off" then
             CFG.symbols = false; M.save()
             U.ok("Room symbols off. They stay on rooms already marked - 'mapper style clear' removes them.")
@@ -2555,6 +2613,7 @@ function M.style(rest)
             { "mapper style autogrid on|off", "do that automatically on the continent" },
             { "mapper style unexplored on|off", "draw rooms GMCP knows and you haven't entered" },
             { "mapper style symbols [off]", "mark shops, healers and the rest in this area" },
+            { "mapper style symbols all", "every room in the map, in chunks - do this once" },
             { "mapper style clear",    "take the symbols off this area" },
             { "mapper style ids on|off", "room numbers painted on the map" },
             { "mapper style room|exit &lt;n&gt;", "the two sizes, left alone by the presets" },

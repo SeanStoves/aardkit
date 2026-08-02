@@ -51,6 +51,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper style restore` | put your own Mudlet map settings back |
 | `mapper style grid on\|off` | this area as solid tiles, or as rooms and exit lines |
 | `mapper style symbols [off]` | mark shops, healers, banks and the rest in this area |
+| `mapper style symbols all` | every room in the map, chunked so the client stays alive — run once |
 | `mapper style clear` | take the symbols off this area |
 | `mapper style ids on\|off` | room numbers painted on the map |
 | `mapper style room\|exit <n>` | the two sizes the presets leave alone |
