@@ -7,29 +7,29 @@
 	<TimerPackage />
 	<AliasPackage>
 		<AliasGroup isActive="yes" isFolder="yes">
-			<name>explorer</name>
+			<name>mapexporter</name>
 			<script />
 			<command />
 			<packageName />
 			<regex />
 			<Alias isActive="yes" isFolder="no">
-				<name>explore</name>
-				<script>aardkit.explorer.cmd(matches[2] or "")</script>
+				<name>mapexport</name>
+				<script>aardkit.mapexporter.cmd(matches[2] or "")</script>
 				<command />
 				<packageName />
-				<regex>^explores?(?:\s+(.*))?$</regex>
+				<regex>^mapexports?(?:\s+(.*))?$</regex>
 			</Alias>
 		</AliasGroup>
 	</AliasPackage>
 	<ActionPackage />
 	<ScriptPackage>
 		<ScriptGroup isActive="yes" isFolder="yes">
-			<name>explorer</name>
+			<name>mapexporter</name>
 			<packageName />
 			<script />
 			<eventHandlerList />
 			<Script isActive="yes" isFolder="no">
-				<name>explorer/svg</name>
+				<name>mapexporter/svg</name>
 				<packageName />
 				<script>--[[
     Explorer — SVG renderer
@@ -68,9 +68,9 @@
 ]]
 
 aardkit = aardkit or {}
-aardkit.explorer = aardkit.explorer or {}
+aardkit.mapexporter = aardkit.mapexporter or {}
 
-local EX = aardkit.explorer
+local EX = aardkit.mapexporter
 
 local RW, RH = 140, 56          -- room box; Gaardian's 100 was too tight for
                                 -- one-line names once we stopped hand-editing them
@@ -374,7 +374,7 @@ end
 				<eventHandlerList />
 			</Script>
 			<Script isActive="yes" isFolder="no">
-				<name>explorer</name>
+				<name>mapexporter</name>
 				<packageName />
 				<script>--[[
     Explorer — area maps from Mudlet's own map
@@ -394,15 +394,15 @@ end
 ]]
 
 aardkit = aardkit or {}
-aardkit.explorer = aardkit.explorer or {}
+aardkit.mapexporter = aardkit.mapexporter or {}
 
-local EX = aardkit.explorer
-local U  = aardkit.util.named("Explorer")
+local EX = aardkit.mapexporter
+local U  = aardkit.util.named("MapExport")
 
-local CFG = U.load("explorer", { dir = "maps" })
+local CFG = U.load("mapexporter", { dir = "maps" })
 
 local panel = aardkit.panel.new({
-    name = "explorer", title = "Explorer",
+    name = "mapexport", title = "Map Exporter",
     x = "10px", y = "300px", width = 380, height = 260,
 })
 
@@ -690,23 +690,23 @@ function EX.cmd(arg)
         if d == "" then
             U.note("Maps go to " .. outdir_path())
         else
-            CFG.dir = d; U.save("explorer", CFG)
+            CFG.dir = d; U.save("mapexporter", CFG)
             U.ok("Maps now go to " .. outdir_path())
         end
 
     elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
-        aardkit.panel.cmd("explorer " .. verb)
+        aardkit.panel.cmd("mapexport " .. verb)
 
     else
-        U.help("explore", {
-            { "explore toggle",       "show or hide the panel" },
-            { "explore",             "show/hide the panel" },
-            { "explore svg [area]",  "Gaardian-style SVG map (default: where you are)" },
-            { "explore json [area]", "rooms and links as JSON" },
-            { "explore all",         "every area (writes a lot of files)" },
-            { "explore list [f]",    "areas in the map, with room counts" },
-            { "explore dir [path]",  "where maps get written" },
-            { "explore dock|embed|hide", "" },
+        U.help("Map Exporter", {
+            { "mapexport toggle",       "show or hide the panel" },
+            { "mapexport",           "this list" },
+            { "mapexport svg [area]",  "Gaardian-style SVG map (default: where you are)" },
+            { "mapexport json [area]", "rooms and links as JSON" },
+            { "mapexport all",         "every area (writes a lot of files)" },
+            { "mapexport list [f]",    "areas in the map, with room counts" },
+            { "mapexport dir [path]",  "where maps get written" },
+            { "mapexport dock|embed|hide", "" },
             { "" },
             { "Reads Mudlet's map only - it never moves you or changes it." },
             { "Each z level gets its own grid, so towers stay towers." },
@@ -714,7 +714,7 @@ function EX.cmd(arg)
     end
 end
 
-aardkit.register("explore", "area maps from the mapper, Gaardian style", EX.cmd)
+aardkit.register("mapexport", "area maps out of the mapper, Gaardian style", EX.cmd)
 </script>
 				<eventHandlerList />
 			</Script>

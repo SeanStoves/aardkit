@@ -1,10 +1,10 @@
-# Explorer
+# MapExporter
 
 Gaardian-style SVG area maps generated from Mudlet's own map data, one grid per z level, written to a folder you choose. It also dumps rooms and links as JSON. It reads the map and never moves you or changes it.
 
 ## Install
 
-1. Download `Explorer.xml`.
+1. Download `MapExporter.xml`.
 2. In Mudlet: **Toolbox → Module Manager → Install**, and pick the file.
 3. Set **Priority** to `45` so it loads in the right order.
 4. Tick **Sync** if you want changes saved back to the file and shared with your
@@ -20,23 +20,17 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `explore` | this list |
-| `explore toggle` | repaint, and show or hide the panel |
-| `explore svg [area]` | write an SVG map, default current area |
-| `explore json [area]` | write rooms and links as JSON |
-| `explore all` | write an SVG for every area |
-| `explore list [filter]` | list areas with room counts |
-| `explore dir [path]` | show or set the output folder |
-| `explore show\|hide\|dock\|embed` | panel placement |
+| `mapexport` | this list |
+| `mapexport toggle` | repaint, and show or hide the panel |
+| `mapexport svg [area]` | write an SVG map, default current area |
+| `mapexport json [area]` | write rooms and links as JSON |
+| `mapexport all` | write an SVG for every area |
+| `mapexport list [filter]` | list areas with room counts |
+| `mapexport dir [path]` | show or set the output folder |
+| `mapexport show\|hide\|dock\|embed` | panel placement |
 
 Each has its own `help` with the full list.
 
-## Worth knowing
-
-Output is files you open elsewhere — nothing is drawn in the client. Rooms with no
-coordinates are skipped. Aggro and graffiti markers are Gaardian's own curation and
-aren't in mapper data, so they aren't rendered. It never moves you or edits the map.
-
 ## Config
 
-Settings live in `<profile>/aardkit/explorer.lua`.
+Settings live in `<profile>/aardkit/mapexporter.lua`.
