@@ -236,6 +236,20 @@ end
 M.LONG = LONG
 M.short_dir = short_dir
 
+-- Mudlet's command separator is ';' and it splits the input line BEFORE any
+-- alias sees it. So a ';' can never reach this module: 'mapper cexit
+-- west;;say huzzah' arrives here as 'mapper cexit west', with the empty piece
+-- between the two semicolons dropped and 'say huzzah' sent to the MUD on its
+-- own. The ';;' convention is MUSHclient's, where it escaped MUSHclient's
+-- splitter; here there is nothing to escape it with.
+--
+-- '|' is the way in, which is what Recall Manager already uses and for exactly
+-- this reason. Stored as ';' so it matches the 1,468 cexits that came across
+-- from the import and so the walker's existing split needs no special case.
+local function steps_in(cmd)
+    return (U.trim(tostring(cmd or "")):gsub("%s*|%s*", ";"):gsub(";;+", ";"))
+end
+
 local function here()
     local id = getPlayerRoom and getPlayerRoom()
     if not id or id == -1 then
@@ -898,13 +912,27 @@ end
 local pending
 
 function M.cexit(cmd)
-    cmd = U.trim(cmd)
-    if cmd == "" then U.warn("Usage: mapper cexit &lt;command&gt;   (';;' separates steps)"); return end
+    cmd = steps_in(cmd)
+    if cmd == "" then U.warn("Usage: mapper cexit &lt;command&gt;   ('|' between steps)"); return end
     local from = here()
     if not from then U.warn("Mudlet doesn't know where you are."); return end
+
+    -- A cexit that is only a direction is nearly always the front half of one
+    -- somebody typed with ';' in it. Say so here, where they can still see what
+    -- they typed, rather than leaving them to find out on the walk.
+    if not cmd:find(";", 1, true) and short_dir(cmd) then
+        local sep = U.has("getCommandSeparator") and select(2, pcall(getCommandSeparator)) or ";"
+        U.warn("That's a bare direction - if you meant more steps, they didn't reach us.")
+        U.note("Your Mudlet command separator is '" .. tostring(sep) .. "', and it splits the line"
+            .. " before this alias sees it. MUSHclient's ';;' escaped MUSHclient's own splitter;"
+            .. " there's nothing to escape it with here.")
+        U.note("Use '|' instead:   mapper cexit " .. cmd .. "|say huzzah"
+            .. "   ('mapper sep' if you'd rather change the separator)")
+    end
+
     pending = { from = from, cmd = cmd }
     U.note("Following '" .. cmd .. "' from " .. U.rid(from) .. " - it'll link when you arrive.")
-    for raw in (cmd .. ";;"):gmatch("(.-);;") do
+    for raw in (cmd .. ";"):gmatch("(.-);") do
         local step = U.trim(raw)
         local wait = step:match("^wait%((%d+)%)$")
         if wait then
@@ -969,6 +997,7 @@ function M.on_room()
 end
 
 function M.fullcexit(cmd, from, to)
+    cmd = steps_in(cmd)
     from, to = tonumber(from), tonumber(to)
     if not (cmd and from and to) then
         U.warn("Usage: mapper fullcexit {&lt;command&gt;} &lt;source&gt; &lt;destination&gt;")
@@ -1721,6 +1750,23 @@ function M.cmd(arg)
         if not n then U.warn("Usage: mapper goto &lt;room id&gt;"); return end
         M.goto_room(n)
 
+    elseif verb == "sep" then
+        local sep = U.has("getCommandSeparator") and select(2, pcall(getCommandSeparator)) or "?"
+        U.help("Command separator", {
+            { "yours", "'" .. tostring(sep) .. "'" },
+            { "" },
+            { "Mudlet splits your input on it BEFORE any alias runs, so a command" },
+            { "containing one never arrives whole. MUSHclient's ';;' escaped its own" },
+            { "splitter; Mudlet has no equivalent, and Lua can read this setting but" },
+            { "not write it." },
+            { "" },
+            { "Use '|' between steps", "works today, changes nothing else" },
+            { "Or set the separator to ';;'", "Settings &gt; Input line - then 'cexit west;say huzzah'" },
+            { "",                          "reads like MUSHclient, and your own stacking becomes ';;'" },
+            { "" },
+            { "'|' is what Recall Manager uses, for this same reason." },
+        })
+
     elseif verb == "clickwalk" then
         CFG.clickwalk = onoff(rest, CFG.clickwalk); save()
         U.ok("Click a room to walk there: " .. (CFG.clickwalk and "on" or "off"))
@@ -1800,7 +1846,7 @@ function M.help(which)
     if which == "exits" then
         U.help("mapper - exits", {
             { "mapper cexits [thisroom|here|&lt;area&gt;]", "list custom exits - this room, this area, or one you name" },
-            { "mapper cexit &lt;command&gt;",      "run it and link where you end up (';;' between steps)" },
+            { "mapper cexit &lt;command&gt;",      "run it and link where you end up ('|' between steps)" },
             { "mapper fullcexit {&lt;cmd&gt;} &lt;from&gt; &lt;to&gt;", "link without walking it" },
             { "mapper delete cexits",        "remove this room's custom exits" },
             { "mapper delete exits from|to &lt;room&gt;", "remove exits between here and there" },
@@ -1860,6 +1906,7 @@ function M.help(which)
             { "mapper show|hide|dock|embed", "where the map panel lives" },
             { "mapper zoom in|out|&lt;n&gt;", "map zoom - bigger is closer" },
             { "mapper clickwalk on|off", "click a room on the map to walk there" },
+            { "mapper sep",        "why a ';' in a command never reaches us" },
             { "" },
             { "mapper portals",    "hand-held portals   ('mapper help portals' for more)" },
             { "" },

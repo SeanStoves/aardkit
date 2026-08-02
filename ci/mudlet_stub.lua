@@ -391,6 +391,8 @@ end
 doSpeedWalk = note("doSpeedWalk")
 speedWalkDir = {}
 getTime = function() return "20260802-1300" end
+-- Mudlet splits input on this before any alias runs; readable, not writable.
+getCommandSeparator = function() return ";" end
 setLabelWheelCallback = note("setLabelWheelCallback")
 raiseWindow = note("raiseWindow")
 lowerWindow = note("lowerWindow")

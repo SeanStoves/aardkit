@@ -36,7 +36,8 @@ that every module here builds on. Without it nothing else loads.
 | `mapper addnote <text>` | note this room |
 | `mapper delete note` | remove it |
 | `mapper cexits [thisroom\|here\|<area>]` | custom exits, as a table — area, room, id, command, destination |
-| `mapper cexit <command>` | run it and link where you end up (';;' between steps) |
+| `mapper cexit <command>` | run it and link where you end up ('\|' between steps) |
+| `mapper sep` | why a ';' in a command never reaches the alias |
 | `mapper fullcexit {<cmd>} <from> <to>` | link without walking it |
 | `mapper delete cexits` | this room's custom exits |
 | `mapper delete exits from\|to <room>` | exits between here and there |
@@ -93,6 +94,8 @@ manual step comes up rather than nagging at you on load.
 
 
 ## Worth knowing
+
+**Multi-step custom exits use `|`, not `;;`.** Mudlet splits your input on its command separator — `;` by default — before any alias runs, so `mapper cexit west;;say huzzah` arrives as `mapper cexit west` and the rest goes to the MUD on its own. MUSHclient's `;;` escaped MUSHclient's own splitter; Mudlet has no equivalent, and Lua can read that setting but not write it. So `mapper cexit west|say huzzah`, which is the same separator Recall Manager uses for the same reason. It's stored as `;` either way, matching the ones that came across from the import. `mapper sep` explains it in place, and a cexit that is a bare direction says so when you make it — that's almost always the front half of one that got split.
 
 **Installing this takes the map over.** If the stock AardwolfMudlet module is
 present, three of its pieces are switched off on load, because two things writing one map is
