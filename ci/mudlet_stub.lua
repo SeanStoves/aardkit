@@ -85,7 +85,23 @@ disableKey = note("disableKey")
 enableKey = note("enableKey")
 killTrigger = note("killTrigger")
 killTimer = note("killTimer")
-tempTimer = function() return 1 end
+-- Timers are recorded so a test can fire them. The confirmation window on a
+-- cexit only matters when it EXPIRES, and a stub that swallowed the callback
+-- made that unreachable.
+TIMERS = {}
+tempTimer = function(secs, fn)
+    TIMERS[#TIMERS + 1] = { secs = secs, fn = fn }
+    return #TIMERS
+end
+function TIMERS.fire(i)
+    local t = TIMERS[i]
+    if t and t.fn then t.fn() end
+end
+function TIMERS.fire_last()
+    for i = #TIMERS, 1, -1 do
+        if TIMERS[i].fn then TIMERS[i].fn(); return TIMERS[i].secs end
+    end
+end
 tempLineTrigger = function() return 1 end
 tempRegexTrigger = function() return 1 end
 registerNamedTimer = note("registerNamedTimer")

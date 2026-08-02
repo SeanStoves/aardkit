@@ -201,6 +201,12 @@ local CFG = U.load("mapper", {
     -- Click a room on the map and walk there. On, because it's the thing every
     -- graphical mapper does and the reason to have the map on screen at all.
     clickwalk  = true,
+    -- How long 'mapper cexit' and 'mapper portal add' wait for the room to
+    -- change before giving up. Two: a door and a step is one round trip, and a
+    -- window that outlives the attempt is how a failed cexit used to link
+    -- itself to wherever you walked next. Anything slower - a portal with a
+    -- wait in it - takes 'mapper delay &lt;n&gt;' in front of the command.
+    confirm    = 2,
     -- Ours, not the stock module's. vconfig is part of a setup we don't own and
     -- may not be installed at all, so it's read as a convenience and never
     -- relied on: whatever is set here wins, and with neither set the chain is
@@ -906,10 +912,56 @@ function M.cexits(scope)
     }, rows, "Found " .. #rows .. " custom exit(s).")
 end
 
--- 'mapper cexit &lt;command&gt;' - run it, see where you end up, link it. MUSHclient
--- used ;; to get a multi-command cexit past its line parser; keep that so the
--- syntax people have written down still works.
-local pending
+---
+-- waiting for the room to change
+--
+-- 'mapper cexit' and 'mapper portal add' both work the same way: fire the
+-- command, then link whatever room.info arrives next. That was open-ended, so a
+-- cexit that didn't move you stayed armed - and linked itself to wherever you
+-- happened to walk ten minutes later, from the room you were in when you tried
+-- it. Silent, and wrong in the map afterwards.
+--
+-- Now it gives up. CFG.confirm seconds by default, 'mapper delay &lt;n&gt; &lt;command&gt;'
+-- for one that needs longer - a portal with a wait in it, or a door that takes
+-- a round trip.
+--
+-- Declared together and above every function that touches them. A local read by
+-- a function defined earlier binds a nil global instead, silently, and this
+-- project has paid for that seven times.
+---
+
+local pending, adding, confirm_t, delay_once
+
+local function disarm_confirm()
+    if confirm_t then pcall(killTimer, confirm_t); confirm_t = nil end
+end
+
+-- one-shot override from 'mapper delay &lt;n&gt;', else the configured default
+local function confirm_secs()
+    local n = tonumber(delay_once) or tonumber(CFG.confirm) or 5
+    delay_once = nil
+    return n
+end
+
+local function arm_confirm(kind, secs)
+    disarm_confirm()
+    confirm_t = tempTimer(secs, function()
+        confirm_t = nil
+        if kind == "cexit" and pending then
+            local p = pending
+            pending = nil
+            U.warn("No new room within " .. secs .. "s - '" .. p.cmd .. "' linked nothing.")
+            U.note("'mapper delay &lt;n&gt; cexit " .. p.cmd .. "' if it needs longer.")
+        elseif kind == "portal" and adding then
+            local a = adding
+            adding = nil
+            U.warn("No new room within " .. secs .. "s - '" .. tostring(a.item)
+                .. "' recorded nothing.")
+        end
+    end)
+end
+
+-- 'mapper cexit &lt;command&gt;' - run it, see where you end up, link it.
 
 function M.cexit(cmd)
     cmd = steps_in(cmd)
@@ -930,8 +982,11 @@ function M.cexit(cmd)
             .. "   ('mapper sep' if you'd rather change the separator)")
     end
 
+    local secs = confirm_secs()
     pending = { from = from, cmd = cmd }
-    U.note("Following '" .. cmd .. "' from " .. U.rid(from) .. " - it'll link when you arrive.")
+    arm_confirm("cexit", secs)
+    U.note("Following '" .. cmd .. "' from " .. U.rid(from)
+        .. " - it'll link when you arrive, or give up in " .. secs .. "s.")
     for raw in (cmd .. ";"):gmatch("(.-);") do
         local step = U.trim(raw)
         local wait = step:match("^wait%((%d+)%)$")
@@ -977,6 +1032,7 @@ function M.on_room()
         local a = adding
         if to and to ~= a.from then
             adding = nil
+            disarm_confirm()
             M.portal_record(a.cmd, to, a.item)
             return
         end
@@ -985,6 +1041,7 @@ function M.on_room()
     local to = here()
     local p = pending
     pending = nil
+    disarm_confirm()
     if not to or to == p.from then return end
     pcall(addSpecialExit, p.from, to, p.cmd)
     U.ok("Linked: " .. U.rid(p.from) .. " -&gt; " .. U.rid(to) .. "   '" .. p.cmd .. "'")
@@ -1202,7 +1259,6 @@ M.portal_chain = portal_chain
 -- The alternative was "go and stand where it drops you, then type the command",
 -- which asks you to do the travelling and the bookkeeping both. The client
 -- knows the room the moment room.info arrives.
-local adding
 
 function M.portal_add(item)
     item = U.trim(item)
@@ -1224,7 +1280,9 @@ function M.portal_add(item)
     end
 
     local cmd = portal_chain(item)
+    local secs = confirm_secs()
     adding = { cmd = cmd, item = item, from = from }
+    arm_confirm("portal", secs)
     local _, joins = cmd:gsub(";;", "")
     U.note("Using '" .. item .. "' - " .. (joins + 1)
         .. " step(s), and the room you land in gets recorded.")
@@ -1526,6 +1584,29 @@ function M.cmd(arg)
     -- 'mapper help exits' is offered by the help itself and never worked: verb
     -- is "help" and the topic is in rest, so it fell through to the default and
     -- printed the same page it was called from.
+    -- 'mapper delay 5 cexit west|say huzzah' - a longer confirmation window for
+    -- one command, rather than a mode you have to remember to switch back.
+    -- A prefix rather than a flag on cexit, so it works on anything that waits.
+    if verb == "delay" then
+        local n, more = U.split_verb(rest)
+        n = tonumber(n)
+        if not n or n &lt; 1 or n &gt; 300 then
+            U.warn("Usage: mapper delay &lt;1-300&gt; &lt;command&gt;   (default is "
+                .. tostring(CFG.confirm) .. "s)")
+            return
+        end
+        delay_once = n
+        more = U.trim(more)
+        if more == "" then
+            CFG.confirm = math.floor(n); save(); delay_once = nil
+            U.ok("Waiting " .. CFG.confirm .. "s for the room to change, from now on.")
+        else
+            M.cmd(more)
+            delay_once = nil        -- never leaks into the next command
+        end
+        return
+    end
+
     if verb == "help" then
         local topic = U.trim(rest):lower()
         M.help(topic == "cexits" and "exits" or topic)
@@ -1847,6 +1928,8 @@ function M.help(which)
         U.help("mapper - exits", {
             { "mapper cexits [thisroom|here|&lt;area&gt;]", "list custom exits - this room, this area, or one you name" },
             { "mapper cexit &lt;command&gt;",      "run it and link where you end up ('|' between steps)" },
+            { "mapper delay &lt;n&gt; cexit &lt;cmd&gt;", "give it n seconds to arrive before giving up" },
+            { "mapper delay &lt;n&gt;",            "change the default (currently " .. tostring(CFG.confirm) .. "s)" },
             { "mapper fullcexit {&lt;cmd&gt;} &lt;from&gt; &lt;to&gt;", "link without walking it" },
             { "mapper delete cexits",        "remove this room's custom exits" },
             { "mapper delete exits from|to &lt;room&gt;", "remove exits between here and there" },
@@ -1893,6 +1976,7 @@ function M.help(which)
             { "mapper delete note", "remove it" },
             { "" },
             { "mapper cexit &lt;command&gt;", "custom exits   ('mapper help exits' for more)" },
+            { "mapper delay &lt;n&gt; &lt;command&gt;", "wait longer for the room to change, just this once" },
             { "mapper door &lt;dir&gt; closed|locked", "mark a door" },
             { "" },
             { "mapper mapping",    "what the engine is doing, and whether it's on" },

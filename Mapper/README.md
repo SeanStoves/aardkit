@@ -38,6 +38,8 @@ that every module here builds on. Without it nothing else loads.
 | `mapper cexits [thisroom\|here\|<area>]` | custom exits, as a table — area, room, id, command, destination |
 | `mapper cexit <command>` | run it and link where you end up ('\|' between steps) |
 | `mapper sep` | why a ';' in a command never reaches the alias |
+| `mapper delay <n> <command>` | wait n seconds for the room to change, this once |
+| `mapper delay <n>` | change the default wait (2 seconds) |
 | `mapper fullcexit {<cmd>} <from> <to>` | link without walking it |
 | `mapper delete cexits` | this room's custom exits |
 | `mapper delete exits from\|to <room>` | exits between here and there |
@@ -94,6 +96,8 @@ manual step comes up rather than nagging at you on load.
 
 
 ## Worth knowing
+
+`mapper cexit` and `mapper portal add` fire a command and link whatever room arrives next, so they wait — **2 seconds by default**, then give up and link nothing. That deadline is not a nicety: without one, a cexit that failed to move you stayed armed and attached itself to wherever you walked next, from the room you tried it in, silently and wrongly. `mapper delay 5 cexit west|say huzzah` gives one attempt longer; `mapper delay 5` on its own changes the default.
 
 **Multi-step custom exits use `|`, not `;;`.** Mudlet splits your input on its command separator — `;` by default — before any alias runs, so `mapper cexit west;;say huzzah` arrives as `mapper cexit west` and the rest goes to the MUD on its own. MUSHclient's `;;` escaped MUSHclient's own splitter; Mudlet has no equivalent, and Lua can read that setting but not write it. So `mapper cexit west|say huzzah`, which is the same separator Recall Manager uses for the same reason. It's stored as `;` either way, matching the ones that came across from the import. `mapper sep` explains it in place, and a cexit that is a bare direction says so when you make it — that's almost always the front half of one that got split.
 
