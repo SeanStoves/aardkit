@@ -1009,9 +1009,15 @@ local STYLE = {
 -- alpha 235 that reads as the map having gone dim, and any repaint of the map
 -- brings it forward and it looks fine again. It isn't a fade: it's a tinted
 -- sheet of glass that the map keeps coming back through.
+-- Opaque. It was 235 - a deliberate 92%, so a panel "sat on the output rather
+-- than blotting it" - and in practice that means the game text shows through
+-- every panel you own, which reads as a rendering fault rather than a choice.
+-- 'panel opacity &lt;0-255&gt;' brings it back for anyone who wants it.
+P.opacity = 255
+
 local function container_style(clear)
     return [[
-        background-color: rgba(13,17,23,]] .. (clear and "0" or "235") .. [[);
+        background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(P.opacity)) .. [[);
         border: 1px solid ]] .. STYLE.border .. [[;
         border-radius: 3px;
     ]]
@@ -1023,6 +1029,10 @@ end
 
 local function load_state()
     P.state = U.load("panels", {})
+    local saved = P.state["_opacity"]
+    if type(saved) == "table" and tonumber(saved.value) then
+        P.opacity = math.floor(tonumber(saved.value))
+    end
 end
 
 local function save_state()
@@ -1496,6 +1506,24 @@ function P.cmd(arg)
     if verb == "" or verb == "list" then
         list()
 
+    elseif verb == "opacity" then
+        local n = tonumber(U.trim(rest))
+        if not n or n &lt; 0 or n &gt; 255 then
+            U.warn("Usage: panel opacity &lt;0-255&gt;   (currently " .. P.opacity .. "; 255 is solid)")
+            return
+        end
+        P.opacity = math.floor(n)
+        st("_opacity").value = P.opacity
+        save_state()
+        -- restyle every panel that's up, so it takes without a reload
+        for _, p in pairs(P.reg) do
+            if p.holder and p.holder.setStyleSheet then
+                pcall(function() p.holder:setStyleSheet(container_style(p.clear)) end)
+            end
+        end
+        U.ok("Panel background " .. P.opacity .. "/255"
+            .. (P.opacity &lt; 255 and " - the game will show through." or " - solid."))
+
     elseif verb == "raise" or verb == "top" then
         P.raiseall()
         U.ok("Panels raised above the module's windows.")
@@ -1528,6 +1556,7 @@ function P.cmd(arg)
             { "panel &lt;name&gt; clear",   "empty its buffer" },
             { "panel raise",          "bring every panel above the module's GUI" },
             { "panel save",           "write the current layout to disk" },
+            { "panel opacity &lt;0-255&gt;", "how solid every panel is; 255 is solid" },
             { "panel load",           "reload the saved layout" },
             { "panel reset",          "forget all panel state" },
             { "" },
