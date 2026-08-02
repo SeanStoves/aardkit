@@ -272,9 +272,20 @@ M.areaname = areaname
 ---
 
 local mapwin
+-- Bumped every time ours is rebuilt. Mudlet keeps a Geyser widget alive under
+-- its name, so remaking one with the same name leaves the old object orphaned
+-- on top of the new one - and this gets remade whenever the stock module's map
+-- turns up after ours. Declared here, above everything that reads it.
+local seq = 0
+
 local panel = aardkit.panel.new({
-    name        = "map",
-    title       = "Map",
+    -- 'map' was taken. The ASCII Map module registers a panel under that name
+    -- too, and a second registration REPLACES the first and hides its holder -
+    -- so whichever loaded second owned the name, the geometry and the title,
+    -- and the other one was a hidden frame nobody could find. This module lost,
+    -- which is why the map panel came up empty with 'ASCII Map' on it.
+    name        = "mapper",
+    title       = "Mapper",
     x           = "10px",
     y           = "40px",
     width       = 420,
@@ -291,23 +302,56 @@ local panel = aardkit.panel.new({
 
 M.panel = panel
 
+-- Returns false and a reason rather than just giving up quietly. A blank panel
+-- with no explanation is the worst of both - it looks like the map is broken
+-- when the answer is usually that the container isn't up yet.
 function M.paint_map()
-    if not panel.container then return end
+    if not panel.container then return false, "the panel hasn't been built yet" end
     if not mapwin then
         -- gen-suffixed like every other widget here: Mudlet keeps the old object
         -- alive across a dock switch and reusing the name orphans it
         local ok, w = pcall(function()
             return Geyser.Mapper:new({
-                name = "aardkit_map_" .. (panel.gen or 1),
+                name = "aardkit_map_" .. (panel.gen or 1) .. "_" .. tostring(seq),
                 x = 0, y = 0, width = "100%", height = "100%",
             }, panel.container)
         end)
-        if not ok or not w then return end
+        if not ok then return false, tostring(w) end
+        if not w then return false, "Geyser.Mapper gave nothing back" end
         mapwin = w
     end
     pcall(function() mapwin:resize("100%", "100%") end)
     pcall(function() mapwin:move(0, 0) end)
     pcall(function() mapwin:show() end)
+    return true
+end
+
+-- Take the map view back.
+--
+-- There is only ONE. Mudlet's own Geyser.Mapper says so in as many words -
+-- "mappers are typically singleton per profile" - and every method underneath
+-- proves it: raise() is raiseWindow("mapper"), and an embedded mapper is just
+-- createMapper(window, x, y, w, h) pointed somewhere. Two Geyser.Mapper objects
+-- aren't two maps, they're two claims on the same one, and the last claim wins.
+--
+-- The stock module builds its map on a timer AFTER this script has run, so at
+-- load ours is made first and theirs second, theirs wins, and our panel comes up
+-- empty with nothing to say about why. This is that fix: reposition() re-runs
+-- createMapper with our geometry, which claims it back.
+--
+-- Deliberately NOT a fresh Geyser.Mapper each time. Every orphan left behind is
+-- another object Geyser may call reposition() on later, and any one of them
+-- doing so would steal the view to wherever it used to be.
+function M.repaint_map()
+    if not panel.container then return false, "the panel hasn't been built yet" end
+    if not mapwin then return M.paint_map() end
+    -- reposition() bails on a hidden widget, so show first
+    pcall(function() mapwin:show() end)
+    pcall(function() mapwin:resize("100%", "100%") end)
+    pcall(function() mapwin:move(0, 0) end)
+    local ok, err = pcall(function() mapwin:reposition() end)
+    if not ok then return false, tostring(err) end
+    return true
 end
 
 -- Take the stock module's map out of its frame, if that module is installed at
@@ -328,8 +372,15 @@ function M.unframe_theirs()
     local ok = pcall(GUIframe.removeWindow, "Map", "topright")
     if not ok then ok = pcall(GUIframe.removeWindow, "Map") end
 
+    -- The graphical map only. Their 'minimap' is the MUD's own ASCII map, which
+    -- is a different thing built from different data and nothing here replaces
+    -- it - unless our own ASCII Map module is installed, in which case two of
+    -- them is one too many.
+    local targets = { "mapcontainer", "mapwin" }
+    if U.have("asciimap") then targets[#targets + 1] = "minimap" end
+
     local hid = false
-    for _, name in ipairs({ "mapcontainer", "mapwin", "minimap" }) do
+    for _, name in ipairs(targets) do
         local w = _G[name]
         if type(w) == "table" and w.hide then
             if pcall(function() w:hide() end) then hid = true end
@@ -1366,8 +1417,10 @@ function M.cmd(arg)
         U.ok("Zoom " .. (d == "in" and "in" or "out") .. ".")
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        M.paint_map()
-        aardkit.panel.cmd("map " .. verb)
+        aardkit.panel.cmd("mapper " .. verb)
+        -- after the move, not before: dock and embed rebuild the container and
+        -- a mapper parented to the old one goes with it
+        if verb ~= "hide" then M.repaint_map() end
 
     elseif verb == "standalone" then
         -- Hiding their map widget leaves their mapping running underneath:
@@ -1411,20 +1464,41 @@ function M.cmd(arg)
         U.ok(v == "on" and "Stock mapping off - ours has the map to itself."
             or "Stock mapping back on. Reload to be sure it's running.")
         if v == "on" then
+            M.unframe_theirs()
+            M.repaint_map()
             U.note("Walk a few rooms and check 'mapper mapping'. Only new rooms are ever "
                 .. "placed - nothing already in the map gets moved or renamed.")
+        else
+            -- Mudlet draws into the map view that was made last, so leaving ours
+            -- up would keep it rather than theirs. Ours goes; theirs comes back
+            -- with the reload, because we can't rebuild somebody else's widget.
+            if mapwin then pcall(function() mapwin:hide() end) end
+            panel:hide()
+            U.note("Ours is down. Reload the profile to get their map drawing again.")
         end
 
     elseif verb == "map" or verb == "panel" then
-        M.paint_map()
+        -- Show first, paint second. Geyser will parent a mapper into a hidden
+        -- container and then draw nothing into it, which looks exactly like a
+        -- broken map and isn't.
         panel:show()
+        local ok, why = M.repaint_map()
         panel:raise()
+        if ok then
+            U.ok("Map panel up. Drag it, resize it, 'mapper dock' or 'mapper embed' to move it.")
+        else
+            U.err("Couldn't put a map in the panel: " .. tostring(why))
+            if GUIframe then
+                U.note("The stock module has a map view too. 'mapper unframe' takes it down, then try again.")
+            end
+        end
 
     elseif verb == "unframe" then
         if not GUIframe then
             U.note("The stock module isn't installed - there's no embedded map to remove.")
         elseif M.unframe_theirs() then
-            U.ok("Stock map hidden. 'mapper map' for ours.")
+            M.repaint_map()
+            U.ok("Stock map hidden, and ours rebuilt so it's the one being drawn into.")
         else
             U.warn("Couldn't reach it - GUIframe " ..
                 (GUIframe.initialized and "is up but wouldn't remove it." or "hasn't initialised yet; try again in a moment."))
@@ -1595,6 +1669,10 @@ local function claim_map()
     local got = M.unframe_theirs()
     if got and not unframed then
         unframed = true
+        -- Theirs is built after ours and the last map view made is the one
+        -- Mudlet draws into, so ours comes back blank until it's remade now
+        -- that theirs is down. This is the whole reason the panel was empty.
+        M.repaint_map()
         U.note("Took the stock module's map out of its fixed frame - 'mapper map' for ours.")
     end
 end

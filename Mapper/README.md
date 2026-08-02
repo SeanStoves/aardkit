@@ -57,10 +57,10 @@ that every module here builds on. Without it nothing else loads.
 | `mapper style room\|exit <n>` | the two sizes the presets leave alone |
 | `mapper backup [path]` | write a copy of the map |
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
-| `mapper map` | the map panel — drag it, resize it, dock it, it stays put |
+| `mapper map` | the Mapper panel — drag it, resize it, dock it, it stays put |
 | `mapper unframe` | hide the stock module's embedded map by hand, if it comes back |
 | `mapper standalone on\|off` | stop the stock module writing to the map — costs you its speedwalk, coordrun and 'where' |
-| `mapper show\|hide\|dock\|embed` | where the map panel lives |
+| `mapper show\|hide\|dock\|embed` | where the Mapper panel lives |
 | `mapper zoom in\|out` | map zoom |
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
 | `mapper database` | where the map lives |
@@ -115,6 +115,12 @@ table above is for.
 shifted between areas — only new rooms get placed, and an old one has blanks filled in and
 nothing else. So the worst a bad guess can do is put one new room somewhere daft, and
 `mapper purgeroom` undoes that. Run `mapper mapping` any time to see what it has created.
+
+**There is only one map view per Mudlet profile.** Mudlet's own Geyser.Mapper says so — mappers are singleton per profile — so two `Geyser.Mapper` objects aren't two maps, they're two claims on the same one, and the last claim wins. The stock module builds its map on a timer after this module has loaded, so without help theirs wins and the panel here comes up empty.
+
+This takes the view back once theirs is down, and again on `mapper map`, `mapper unframe`, `mapper dock` and `mapper embed`. If the panel is ever blank, `mapper map` claims it again and says so if it can't. Going the other way, `mapper standalone off` gives up the view and asks you to reload — their widget isn't ours to rebuild.
+
+The panel is called **Mapper**. The ASCII Map panel is a different module and a different thing: that one is the MUD's own live drawing of where you are, this one is the stored map.
 
 Rooms Aardwolf names in its exit list but you've never walked into are drawn one step away with
 a `?` in them, so an area you've half-explored looks half-explored. They fill in the moment you
