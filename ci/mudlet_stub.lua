@@ -63,10 +63,55 @@ tempLineTrigger = function() return 1 end
 tempRegexTrigger = function() return 1 end
 registerNamedTimer = note("registerNamedTimer")
 deleteNamedTimer = note("deleteNamedTimer")
-registerAnonymousEventHandler = function() return 1 end
+-- Handlers used to be dropped on the floor, which made every event-driven path
+-- in the suite invisible to the harness: the http callbacks and the gmcp
+-- watchers only ever run from one of these. That's how mark_synced() shipped
+-- raising on every single upload - the code that calls it was never reached.
+local handlers = {}
+
+registerAnonymousEventHandler = function(ev, fn)
+    handlers[ev] = handlers[ev] or {}
+    local f = fn
+    if type(fn) == "string" then
+        -- Mudlet takes a dotted name too, resolved when it fires rather than now
+        f = function(...)
+            local o = _G
+            for part in fn:gmatch("[^%.]+") do
+                if type(o) ~= "table" then return end
+                o = o[part]
+            end
+            if type(o) == "function" then return o(...) end
+        end
+    end
+    handlers[ev][#handlers[ev] + 1] = f
+    return #handlers[ev]
+end
+
 killAnonymousEventHandler = note("killAnonymousEventHandler")
-postHTTP = note("postHTTP")
-getHTTP = note("getHTTP")
+
+function raiseEvent(ev, ...)
+    for _, f in ipairs(handlers[ev] or {}) do f(ev, ...) end
+end
+
+-- What the next request answers with. A test that wants a failure or a
+-- particular body sets these; the default is a reply that satisfies both the
+-- auth flow and the upload flow.
+http_reply = { body = '{"key":"harness-key","name":"Harness","merged":0,"upgraded":0}', fail = false }
+
+-- Mudlet answers these asynchronously by raising sysPostHttpDone /
+-- sysPostHttpError. Answering synchronously here is a lie about the timing but
+-- an honest one about the shape, and it's the only way the callbacks run at all.
+postHTTP = function(body, url, headers)
+    if http_reply.fail then raiseEvent("sysPostHttpError", http_reply.body, url)
+    else raiseEvent("sysPostHttpDone", url, http_reply.body) end
+    return true
+end
+
+getHTTP = function(url, headers)
+    if http_reply.fail then raiseEvent("sysGetHttpError", http_reply.body, url)
+    else raiseEvent("sysGetHttpDone", url, http_reply.body) end
+    return true
+end
 
 -- map api
 addRoom = note("addRoom")
@@ -183,9 +228,118 @@ end
 -- yajl
 ---
 
+-- These returned "{}" and {} respectively, which meant the auth reply never had
+-- a key in it, so 'loot upload' stopped at "not authenticated" and every line
+-- past that point was untested. It also meant row encoding was never exercised
+-- at all - a row yajl can't encode would have sailed through the harness.
+-- Small, but real both ways.
+local function esc(s)
+    return (s:gsub('[%c"\\]', function(c)
+        local m = { ['"'] = '\\"', ['\\'] = '\\\\', ['\n'] = '\\n',
+                    ['\r'] = '\\r', ['\t'] = '\\t', ['\b'] = '\\b', ['\f'] = '\\f' }
+        return m[c] or string.format("\\u%04x", c:byte())
+    end))
+end
+
+local function encode(v)
+    local t = type(v)
+    if v == nil then return "null" end
+    if t == "boolean" then return tostring(v) end
+    if t == "number" then
+        if v ~= v or v == math.huge or v == -math.huge then
+            error("cannot encode " .. tostring(v) .. " as json")
+        end
+        -- no math.type on 5.1; an integral float still has to print as an int
+        if v == math.floor(v) and math.abs(v) < 1e15 then return string.format("%d", v) end
+        return string.format("%.14g", v)
+    end
+    if t == "string" then return '"' .. esc(v) .. '"' end
+    if t ~= "table" then error("cannot encode a " .. t .. " as json") end
+    local n = 0
+    for _ in pairs(v) do n = n + 1 end
+    if n == #v then
+        local out = {}
+        for i, x in ipairs(v) do out[i] = encode(x) end
+        return "[" .. table.concat(out, ",") .. "]"
+    end
+    local keys = {}
+    for k in pairs(v) do
+        if type(k) ~= "string" then error("json object keys must be strings, got " .. type(k)) end
+        keys[#keys + 1] = k
+    end
+    table.sort(keys)
+    local out = {}
+    for i, k in ipairs(keys) do out[i] = '"' .. esc(k) .. '":' .. encode(v[k]) end
+    return "{" .. table.concat(out, ",") .. "}"
+end
+
+local function decode(s)
+    local i = 1
+    local function ws() i = s:find("[^ \t\r\n]", i) or #s + 1 end
+    local val
+    function val()
+        ws()
+        local c = s:sub(i, i)
+        if c == "{" then
+            i = i + 1; local o = {}
+            ws(); if s:sub(i, i) == "}" then i = i + 1; return o end
+            while true do
+                ws(); local k = val(); ws()
+                if s:sub(i, i) ~= ":" then error("json: expected ':' at " .. i) end
+                i = i + 1; o[k] = val(); ws()
+                local d = s:sub(i, i); i = i + 1
+                if d == "}" then return o end
+                if d ~= "," then error("json: expected ',' or '}' at " .. (i - 1)) end
+            end
+        elseif c == "[" then
+            i = i + 1; local a = {}
+            ws(); if s:sub(i, i) == "]" then i = i + 1; return a end
+            while true do
+                a[#a + 1] = val(); ws()
+                local d = s:sub(i, i); i = i + 1
+                if d == "]" then return a end
+                if d ~= "," then error("json: expected ',' or ']' at " .. (i - 1)) end
+            end
+        elseif c == '"' then
+            local out = {}
+            i = i + 1
+            while true do
+                local ch = s:sub(i, i)
+                if ch == "" then error("json: unterminated string") end
+                if ch == '"' then i = i + 1; break end
+                if ch == "\\" then
+                    local e = s:sub(i + 1, i + 1)
+                    local m = { n = "\n", r = "\r", t = "\t", b = "\b", f = "\f",
+                                ['"'] = '"', ["\\"] = "\\", ["/"] = "/" }
+                    if m[e] then out[#out + 1] = m[e]; i = i + 2
+                    elseif e == "u" then
+                        -- \uXXXX: ascii range only, which is all this ever sees
+                        local cp = tonumber(s:sub(i + 2, i + 5), 16) or 63
+                        out[#out + 1] = (cp < 128) and string.char(cp) or "?"
+                        i = i + 6
+                    else error("json: bad escape \\" .. e) end
+                else out[#out + 1] = ch; i = i + 1 end
+            end
+            return table.concat(out)
+        else
+            local lit = s:match("^true", i) or s:match("^false", i) or s:match("^null", i)
+            if lit then
+                i = i + #lit
+                return lit == "true" and true or (lit == "false" and false or nil)
+            end
+            local num = s:match("^%-?%d+%.?%d*[eE]?[%+%-]?%d*", i)
+            if not num or num == "" then error("json: unexpected input at " .. i) end
+            i = i + #num
+            return tonumber(num)
+        end
+    end
+    local v = val()
+    return v
+end
+
 yajl = {
-    to_string = function(v) return "{}" end,
-    to_value = function(s) return {} end,
+    to_string = function(v) return encode(v) end,
+    to_value  = function(s) return decode(tostring(s)) end,
 }
 
 ---
@@ -232,9 +386,34 @@ Adjustable = {
 ---
 
 local Sheet = {}
+-- Mudlet's sheet __index asserts on any name that isn't a declared column:
+--
+--   local field = db.__schema[db_name][sht_name]['columns'][f_name]
+--   if assert(field ~= nil, "Attempt to access field '%s' which does not exist") then
+--
+-- and _row_id is deliberately NOT in schema.columns - it's the implicit primary
+-- key. So `db:eq(sheet._row_id, id)` doesn't build a bad query, it raises.
+--
+-- This handed back a marker for anything asked of it, which let two real bugs
+-- through the harness: mark_synced() raised on every upload inside the http
+-- callback where you never saw it, and 'loot clear' raised the same way. Third
+-- time a too-agreeable stub has hidden something, so it errors like the real
+-- one now. Address rows by _row_id with a hand-built "_row_id = n" string, the
+-- way Mudlet's own db:delete does.
 Sheet.__index = function(t, k)
-    -- any column read gives back a marker the query builders can carry around
-    return rawget(t, k) or { __col = k, __sheet = rawget(t, "__name") }
+    local v = rawget(t, k)
+    if v then return v end
+    if k == "_row_id" then
+        error("Attempt to access field '_row_id' which does not exist (in sheet '"
+            .. tostring(rawget(t, "__name")) .. "') - it's the implicit primary key,"
+            .. " build the query by hand", 2)
+    end
+    local cols = db.__cols and db.__cols[t]
+    if cols and next(cols) and cols[k] == nil then
+        error("Attempt to access field '" .. tostring(k) .. "' which does not exist (in sheet '"
+            .. tostring(rawget(t, "__name")) .. "')", 2)
+    end
+    return { __col = k, __sheet = rawget(t, "__name") }
 end
 
 db = {
@@ -273,6 +452,14 @@ db = {
     add = function(self, sheet, row)
         local t = db.__data[sheet]
         if not t then error("db:add on unknown sheet") end
+        -- sqlite fills a column nobody set with its schema default, never nil.
+        -- Skipping that left every row with synced = nil, so the "what's still
+        -- to sync" query matched nothing and the whole upload path short-
+        -- circuited on "nothing new to upload" - a test that ran, passed, and
+        -- exercised none of it.
+        for k, v in pairs(db.__cols[sheet] or {}) do
+            if row[k] == nil then row[k] = v end
+        end
         row._row_id = #t + 1
         t[#t + 1] = row
         return row._row_id
@@ -325,13 +512,88 @@ db = {
         return 0
     end,
     -- db:set(field, value, query) - one column, many rows
+    -- Checked its argument was a column and then did nothing, so every
+    -- "mark these rows as done" in the suite was a no-op the tests couldn't
+    -- see. It writes now, and understands the raw WHERE strings the code has to
+    -- build by hand for _row_id.
     set = function(self, field, value, query)
         if type(field) ~= "table" or not field.__col then
             error("db:set takes a column (sheet.column), not a sheet", 2)
         end
-        return 0
+        local sheet
+        for s in pairs(db.__data) do
+            if rawget(s, "__name") == field.__sheet then sheet = s; break end
+        end
+        if not sheet then return 0 end
+        local rows = db.__data[sheet]
+
+        local want
+        if query == nil then
+            want = function() return true end
+        elseif type(query) == "string" then
+            local list = query:match("^_row_id%s+IN%s*%((.-)%)$")
+            local one  = query:match("^_row_id%s*=%s*(%d+)$")
+            if list then
+                local ids = {}
+                for n in list:gmatch("%d+") do ids[n] = true end
+                want = function(r) return ids[tostring(r._row_id)] end
+            elseif one then
+                want = function(r) return tostring(r._row_id) == one end
+            elseif query:match("^%s*1%s*=%s*1%s*$") then
+                want = function() return true end
+            else
+                error("stub db:set doesn't understand the raw query: " .. query)
+            end
+        elseif type(query) == "table" and query.op then
+            local hit = {}
+            for _, r in ipairs(db:fetch(sheet, query)) do hit[r] = true end
+            want = function(r) return hit[r] end
+        else
+            error("db:set got a query it can't read")
+        end
+
+        local n = 0
+        for _, r in ipairs(rows) do
+            if want(r) then r[field.__col] = value; n = n + 1 end
+        end
+        return n
     end,
-    delete = function(self, sheet, where) return 0 end,
+    -- Returning 0 and deleting nothing meant 'loot clear' could be completely
+    -- broken and still pass. Mudlet takes a query table, a row id, a result
+    -- table, or a raw WHERE string - the string being how you say "all of them",
+    -- since there's no field object for _row_id to build a query with.
+    delete = function(self, sheet, where)
+        local t = db.__data[sheet]
+        if not t then error("db:delete on unknown sheet") end
+        local before = #t
+        if type(where) == "string" then
+            local id = where:match("^_row_id%s*=%s*(%d+)$")
+            if id then
+                for i, r in ipairs(t) do
+                    if tostring(r._row_id) == id then table.remove(t, i); break end
+                end
+            elseif where:match("^%s*1%s*=%s*1%s*$") then
+                for i = #t, 1, -1 do t[i] = nil end
+            else
+                error("stub db:delete doesn't understand the raw query: " .. where)
+            end
+        elseif type(where) == "number" then
+            for i, r in ipairs(t) do
+                if r._row_id == where then table.remove(t, i); break end
+            end
+        elseif type(where) == "table" and where._row_id then
+            for i, r in ipairs(t) do
+                if r._row_id == where._row_id then table.remove(t, i); break end
+            end
+        elseif type(where) == "table" and where.op then
+            local keep = {}
+            for _, r in ipairs(db:fetch(sheet, where)) do keep[r] = true end
+            for i = #t, 1, -1 do if keep[t[i]] then table.remove(t, i) end end
+        else
+            error("db:delete needs a query")
+        end
+        return before - #t
+    end,
     -- carry the column and value, so fetch above can honour them
     eq   = function(self, col, v) return { op = "eq",   col = col and col.__col, v = v } end,
     like = function(self, col, v) return { op = "like", col = col and col.__col, v = v } end,

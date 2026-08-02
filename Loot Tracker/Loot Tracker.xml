@@ -1379,7 +1379,10 @@ function LT.cmd(arg)
         local what = U.trim(rest):lower()
         local map = { loot = T.loot, shop = T.shop_stock, gathered = T.gathered, stats = T.item_stats }
         if map[what] then
-            db:delete(map[what], db:gt(map[what]._row_id, -1))
+            -- Not db:gt(sheet._row_id, -1): there is no field object for
+            -- _row_id, and asking for one raises rather than returning nil.
+            -- db:delete takes a raw WHERE, which is how you say "all of them".
+            db:delete(map[what], "1=1")
             U.ok(what .. " table cleared.")
         else
             U.warn("Type 'loot clear loot|shop|gathered|stats'.")
@@ -1692,10 +1695,28 @@ end
 
 -- One column across a set of rows, so db:set with a query rather than
 -- db:update, which only ever addresses the single row you hand it.
+--
+-- The query is built by hand rather than with db:eq, because db:eq wants a
+-- field object and there is no such thing for _row_id. Mudlet keeps that column
+-- implicit and deliberately out of schema.columns, and the sheet's __index
+-- asserts on anything not in there - so `db:eq(T[name]._row_id, id)` didn't
+-- return a bad query, it raised:
+--
+--   Attempt to access field '_row_id' which does not exist (in sheet 'loot'...)
+--
+-- and it raised inside the upload's success callback, where the error goes to
+-- Mudlet's error console instead of the screen. So every upload POSTed fine,
+-- died marking the rows, and left 'uploading 52 new/changed rows...' as the
+-- last thing you saw, with all 52 still pending afterwards.
+--
+-- Mudlet's own db:delete builds this same string by hand for the same reason.
+-- One statement for the batch rather than one per row, and tonumber on each id
+-- because these go into SQL as text.
 local function mark_synced(name, ids)
-    for _, id in ipairs(ids) do
-        db:set(T[name].synced, 1, db:eq(T[name]._row_id, id))
-    end
+    local nums = {}
+    for i, id in ipairs(ids) do nums[i] = tonumber(id) end
+    if #nums == 0 then return end
+    db:set(T[name].synced, 1, "_row_id IN (" .. table.concat(nums, ",") .. ")")
 end
 
 function LT.upload(force_full)
@@ -1722,7 +1743,25 @@ function LT.upload(force_full)
         .. (full and " rows (full re-declare)" or " new/changed rows") .. "...")
 
     local ti, sent, batch = 1, 0, 0
-    local function step()
+    local step
+
+    -- step() runs from an alias the first time and from an http callback every
+    -- time after, and a callback that raises takes its error somewhere you
+    -- won't see it: the run stops mid-way having printed its opening line and
+    -- nothing else, which is indistinguishable from a stall. Every entry into
+    -- it is guarded, so a raise names itself instead of ending the upload in
+    -- silence.
+    local function safely(what, fn, ...)
+        local ok, err = pcall(fn, ...)
+        if not ok then
+            U.warn("Loot Tracker: upload stopped " .. what .. " - " .. tostring(err))
+            U.note("Nothing is lost - rows are only marked sent once the server takes them."
+                .. " Run 'loot upload' again to resume.")
+        end
+        return ok
+    end
+
+    step = function()
         while ti &lt;= #SHARE_ORDER and pending_of(SHARE_ORDER[ti]) == 0 do ti = ti + 1 end
         if ti &gt; #SHARE_ORDER then
             -- only stamp a full declare once it actually finished, so an aborted
@@ -1738,14 +1777,19 @@ function LT.upload(force_full)
         if not body then ti = ti + 1; step(); return end
         batch = batch + 1
         local n = #ids
+        -- Said before the request goes out, not after it comes back. The only
+        -- per-batch line used to be in the success callback, so a request that
+        -- never answered left no trace of having been built or sent, and there
+        -- was no way to tell how far the run had got.
+        U.note(string.format("Loot Tracker: sending %s - %d rows, %d bytes...", name, n, #body))
         loot_request("POST", body, function()
-            mark_synced(name, ids)      -- only after the server confirms it
+            if not safely("saving the " .. name .. " batch", mark_synced, name, ids) then return end
             sent = sent + n
             U.note(string.format("Loot Tracker: %s  +%d  (%d/%d)", name, n, sent, grand))
-            step()
+            safely("after the " .. name .. " batch", step)
         end)
     end
-    step()
+    safely("starting", step)
 end
 
 function LT.update()
