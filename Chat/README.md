@@ -32,6 +32,17 @@ Each has its own `help` with the full list.
 
 ## Worth knowing
 
+Channels come from GMCP's `comm.channel`, which carries **51 of them** — every
+channel Aardwolf has. Six are routed to their own tab and the rest land in All.
+
+Three things the MUD prints are NOT channels and never arrive on that message, so they are
+captured off the screen instead — the same three the stock module captures, to the same
+tabs: `Remort Auction:` lines to Private, All and Group; a won Global Quest to All; and remote
+socials to Private, All and Group. The social capture matches `^\*.*$`, which catches a great
+deal that isn't one, so it then checks the line is Aardwolf teal — that test is theirs and
+it earns its place. Captured with `selectCurrentLine` and `appendBuffer`, so the MUD's own
+colours come across intact and nothing is reconstructed.
+
 **Installing this takes the channels over.** If the stock AardwolfMudlet module is
 present, its `onChannel` script is switched off and its eight tabs come out of the frame —
 two sets of chat tabs is worse than either. It is a switch, not a one-way door:

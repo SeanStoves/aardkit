@@ -62,7 +62,15 @@ local ANSI = { [0]={0,0,0},{128,0,0},{0,128,0},{128,128,0},{0,0,128},{128,0,128}
 getAnsiColor = function(i) local c = ANSI[i] or {0,0,0}; return c[1], c[2], c[3] end
 copy = note("copy")
 replace = note("replace")
-appendBuffer = note("appendBuffer")
+-- Recorded per window, like decho: the chat captures copy a screen line into
+-- several tabs and "where did it land" is the entire question.
+APPENDED = {}
+appendBuffer = function(win)
+    calls.appendBuffer = (calls.appendBuffer or 0) + 1
+    if win then
+        APPENDED[win] = (APPENDED[win] or 0) + 1
+    end
+end
 createBuffer = note("createBuffer")
 clearWindow = note("clearWindow")
 -- a console's own answer for how many lines fit; the pager reads it every repaint

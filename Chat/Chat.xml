@@ -3,6 +3,82 @@
 <!-- aardkit-priority: 27 -->
 <MudletPackage version="1.001">
 	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>chat</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>chat remort auction</name>
+				<script>aardkit.chat.capture("Private", "All", "Group")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Remort Auction: .*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>chat gquest won</name>
+				<script>aardkit.chat.capture("All")</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Global Quest: Global Quest # \d+ has been won by \w+ - \d+(?:th|st|rd) win\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>chat remote social</name>
+				<script>aardkit.chat.capture_social()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\*.*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
 	<AliasPackage>
@@ -325,6 +401,53 @@ local function put(name, text)
     if not c then return end
     pcall(function() decho(c.name, text .. "\n") end)
     if name ~= CFG.active then unread[name] = true end
+end
+
+---
+-- the three the MUD prints but doesn't send
+--
+-- comm.channel carries 51 channels, which is everything that IS a channel.
+-- These three aren't: they're screen text, and without them the tabs are
+-- missing things the stock module's tabs had.
+--
+--   Remort Auction    -&gt; Private, All, Group
+--   Global Quest won  -&gt; All
+--   remote socials    -&gt; Private, All, Group
+--
+-- Their list, their destinations. Copied off the screen with selectCurrentLine
+-- and appendBuffer, so the MUD's own colours come across intact and nothing is
+-- reconstructed - the same way the ASCII map capture works.
+---
+
+local function copy_line(...)
+    if not CFG.on then return end
+    local where = { ... }
+    pcall(selectCurrentLine)
+    pcall(copy)
+    for _, name in ipairs(where) do
+        local c = cons[name]
+        if c then
+            pcall(appendBuffer, c.name)
+            if name ~= CFG.active then unread[name] = true end
+        end
+    end
+    CH.restyle()
+end
+
+function CH.capture(...)
+    copy_line(...)
+end
+
+-- '^\*.*$' matches a great deal that is not a social, so the colour is what
+-- tells them apart: Aardwolf prints a remote social in teal. That test is
+-- theirs and it earns its place - without it this copies every line beginning
+-- with an asterisk into three tabs.
+function CH.capture_social()
+    if not U.has("getFgColor") then return end
+    pcall(selectCurrentLine)
+    local ok, r, g, b = pcall(getFgColor)
+    if not (ok and r == 0 and g == 128 and b == 128) then return end
+    copy_line("Private", "All", "Group")
 end
 
 function CH.on_channel()
