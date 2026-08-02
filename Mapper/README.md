@@ -58,6 +58,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper backup [path]` | write a copy of the map |
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
 | `mapper map` | the map panel — drag it, resize it, dock it, it stays put |
+| `mapper unframe` | hide the stock module's embedded map by hand, if it comes back |
 | `mapper standalone on\|off` | stop the stock module writing to the map — costs you its speedwalk, coordrun and 'where' |
 | `mapper show\|hide\|dock\|embed` | where the map panel lives |
 | `mapper zoom in\|out` | map zoom |

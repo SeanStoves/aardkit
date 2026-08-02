@@ -313,13 +313,29 @@ end
 -- Take the stock module's map out of its frame, if that module is installed at
 -- all. Their widget stays alive and hidden rather than deleted - it isn't ours
 -- to destroy, and a reinstall of theirs just gets removed again next load.
+-- Their map is a Geyser.Mapper called 'mapwin' inside a Geyser.Container called
+-- 'mapcontainer', put into the frame with addWindow(mapcontainer, "Map",
+-- "topright"). removeWindow throws if GUIframe hasn't initialised yet, which on
+-- a slow load it hasn't - and this used to return true regardless, so it
+-- announced it had taken their map out while the map was still sitting there.
+--
+-- Now it reports what actually happened, and the widgets get hidden by name
+-- whatever removeWindow managed, because hiding is the part that matters.
 function M.unframe_theirs()
-    if not (GUIframe and GUIframe.removeWindow) then return false end
+    if not GUIframe then return false end
+    if not (GUIframe.removeWindow and GUIframe.initialized) then return false end
+
     local ok = pcall(GUIframe.removeWindow, "Map", "topright")
-    if not ok then pcall(GUIframe.removeWindow, "Map") end
-    if mapcontainer then pcall(function() mapcontainer:hide() end) end
-    if minimap then pcall(function() minimap:hide() end) end
-    return true
+    if not ok then ok = pcall(GUIframe.removeWindow, "Map") end
+
+    local hid = false
+    for _, name in ipairs({ "mapcontainer", "mapwin", "minimap" }) do
+        local w = _G[name]
+        if type(w) == "table" and w.hide then
+            if pcall(function() w:hide() end) then hid = true end
+        end
+    end
+    return ok or hid
 end
 
 ---
@@ -1401,7 +1417,18 @@ function M.cmd(arg)
 
     elseif verb == "map" or verb == "panel" then
         M.paint_map()
-        panel:toggle()
+        panel:show()
+        panel:raise()
+
+    elseif verb == "unframe" then
+        if not GUIframe then
+            U.note("The stock module isn't installed - there's no embedded map to remove.")
+        elseif M.unframe_theirs() then
+            U.ok("Stock map hidden. 'mapper map' for ours.")
+        else
+            U.warn("Couldn't reach it - GUIframe " ..
+                (GUIframe.initialized and "is up but wouldn't remove it." or "hasn't initialised yet; try again in a moment."))
+        end
     elseif verb == "shownotes" then
         CFG.shownotes = onoff(rest, CFG.shownotes); U.save("mapper", CFG)
         U.ok("Notes in search results: " .. (CFG.shownotes and "on" or "off"))
@@ -1520,6 +1547,7 @@ function M.help(which)
             { "mapper backup [path]", "write a copy of the map" },
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
             { "mapper map",        "the map panel - drag it, resize it, it stays put" },
+            { "mapper unframe",    "hide the stock module's embedded map, by hand" },
             { "mapper standalone on|off", "stop the stock module writing to the map too" },
             { "mapper show|hide|dock|embed", "where the map panel lives" },
             { "mapper zoom in|out", "map zoom" },
@@ -1563,15 +1591,21 @@ local function claim_map()
     -- below the early return the retries never came back round to it - their
     -- mapping stayed on with ours running too, which is the one state to avoid.
     stand_down()
-    if unframed then return end
-    if M.unframe_theirs() then
+    if not CFG.standalone then return end
+    local got = M.unframe_theirs()
+    if got and not unframed then
         unframed = true
         U.note("Took the stock module's map out of its fixed frame - 'mapper map' for ours.")
     end
 end
 
 M.paint_map()
-for _, t in ipairs({ 1, 4, 9 }) do tempTimer(t, claim_map) end
+
+-- Five passes rather than three, and they keep hiding on every pass rather than
+-- stopping at the first success. Their GUIframe loads its saved layout after we
+-- run and puts the map back in the frame, so a single removal early on gets
+-- undone and nobody is told. 'mapper unframe' does it by hand at any point.
+for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, claim_map) end
 </script>
 				<eventHandlerList />
 			</Script>
