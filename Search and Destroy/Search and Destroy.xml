@@ -1609,9 +1609,15 @@ end
 
 ---
 -- ask the MUD where the mob is, right now, in this area
+--
+-- NOT SD.where. That name belongs to the database lookup in init.lua, and this
+-- file loads after it, so defining both meant this one silently won and every
+-- caller expecting the database got a command sent to the MUD instead. The
+-- database lookup for a failed 'where' then answered a failed 'where' by
+-- sending another one, forever.
 ---
 
-function SD.where(mob, cb)
+function SD.ask_where(mob, cb)
     -- mob is raw text the MUD printed back to us (targets.lua's add() only
     -- U.trim()s it) and send() honours Mudlet's command separator, not just
     -- ALIAS matching - a mob name that happened to contain it would smuggle a
@@ -1697,7 +1703,7 @@ function SD.goto_target(kind, i)
 
     U.note("-&gt; " .. (aname or e.area) .. ", then asking where " .. e.name .. " is...")
     SD.walk(start, function()
-        SD.where(e.name, function(room)
+        SD.ask_where(e.name, function(room)
             if not room then
                 U.warn("S&amp;D: 'where' didn't find " .. e.name .. " in this area.")
                 return
