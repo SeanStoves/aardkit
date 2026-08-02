@@ -224,8 +224,12 @@ local panel = aardkit.panel.new({
         cons, tabs, back = {}, {}, nil
         if aardkit.chat and aardkit.chat.paint then aardkit.chat.paint() end
     end,
+    -- paint, not layout. A resize can also be a dock or embed switch, and
+    -- _build hands back a brand-new container - laying out against widgets
+    -- that live in the old one puts them somewhere nobody can see. S&amp;D learned
+    -- this the same way.
     onresize    = function()
-        if aardkit.chat and aardkit.chat.layout then aardkit.chat.layout() end
+        if aardkit.chat and aardkit.chat.paint then aardkit.chat.paint() end
     end,
 })
 
@@ -304,6 +308,14 @@ end
 function CH.paint()
 
 for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
+
+-- guiLoad runs on connect, not at script load, so a profile that starts
+-- disconnected has none of their tabs to remove when the timers above fire.
+-- Try again after the connection, which is when they actually exist.
+U.killhandler(aardkit_chat_connect)
+aardkit_chat_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    for _, t in ipairs({ 2, 6, 12, 20 }) do tempTimer(t, stand_down) end
+end)
     if not panel.container then return end
     local gen = panel.gen or 1
 
@@ -379,6 +391,21 @@ function CH.show(name)
     end
     CH.restyle()
     panel:raise()
+end
+
+-- What it thinks it has. When the window comes up empty this is the difference
+-- between guessing and knowing: a container with no size is one fault, eight
+-- consoles that were never built is another, and they look identical.
+function CH.diag()
+    local w, h = 0, 0
+    if panel.container then
+        w = U.px(panel.container.get_width and panel.container:get_width() or 0)
+        h = U.px(panel.container.get_height and panel.container:get_height() or 0)
+    end
+    local nt, nc = 0, 0
+    for _ in pairs(tabs) do nt = nt + 1 end
+    for _ in pairs(cons) do nc = nc + 1 end
+    return w, h, nt, nc
 end
 
 ---
@@ -479,10 +506,21 @@ function CH.cmd(arg)
         if verb == name:lower() then CH.show(name); return end
     end
 
+    if verb == "repaint" then
+        cons, tabs, back = {}, {}, nil
+        CH.paint()
+        local w, h, nt, nc = CH.diag()
+        U.ok("Rebuilt: " .. nt .. " tab(s), " .. nc .. " console(s), container " .. w .. "x" .. h .. ".")
+        return
+    end
+
     if verb == "" or verb == "help" then
+        local w, h, nt, nc = CH.diag()
         U.help("Chat", {
             { "state",   CFG.on and "on" or "off" },
             { "showing", CFG.active },
+            { "built",   nt .. " tab(s), " .. nc .. " console(s), container " .. w .. "x" .. h
+                         .. (w &lt; 40 and "   &lt;- no size, nothing can be laid out" or "") },
             { "tabs",    table.concat(TABS, "  ") },
             { "" },
             { "chat &lt;tab&gt;",        "switch - 'chat clan', 'chat tell'" },
@@ -491,6 +529,7 @@ function CH.cmd(arg)
             { "chat mark on|off",  "colour a tab that has something new" },
             { "chat show|hide|dock|embed", "where the window lives" },
             { "chat standalone on|off", "stop the stock module's own tabs" },
+            { "chat repaint",      "rebuild the tabs and consoles from scratch" },
             { "" },
             { "Nothing is gagged - the MUD's own lines stay in the main window." },
             { "These are copies, routed the same way the stock module routes them." },
