@@ -1576,8 +1576,20 @@ end)
     changed. Work is bounded no matter how hard the MUD talks.
 
         aardkit.gmcp.watch("statmon", { "char.vitals", "char.maxstats" }, fn)
+        aardkit.gmcp.watch("walk", { "room.info" }, fn, true)   -- no waiting
         aardkit.gmcp.val("char.vitals.hp")      -- nil-safe read
         aardkit.gmcp.num("char.status.level")   -- and as a number
+
+    The fourth argument opts out of the pacing. Most things are better a second
+    late than jittering, but not everything: arriving in a room ends a
+    speedwalk, and a health potion at 35% is not improved by arriving a second
+    later. Those run on the event, still only when their data changed.
+
+    Worth knowing if you came from MUSHclient: the handler there does none of
+    this. It broadcasts every message the moment it lands and offers
+    gmcpdata_at_level() to read it - which is what Mudlet already gives you for
+    free as the gmcp table and the gmcp.x.y events. Pacing was each plugin's own
+    problem there, and this is the part that was actually missing.
 
     Aardwolf's char.* messages are one level deep, which is why the change
     signature below only walks one level. If that ever stops being true this
@@ -1593,7 +1605,7 @@ local U = aardkit.util
 
 local CFG = U.load("gmcp", { rate = 1 })
 
--- name -&gt; { paths = {...}, fn = f, sig = "..." }
+-- name -&gt; { paths = {...}, fn = f, sig = "...", now = bool }
 G.watchers = G.watchers or {}
 
 -- gmcp path -&gt; true, for the events we've already subscribed to
@@ -1637,8 +1649,46 @@ end
 -- watching
 ---
 
+local function watcher_sig(w)
+    local out = {}
+    for i, p in ipairs(w.paths) do out[i] = sig_of(p) end
+    return table.concat(out, "|")
+end
+
+-- A callback can be a function or a dotted name, because Mudlet's own
+-- registerAnonymousEventHandler takes either and every call site here was
+-- already written that way. Names resolve at call time, so a module that
+-- reloads is picked up rather than leaving this holding the old function.
+local function resolve(fn)
+    if type(fn) == "function" then return fn end
+    local o = _G
+    for part in tostring(fn):gmatch("[^%.]+") do
+        if type(o) ~= "table" then return nil end
+        o = o[part]
+    end
+    return type(o) == "function" and o or nil
+end
+
+-- fire one watcher if what it watches has changed since last time
+local function fire(name, w)
+    local s = watcher_sig(w)
+    if s == w.sig then return end
+    w.sig = s
+    local f = resolve(w.fn)
+    if not f then
+        U.err("gmcp watcher " .. tostring(name) .. ": " .. tostring(w.fn) .. " isn't a function")
+        return
+    end
+    local ok, err = pcall(f)
+    if not ok then U.err("gmcp watcher " .. tostring(name) .. ": " .. tostring(err)) end
+end
+
 function G.mark()
     dirty = true
+    -- the ones that can't wait for the tick
+    for name, w in pairs(G.watchers) do
+        if w.now then fire(name, w) end
+    end
 end
 
 local function subscribe(path)
@@ -1654,9 +1704,9 @@ end
 -- Re-registering the same name replaces it rather than stacking a second one,
 -- because a module reloads when you rebuild and would otherwise be called twice
 -- for the rest of the session.
-function G.watch(name, paths, fn)
+function G.watch(name, paths, fn, immediate)
     if type(paths) == "string" then paths = { paths } end
-    G.watchers[name] = { paths = paths or {}, fn = fn, sig = nil }
+    G.watchers[name] = { paths = paths or {}, fn = fn, sig = nil, now = immediate and true or false }
     for _, p in ipairs(paths or {}) do subscribe(p) end
     dirty = true
 end
@@ -1665,22 +1715,11 @@ function G.unwatch(name)
     G.watchers[name] = nil
 end
 
-local function watcher_sig(w)
-    local out = {}
-    for i, p in ipairs(w.paths) do out[i] = sig_of(p) end
-    return table.concat(out, "|")
-end
-
 function G.tick()
     if not dirty then return end
     dirty = false
     for name, w in pairs(G.watchers) do
-        local s = watcher_sig(w)
-        if s ~= w.sig then
-            w.sig = s
-            local ok, err = pcall(w.fn)
-            if not ok then U.err("gmcp watcher " .. tostring(name) .. ": " .. tostring(err)) end
-        end
+        if not w.now then fire(name, w) end
     end
 end
 

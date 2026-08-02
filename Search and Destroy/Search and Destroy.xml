@@ -1391,6 +1391,9 @@ local WCFG = U.load("sndwalk", { arrive = 45, where = 4, gap = 0.25 })
 local arrive_h, arrive_t, where_trigs, where_t, step_t
 
 local function drop_arrive()
+    -- registered through core rather than as a raw handler, so it goes through
+    -- the same change-diff as everything else; unwatch is the teardown
+    aardkit.gmcp.unwatch("sndwalk")
     if arrive_h then U.killhandler(arrive_h); arrive_h = nil end
     if arrive_t then killTimer(arrive_t); arrive_t = nil end
     -- the per-step send timers below were never tracked, so switching targets
@@ -1453,7 +1456,9 @@ function SD.walk(dest, cb, what)
             if cb then cb() end
         end
     end
-    arrive_h = registerAnonymousEventHandler("gmcp.room.info", "aardkit.snd.on_arrive")
+    -- immediate: arriving is what ends the walk, and a second's wait there
+    -- would have the next step sent from the room we just left
+    aardkit.gmcp.watch("sndwalk", "room.info", "aardkit.snd.on_arrive", true)
     arrive_t = tempTimer(WCFG.arrive, function()
         drop_arrive()
         U.warn("S&amp;D: gave up waiting to reach " .. (what or U.rid(dest)) .. ".")

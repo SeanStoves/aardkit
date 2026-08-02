@@ -320,7 +320,7 @@ end
 ---
 
 U.killhandler(aardkit_goals_handler)
-aardkit_goals_handler = registerAnonymousEventHandler("gmcp.char.worth", "aardkit.goals.on_worth")
+aardkit.gmcp.watch("goals", "char.worth", "aardkit.goals.on_worth")
 
 aardkit.register("goals", "savings goals, announced when met", G.cmd)
 </script>

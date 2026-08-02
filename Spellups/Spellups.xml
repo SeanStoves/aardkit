@@ -1278,7 +1278,7 @@ do
 end
 
 U.killhandler(aardkit_spellup_login_handler)
-aardkit_spellup_login_handler = registerAnonymousEventHandler("gmcp.char.status", "aardkit.spellup.on_login")
+aardkit.gmcp.watch("spellup_login", "char.status", "aardkit.spellup.on_login")
 
 U.killhandler(aardkit_spellup_disc_handler)
 aardkit_spellup_disc_handler = registerAnonymousEventHandler("sysDisconnectionEvent", "aardkit.spellup.on_disconnect")
