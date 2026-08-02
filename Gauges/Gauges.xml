@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 28 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>gauges</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>gauges</name>
+				<script>aardkit.gauges.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^gauges(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>gauges</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>gauges</name>
+				<packageName />
+				<script>--[[
+    Gauges — the bars, in a window you can move
+    Sean Stoves, 2026-08-02
+
+    Six of them, in the stock module's own arrangement: three columns of two.
+
+        enemy    moves    tnl
+        health   mana     align
+
+    Colours are theirs, out of their config script rather than eyeballed -
+    #1aa41a health, #4570fc mana, #b0b051 moves, #a343cd tnl, and align in three
+    bands because alignment is a range and not a quantity: #d98839 good, #888
+    neutral, #8c2929 evil.
+
+    Read straight off GMCP. char.vitals for the three that move constantly,
+    char.maxstats for what they're out of, char.status for tnl, align and
+    whatever is hitting you.
+
+    Theirs are nailed into the bottom of the frame. These are a panel like every
+    other one here: drag it, resize it, dock it, and it stays where you left it.
+
+    The one thing not carried across is the potion count their bars show in
+    brackets - '(0)'. That comes from three trigger-driven counters we don't
+    have, and a bracket that always says zero is worse than no bracket.
+]]
+
+aardkit = aardkit or {}
+aardkit.gauges = aardkit.gauges or {}
+
+local GA = aardkit.gauges
+local U  = aardkit.util.named("Gauges")
+local G  = aardkit.gmcp
+
+local CFG = U.load("gauges", {
+    on    = true,
+    -- which of the six to draw, in case somebody wants four
+    show  = { enemy = true, moves = true, tnl = true,
+              health = true, mana = true, align = true },
+})
+CFG.show = CFG.show or {}
+
+local function save() U.save("gauges", CFG) end
+
+---
+-- their colours
+---
+
+local COL = {
+    health  = { "#1aa41a", "#005500" },
+    mana    = { "#4570fc", "#1133cc" },
+    moves   = { "#b0b051", "#555511" },
+    tnl     = { "#a343cd", "#4c006e" },
+    enemy   = { "#f04141", "#cc0000" },
+    good    = { "#d98839", "#814100" },
+    neutral = { "#888888", "#444444" },
+    evil    = { "#8c2929", "#410000" },
+}
+
+local BACK = "#101418"
+
+-- their layout: three columns, two rows, top row then bottom
+local GRID = {
+    { "enemy",  "moves", "tnl"   },
+    { "health", "mana",  "align" },
+}
+
+-- Declared above everything that reads them. A table read by a function defined
+-- earlier binds a nil global, silently, and this project has paid for that nine
+-- times - most recently three commands ago.
+local bars = {}
+
+local function front(c1, c2)
+    return "background-color: QLinearGradient(x1:0, y1:0, x2:0, y2:1,"
+        .. " stop:0 " .. c1 .. ", stop:1 " .. c2 .. ");"
+end
+
+---
+-- the panel
+---
+
+local panel = aardkit.panel.new({
+    name        = "gauges",
+    title       = "Gauges",
+    x           = "10px",
+    y           = "760px",
+    width       = 640,
+    height      = 56,
+    consoleless = true,
+    onbuild     = function()
+        bars = {}
+        if aardkit.gauges and aardkit.gauges.paint then aardkit.gauges.paint() end
+    end,
+    onresize    = function()
+        if aardkit.gauges and aardkit.gauges.paint then aardkit.gauges.paint() end
+    end,
+})
+
+GA.panel = panel
+
+function GA.layout()
+    if not panel.container then return end
+    local w = U.px(panel.container.get_width and panel.container:get_width()
+                   or panel.container.width)
+    local h = U.px(panel.container.get_height and panel.container:get_height()
+                   or panel.container.height)
+    if w &lt; 40 or h &lt; 20 then return end
+
+    -- only the ones switched on take up room, so hiding two makes the rest wider
+    local cols = {}
+    for c = 1, 3 do
+        for r = 1, 2 do
+            if CFG.show[GRID[r][c]] ~= false then cols[c] = true end
+        end
+    end
+    local live = {}
+    for c = 1, 3 do if cols[c] then live[#live + 1] = c end end
+    if #live == 0 then return end
+
+    local cw = math.floor(w / #live)
+    local rh = math.floor(h / 2)
+    for i, c in ipairs(live) do
+        for r = 1, 2 do
+            local b = bars[GRID[r][c]]
+            if b then
+                if CFG.show[GRID[r][c]] == false then
+                    pcall(function() b:hide() end)
+                else
+                    pcall(function() b:show() end)
+                    pcall(function() b:move(cw * (i - 1), rh * (r - 1)) end)
+                    pcall(function() b:resize(cw - 2, rh - 2) end)
+                end
+            end
+        end
+    end
+end
+
+function GA.paint()
+    if not panel.container then return end
+    local gen = panel.gen or 1
+    for r = 1, 2 do
+        for c = 1, 3 do
+            local key = GRID[r][c]
+            if not bars[key] then
+                local ok, b = pcall(function()
+                    return Geyser.Gauge:new({
+                        name = "aardkit_gauge_" .. key .. "_" .. gen,
+                        x = 0, y = 0, width = 10, height = 10,
+                    }, panel.container)
+                end)
+                if ok and b then
+                    bars[key] = b
+                    pcall(function() b.back:setStyleSheet("background-color: " .. BACK .. ";") end)
+                    local col = COL[key] or COL.neutral
+                    pcall(function() b.front:setStyleSheet(front(col[1], col[2])) end)
+                end
+            end
+        end
+    end
+    GA.layout()
+    GA.update()
+end
+
+---
+-- what goes in them
+---
+
+local function pct(cur, max)
+    cur, max = tonumber(cur) or 0, tonumber(max) or 0
+    if max &lt;= 0 then return 0 end
+    return math.floor(cur / max * 100)
+end
+
+local function set(key, cur, max, text)
+    local b = bars[key]
+    if not b or CFG.show[key] == false then return end
+    pcall(function() b:setValue(math.max(0, tonumber(cur) or 0),
+                                math.max(1, tonumber(max) or 1),
+                                "&lt;b&gt;&amp;nbsp;" .. text .. "&lt;/b&gt;") end)
+end
+
+function GA.update()
+    if not CFG.on then return end
+
+    local hp,  mhp = G.num("char.vitals.hp"),    G.num("char.maxstats.maxhp")
+    local mp,  mmp = G.num("char.vitals.mana"),  G.num("char.maxstats.maxmana")
+    local mv,  mmv = G.num("char.vitals.moves"), G.num("char.maxstats.maxmoves")
+
+    if hp and mhp then set("health", hp, mhp, hp .. "hp | " .. pct(hp, mhp) .. "%") end
+    if mp and mmp then set("mana",   mp, mmp, mp .. "mp | " .. pct(mp, mmp) .. "%") end
+    if mv and mmv then set("moves",  mv, mmv, mv .. "mv | " .. pct(mv, mmv) .. "%") end
+
+    -- TNL fills as you approach the level, so it's what you've EARNED of it -
+    -- theirs does the same, which is why it reads (max - tnl) and not tnl.
+    local tnl, mtnl = G.num("char.status.tnl"), G.num("char.status.tnlmax")
+    if tnl then
+        if mtnl and mtnl &gt; 0 then set("tnl", mtnl - tnl, mtnl, "TNL: " .. tnl)
+        else set("tnl", 1, 1, "TNL: " .. tnl) end
+    end
+
+    -- Alignment is a range from -1000 to 1000, not a quantity, so the bar shows
+    -- how far from neutral you are and the COLOUR says which way.
+    local al = G.num("char.status.align")
+    if al then
+        local band = (al &gt;= 350 and "good") or (al &lt;= -350 and "evil") or "neutral"
+        local b = bars.align
+        if b then
+            local col = COL[band]
+            pcall(function() b.front:setStyleSheet(front(col[1], col[2])) end)
+        end
+        set("align", math.abs(al), 1000, "Align: " .. al)
+    end
+
+    -- Whatever is hitting you, and how much of it is left.
+    local ep   = G.num("char.status.enemypct")
+    local name = G.val("char.status.enemy")
+    if name == "" or name == "none" then name = nil end
+    set("enemy", ep or 0, 100, name and (U.strip_flags(name) .. " | " .. math.floor(ep or 0) .. "%")
+        or "no enemy")
+end
+
+---
+-- commands
+---
+
+function GA.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    if aardkit.panel.verb("gauges", verb, rest) then return end
+
+    if verb == "" or verb == "help" then
+        local which = {}
+        for _, row in ipairs(GRID) do
+            for _, k in ipairs(row) do
+                which[#which + 1] = k .. (CFG.show[k] == false and " (off)" or "")
+            end
+        end
+        U.help("Gauges", {
+            { "state",  CFG.on and "on" or "off" },
+            { "bars",   table.concat(which, "  ") },
+            { "" },
+            { "gauges on|off",        "stop updating them" },
+            { "gauges &lt;bar&gt; on|off",  "hide one - enemy, moves, tnl, health, mana, align" },
+            { "gauges show|hide|dock|embed", "where the window lives" },
+            { "gauges opacity &lt;0-255&gt;", "how solid this window is; 'default' follows the shared setting" },
+            { "" },
+            { "Colours are the stock module's own, and the layout is its" },
+            { "three-by-two. The bracketed potion count is not carried across:" },
+            { "it needs counters we don't have, and a bracket that always" },
+            { "reads zero is worse than no bracket." },
+        })
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on"); save()
+        U.ok("Gauges " .. verb .. ".")
+        if CFG.on then GA.update() end
+
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+        aardkit.panel.cmd("gauges " .. verb)
+        if verb ~= "hide" then GA.paint() end
+
+    elseif COL[verb] or verb == "align" or verb == "enemy" then
+        local want = rest:lower()
+        CFG.show[verb] = (want ~= "off")
+        save(); GA.layout(); GA.update()
+        U.ok(verb .. " gauge " .. (CFG.show[verb] and "on" or "off") .. ".")
+
+    else
+        U.warn("gauges on|off | &lt;bar&gt; on|off | show|hide|dock|embed   ('gauges help')")
+    end
+end
+
+aardkit.register("gauges", "the bars, in a window you can move", GA.cmd)
+
+-- vitals move constantly; status carries tnl, align and the enemy
+aardkit.gmcp.watch("gauges", { "char.vitals", "char.status", "char.maxstats" },
+                   "aardkit.gauges.update", true)
+
+GA.paint()
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

@@ -664,9 +664,25 @@ local function ctor(kind)
     end }
 end
 
+GAUGES = {}
+
 Geyser = {
     add = function() return true end,
-    Gauge = ctor("Gauge"),
+    -- A Gauge carries .back and .front sub-widgets that get styled separately,
+    -- and setValue is RECORDED: a bar showing the wrong number is worse than no
+    -- bar, and that is unanswerable if the call goes nowhere.
+    Gauge = { new = function(_, cons, parent)
+        local nm = (cons and cons.name) or "Gauge"
+        local w = widget({ name = nm })
+        w.back, w.front, w.text = widget({}), widget({}), widget({})
+        w.back.setStyleSheet  = function(self, c) self.css = c end
+        w.front.setStyleSheet = function(self, c) self.css = c end
+        w.setValue = function(self, cur, max, text)
+            GAUGES[nm] = { cur = cur, max = max, text = tostring(text or "") }
+            return self
+        end
+        return w
+    end },
     Label = ctor("Label"),
     MiniConsole = ctor("MiniConsole"),
     UserWindow = ctor("UserWindow"),
