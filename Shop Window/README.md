@@ -21,7 +21,9 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `(panel) click a row` | sends 'buy <num>' for that item and stops there |
-| `shopwin` | show or hide the panel |
+| `shopwin` | this list |
+| `shopwin toggle` | show or hide the panel |
+| `shopwin gag` | hide it from the main window, or show it in both |
 | `shopwin on\|off` | copy 'list' to the panel, or main window only |
 | `shopwin up\|down` | scroll the list |
 | `shopwin buy <row>` | same as clicking that row |

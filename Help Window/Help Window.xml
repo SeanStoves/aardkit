@@ -135,7 +135,14 @@ aardkit.helpwin = aardkit.helpwin or {}
 local HW = aardkit.helpwin
 local U  = aardkit.util
 
-local CFG = U.load("helpwin", { on = true })
+local CFG = U.load("helpwin", {
+    on  = true,
+    -- Unlike search and shop this defaults to hiding the original. A help file
+    -- is a wall of text you asked for by name and don't want in your
+    -- scrollback; the other two are reports worth keeping in the log. 'helpwin
+    -- gag' flips it either way.
+    gag = true,
+})
 
 -- declared ahead of the closures below so it binds this local rather than a
 -- global of the same name, which is nil forever
@@ -204,7 +211,7 @@ local function arm(kind)
     trig = tempRegexTrigger([[^.*$]], function()
         local line = getCurrentLine() or ""
         if line:match("^%s*{/help") then
-            U.gag()
+            if CFG.gag then U.gag() end
             stop()
             panel:page_end()
             return
@@ -217,7 +224,7 @@ local function arm(kind)
             if pcall(selectString, tag, 1) then pcall(replace, "") end
         end
         panel:page_add()
-        U.gag()
+        if CFG.gag then U.gag() end
     end)
     -- a help that never closes would eat the rest of the session
     timer = tempTimer(15, function()
@@ -232,7 +239,7 @@ end
 function HW.on_open(kind)
     if not CFG.on then return end
     stop()
-    U.gag()
+    if CFG.gag then U.gag() end
     panel:page_begin()
     panel:show()
     arm(kind or "help")
@@ -246,7 +253,7 @@ function HW.cmd(arg)
     local verb, rest = U.split_verb(arg)
     rest = U.trim(rest):lower()
 
-    if verb == "" then
+    if verb == "toggle" then
         panel:toggle()
 
     elseif verb == "on" or verb == "off" then
@@ -255,6 +262,12 @@ function HW.cmd(arg)
         telopt(CFG.on)
         if not CFG.on then stop() end
         U.ok("Help window " .. verb .. (CFG.on and " - help goes to the panel." or " - help stays in the main window."))
+
+    elseif verb == "gag" then
+        CFG.gag = not CFG.gag
+        U.save("helpwin", CFG)
+        U.ok("Help: " .. (CFG.gag and "panel only - the file is hidden from the main window."
+            or "in both places."))
 
     elseif verb == "next" then aardkit.panel.page_next("help")
     elseif verb == "prev" then aardkit.panel.page_prev("help")
@@ -276,6 +289,7 @@ function HW.cmd(arg)
 
     else
         U.help("Help window", {
+            { "helpwin toggle",       "show or hide the panel" },
             { "state",   CFG.on and "on" or "off" },
             { "showing", (panel.total or 0) &gt; 0
                          and ((panel.total) .. " lines, page " .. (panel.page or 1) .. " of " .. (panel.pages or 1))
@@ -285,6 +299,7 @@ function HW.cmd(arg)
             { "" },
             { "helpwin",             "show or hide the panel" },
             { "helpwin on | off",    "capture help, or leave it in the main window" },
+            { "helpwin gag",         "hide it from the main window, or show it in both" },
             { "helpwin next | prev", "page through the file, same as the buttons" },
             { "helpwin clear",       "empty it" },
             { "helpwin retry",       "ask the MUD to tag help output again" },

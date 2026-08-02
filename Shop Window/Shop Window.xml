@@ -145,7 +145,10 @@ aardkit.shopwin = aardkit.shopwin or {}
 local SH = aardkit.shopwin
 local U  = aardkit.util
 
-local CFG = U.load("shopwin", { on = true })
+local CFG = U.load("shopwin", {
+    on  = true,
+    gag = false,   -- a copy by default; the MUD's own list still prints
+})
 
 local ROW_H, PAD, HEAD_H = 20, 4, 18
 
@@ -217,6 +220,7 @@ function SH.on_head()
     listing = true
     -- a list with no footer would otherwise leave this armed for the session
     listing_t = tempTimer(10, listing_off)
+    if CFG.gag then U.gag() end
 end
 
 -- "  1      5       20  ---  [Potion] Optical Precision"
@@ -232,6 +236,7 @@ function SH.on_row(num, lvl, price, qty, item)
         item  = item,
         col   = colour_of(item),
     }
+    if CFG.gag then U.gag() end
     panel:show()
     SH.paint()
 end
@@ -240,6 +245,7 @@ end
 function SH.on_foot()
     if not (CFG.on and listing) then return end
     listing_off()
+    if CFG.gag then U.gag() end
     SH.paint()
 end
 
@@ -336,7 +342,7 @@ end
 function SH.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         panel:toggle()
 
     elseif verb == "on" or verb == "off" then
@@ -344,6 +350,12 @@ function SH.cmd(arg)
         U.save("shopwin", CFG)
         U.ok("Shop window " .. verb
             .. (CFG.on and " - 'list' is copied to the panel." or " - main window only."))
+
+    elseif verb == "gag" then
+        CFG.gag = not CFG.gag
+        U.save("shopwin", CFG)
+        U.ok("Shop: " .. (CFG.gag and "panel only - the list is hidden from the main window."
+            or "in both places."))
 
     elseif verb == "up"   then SH.scroll(-5)
     elseif verb == "down" then SH.scroll(5)
@@ -362,11 +374,14 @@ function SH.cmd(arg)
 
     else
         U.help("Shop window", {
+            { "shopwin toggle",       "show or hide the panel" },
             { "state",   CFG.on and "on" or "off" },
+            { "main window", CFG.gag and "hidden - panel only" or "still prints there too" },
             { "stock",   #items &gt; 0 and (#items .. " item(s) listed") or "nothing listed yet" },
             { "" },
             { "shopwin",          "show or hide the panel" },
             { "shopwin on | off", "copy 'list' to the panel, or main window only" },
+            { "shopwin gag",      "hide it from the main window, or show it in both" },
             { "shopwin up | down", "scroll the list" },
             { "shopwin buy &lt;row&gt;", "same as clicking that row" },
             { "shopwin clear",    "empty it" },

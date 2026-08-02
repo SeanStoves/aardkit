@@ -20,7 +20,9 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `searchwin` | show or hide the panel |
+| `searchwin` | this list |
+| `searchwin toggle` | show or hide the panel |
+| `searchwin gag` | hide it from the main window, or show it in both |
 | `searchwin on\|off` | copy it to the panel, or main window only |
 | `searchwin next\|prev` | page through it, same as the buttons |
 | `searchwin clear` | empty it |

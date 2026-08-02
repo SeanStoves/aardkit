@@ -171,7 +171,7 @@ end
 function IW.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         panel:toggle()
 
     elseif verb == "buffer" then
@@ -203,6 +203,7 @@ function IW.cmd(arg)
 
     else
         U.help("Info Window", {
+            { "infowin toggle",       "show or hide the panel" },
             { "infowin",            "show/hide the panel" },
             { "infowin buffer &lt;n&gt;", "scrollback lines to keep (10-5000)" },
             { "infowin gag",        "toggle gagging INFO from the main window" },

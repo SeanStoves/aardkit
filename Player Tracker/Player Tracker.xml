@@ -522,7 +522,7 @@ end
 function PT.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         panel:toggle()
         if panel:visible() then PT.paint() end   -- repaint on show; who/clan events skip painting while hidden now
 
@@ -568,6 +568,7 @@ function PT.cmd(arg)
 
     else
         U.help("Player Tracker", {
+            { "pt toggle",            "show or hide the panel" },
             { "pt",              "show/hide the panel" },
             { "pt find &lt;text&gt;",  "search name / clan / title" },
             { "pt filter &lt;text&gt;", "filter the panel list (blank clears)" },

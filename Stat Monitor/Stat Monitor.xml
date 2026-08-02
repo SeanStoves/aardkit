@@ -439,7 +439,7 @@ function SM.cmd(arg)
     local verb, rest = U.split_verb(arg)
     rest = U.trim(rest):lower()
 
-    if verb == "" then
+    if verb == "toggle" then
         SM.paint()
         panel:toggle()
 
@@ -498,6 +498,7 @@ function SM.cmd(arg)
 
     else
         U.help("Stat Monitor", {
+            { "stats toggle",         "show or hide the panel" },
             { "stats", "toggle the panel" },
             { "stats fields", "every field, what's on, what the MUD is sending" },
             { "stats on|off &lt;field&gt;", "add one of the extras, or drop one you never read" },

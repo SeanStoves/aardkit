@@ -20,7 +20,9 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `helpwin` | show or hide the panel |
+| `helpwin` | this list |
+| `helpwin toggle` | show or hide the panel |
+| `helpwin gag` | hide it from the main window, or show it in both |
 | `helpwin on\|off` | capture help, or leave it in the main window |
 | `helpwin next\|prev` | page through the file, same as the buttons |
 | `helpwin clear` | empty it |

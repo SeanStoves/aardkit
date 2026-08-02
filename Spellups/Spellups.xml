@@ -1060,7 +1060,7 @@ function SP.cmd(arg)
     if SP.autocmd and SP.autocmd(verb, rest) then return end
     if SP.extrascmd and SP.extrascmd(verb, rest) then return end
 
-    if verb == "" then
+    if verb == "toggle" or verb == "panel" then
         SP.paint()
         panel:show()
 

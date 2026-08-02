@@ -706,7 +706,7 @@ local scan_on = SCFG.on
 function SD.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         -- toggle first: SD.paint() now skips the work while the panel's
         -- hidden, so painting before show() left stale content on screen
         SD.panel:toggle()
@@ -717,6 +717,7 @@ function SD.cmd(arg)
         local a = db:fetch(T.area) or {}
         local k = db:fetch(T.keywords) or {}
         U.help("Search &amp; Destroy data", {
+            { "snd toggle",           "show or hide the panel" },
             { "mobs",     tostring(#m) },
             { "areas",    tostring(#a) },
             { "keywords", tostring(#k) },

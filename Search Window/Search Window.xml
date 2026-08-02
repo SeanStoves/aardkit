@@ -113,7 +113,10 @@ aardkit.searchwin = aardkit.searchwin or {}
 local SW = aardkit.searchwin
 local U  = aardkit.util
 
-local CFG = U.load("searchwin", { on = true })
+local CFG = U.load("searchwin", {
+    on  = true,
+    gag = false,   -- a copy by default; the report still scrolls past
+})
 
 -- declared ahead of the closures below so they bind this local rather than a
 -- global of the same name, which is nil forever
@@ -159,6 +162,7 @@ function SW.on_start()
     stop()
     panel:page_begin()
     panel:page_add()      -- the "Finding best..." line is part of the report
+    if CFG.gag then U.gag() end
     panel:show()
     capturing = true
 
@@ -171,6 +175,7 @@ function SW.on_start()
             return
         end
         panel:page_add()
+        if CFG.gag then U.gag() end
     end)
 
     -- a search that never reaches a prompt would eat the rest of the session
@@ -190,7 +195,7 @@ end
 function SW.cmd(arg)
     local verb = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         panel:toggle()
 
     elseif verb == "on" or verb == "off" then
@@ -199,6 +204,12 @@ function SW.cmd(arg)
         if not CFG.on then stop() end
         U.ok("Search window " .. verb
             .. (CFG.on and " - 'search all' is copied to the panel." or " - main window only."))
+
+    elseif verb == "gag" then
+        CFG.gag = not CFG.gag
+        U.save("searchwin", CFG)
+        U.ok("Search: " .. (CFG.gag and "panel only - the report is hidden from the main window."
+            or "in both places."))
 
     elseif verb == "next" then aardkit.panel.page_next("search")
     elseif verb == "prev" then aardkit.panel.page_prev("search")
@@ -213,13 +224,16 @@ function SW.cmd(arg)
 
     else
         U.help("Search window", {
+            { "searchwin toggle",     "show or hide the panel" },
             { "state",   CFG.on and "on" or "off" },
+            { "main window", CFG.gag and "hidden - panel only" or "still prints there too" },
             { "showing", (panel.total or 0) &gt; 0
                          and (panel.total .. " lines, page " .. (panel.page or 1) .. " of " .. (panel.pages or 1))
                          or "nothing yet" },
             { "" },
             { "searchwin",             "show or hide the panel" },
             { "searchwin on | off",    "copy it to the panel, or main window only" },
+            { "searchwin gag",         "hide it from the main window, or show it in both" },
             { "searchwin next | prev", "page through it, same as the buttons" },
             { "searchwin clear",       "empty it" },
             { "searchwin dock | embed | show | hide", "panel placement" },

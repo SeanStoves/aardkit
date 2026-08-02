@@ -655,7 +655,7 @@ end
 function EX.cmd(arg)
     local verb, rest = U.split_verb(arg)
 
-    if verb == "" then
+    if verb == "toggle" then
         EX.paint()
         panel:toggle()
 
@@ -699,6 +699,7 @@ function EX.cmd(arg)
 
     else
         U.help("explore", {
+            { "explore toggle",       "show or hide the panel" },
             { "explore",             "show/hide the panel" },
             { "explore svg [area]",  "Gaardian-style SVG map (default: where you are)" },
             { "explore json [area]", "rooms and links as JSON" },
