@@ -653,22 +653,20 @@ function M.goto_room(id)
 
     if #steps == 0 then U.warn("No route to " .. U.rid(id) .. "."); return end
 
-    -- One stacked line, the way the MUSHclient mapper does it:
+    -- One command per line, which is what the MUSHclient mapper actually does.
     --
-    --     run 2s8w47s22w10sw;enter crystal;run 10esd
+    -- Its build_speedwalk joins segments with stack_char and that read like the
+    -- MUD taking ';' - so this sent 'run 2n;west;say huzzah' as one line and got
+    -- "unknown command" back. stack_char is MUSHCLIENT'S setting, not the MUD's:
+    -- the world file has enable_command_stack="y" with command_stack_character
+    -- ";", so MUSHclient splits on it before sending and Aardwolf never sees a
+    -- stacked line at all. Its own fallback says the same thing out loud - with
+    -- stacking off, stack_char becomes "\r\n".
     --
-    -- Aardwolf stacks on ';' server-side - the stock module sends exactly that
-    -- shape in three places - so a route with a door in the middle of it goes
-    -- as one command rather than a dozen.
+    -- So the chain is for building, and it comes apart before it goes out.
     --
-    -- S&amp;D's compress already segments it: it folds runs of directions into
-    -- 'run 3n2e' and flushes whenever something that isn't a direction turns
-    -- up, which is precisely where a custom exit goes. Without that module the
-    -- steps go one at a time, same as before.
-    --
-    -- ';;' inside a stored cexit becomes a single ';' on the way out. The double
-    -- was only ever there to get a multi-command cexit past MUSHclient's own
-    -- line parser; the MUD wants one.
+    -- ';;' in a stored cexit is the same thing one layer down: the double was
+    -- how a multi-command cexit got past that splitter intact.
     for i, c in ipairs(steps) do steps[i] = (tostring(c):gsub(";;", ";")) end
 
     local compress = aardkit.snd and aardkit.snd.compress
@@ -677,19 +675,12 @@ function M.goto_room(id)
     U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s)"
         .. (used_cexit and ", through a custom exit." or "."))
 
-    -- Chunked at 240 characters. Aardwolf takes a long line but not an endless
-    -- one, and a route across the world silently truncated in the middle is
-    -- worse than two lines.
-    local line = ""
-    local function flush()
-        if line ~= "" then send(line, false); line = "" end
-    end
     for _, c in ipairs(cmds) do
-        if line == "" then line = c
-        elseif #line + #c + 1 &lt;= 240 then line = line .. ";" .. c
-        else flush(); line = c end
+        for part in tostring(c):gmatch("[^;]+") do
+            local one = U.trim(part)
+            if one ~= "" then send(one, false) end
+        end
     end
-    flush()
 end
 
 -- Click a room on the map and walk to it.
