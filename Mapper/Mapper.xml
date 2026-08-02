@@ -342,7 +342,20 @@ function M.paint_map()
     pcall(function() map:resize("100%", "100%") end)
     pcall(function() map:move(0, 0) end)
     pcall(function() map:show() end)
+    M.raise_map()
     return true
+end
+
+-- An embedded Mudlet map is not a child of the container it looks like it's in.
+-- createMapper draws it at absolute coordinates in the main window, so every
+-- other Geyser element is a candidate to land on top of it - which is what the
+-- greyed-out map that comes back when you click it actually is.
+--
+-- raiseWindow("mapper") is what Geyser.Mapper:raise() does; this is the same
+-- call somewhere it can be reached from.
+function M.raise_map()
+    if not U.has("raiseWindow") then return false end
+    return (pcall(raiseWindow, "mapper"))
 end
 
 -- Take the map view back.
@@ -370,6 +383,7 @@ function M.repaint_map()
     pcall(function() map:move(0, 0) end)
     local ok, err = pcall(function() map:reposition() end)
     if not ok then return false, tostring(err) end
+    M.raise_map()
     return true
 end
 
@@ -2332,6 +2346,9 @@ function M.on_move()
             -- and the room you're actually in, which every other room being a
             -- loud colour had made impossible to pick out
             if M.mark_here then M.mark_here(id) end
+            -- keep it on top: an embedded map is drawn at absolute coordinates
+            -- rather than inside its container, so anything can cover it
+            if M.raise_map then M.raise_map() end
             if co and (tonumber(co.cont) or 0) &gt; 0 and M.on_continent then
                 M.on_continent(aid)
             end

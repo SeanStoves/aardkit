@@ -1886,6 +1886,14 @@ local CFG = U.load("stock", {
 })
 CFG.script = CFG.script or {}
 
+-- onRoom is stood down through their own aard.map.enable now, not by name, so
+-- any leftover entry from an older config is a retry that can only ever fail -
+-- and it failed loudly, twenty times, in a warning about a stray '3' that has
+-- nothing to do with it. Drop it wherever it's parked.
+for _, set in ipairs({ CFG.off, CFG.trig, CFG.script }) do
+    if type(set) == "table" then set.onRoom = nil end
+end
+
 -- Their whole module lives under one group name per package.
 local GROUP = "aard"
 local WHOLE = {

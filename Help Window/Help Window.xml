@@ -294,7 +294,7 @@ function HW.cmd(arg)
             { "showing", (panel.total or 0) &gt; 0
                          and ((panel.total) .. " lines, page " .. (panel.page or 1) .. " of " .. (panel.pages or 1))
                          or "nothing yet" },
-            { "tagging", U.has("sendTelnetChannel102") and "negotiated on connect"
+            { "tagging", U.has("sendTelnetChannel102") and "'help negotiate' - never automatic"
                          or "unavailable in this Mudlet" },
             { "" },
             { "helpwin",             "show or hide the panel" },
@@ -316,15 +316,16 @@ aardkit.register("helpwin", "help files in their own panel, fresh each read", HW
 U.killhandler(aardkit_helpwin_connect)
 aardkit_helpwin_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
     stop()
-    -- Not a timer. sysConnectionEvent is the socket opening and the name and
-    -- password prompts come after it, so a fixed two-second delay lands in the
-    -- middle of the login sequence - which is the one window where anything
-    -- leaving this client can do damage. U.ready holds until char.status says
-    -- state 3 or 8, which is the game rather than the prompt.
-    U.ready(HW.negotiate)
+    -- Nothing goes to the MUD here. This used to negotiate the help tags on
+    -- connect - first behind a 2s timer, which landed squarely in the password
+    -- prompt, then behind U.ready, which was correct and still not the point.
+    -- Nothing in this suite talks to the MUD on its own account at login now.
+    --
+    -- The cost: the MUD forgets the tag between sessions, so until you run
+    -- 'help negotiate' the help files come through untagged and unpanelled.
+    -- One command a session against a login that can't be eaten is the right
+    -- side of that trade.
 end)
-
-U.ready(HW.negotiate)
 </script>
 				<eventHandlerList />
 			</Script>

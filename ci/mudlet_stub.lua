@@ -138,6 +138,9 @@ end
 -- whatever payload you hand it.
 sendTelnetChannel102 = note("sendTelnetChannel102")
 
+-- so a test can assert an out-of-band negotiation did NOT happen
+function calls_count(name) return calls[name] or 0 end
+
 getHTTP = function(url, headers)
     if http_reply.fail then raiseEvent("sysGetHttpError", http_reply.body, url)
     else raiseEvent("sysGetHttpDone", url, http_reply.body) end
