@@ -1538,6 +1538,10 @@ local OWNED = {
     -- both would be calling deleteLine() on the same line - the exact double-gag
     -- that left blank gaps in the room description.
     help = true, helpsearch = true, helpkeywords = true,
+    -- Loot Tracker intercepts 'inv', sends invdata and reprints the block, so it
+    -- gags these itself. Left in BLOCK/LINE they were deleted twice - and worse,
+    -- the block gag would have eaten the reply before the parser saw it.
+    invdata = true, invitem = true,
 }
 
 -- wrappers around text worth reading; hide only the markers

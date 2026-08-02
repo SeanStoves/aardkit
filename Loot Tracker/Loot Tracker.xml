@@ -118,6 +118,46 @@
 					<integer>1</integer>
 				</regexCodePropertyList>
 			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>invdata start</name>
+				<script>aardkit.loot.on_invdata_start()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{invdata\}$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>invdata end</name>
+				<script>aardkit.loot.on_invdata_end()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\{/invdata\}$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
 		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
@@ -141,6 +181,13 @@
 				<command />
 				<packageName />
 				<regex>^appraise\s+(\d+)\s*-\s*(\d+)\s*$</regex>
+			</Alias>
+			<Alias isActive="yes" isFolder="no">
+				<name>inventory</name>
+				<script>aardkit.loot.inv()</script>
+				<command />
+				<packageName />
+				<regex>^(?:i|in|inv|inve|inven|invent|invento|inventor|inventory)\s*$</regex>
 			</Alias>
 		</AliasGroup>
 	</AliasPackage>
@@ -368,6 +415,7 @@ local CFG = U.load("loottracker", {
         "brilliant", "dazzling", "shimmering", "gleaming", "sparkling",
         "vibrant", "shiny", "burnished", "enhanced", "polished",
     }, ","),
+    inv      = true,   -- intercept 'inv' with invdata so bags are learned
     authkey  = "",
     authname = "",
     lastfull = 0,
@@ -569,8 +617,89 @@ function LT.on_get(item, source)
     record_gather(item, color_of(item), source, tier)
 end
 
--- invdata: learn which carried items are containers (type 11), so gets from your
--- own bags are skipped no matter what you've renamed them to
+---
+-- inventory
+--
+-- 'invdata' is Aardwolf's machine-readable inventory: it answers with
+-- {invdata} ... {invitem}serial,flags,desc,level,type,... ... {/invdata}
+-- instead of the usual display. That's where my_bags comes from - type 11 is a
+-- container - and it's the only rename-proof way to know which of the things
+-- you carry is a bag.
+--
+-- It never arrived before. Our MUSHclient version had this same passive trigger
+-- and worked, because a separate plugin over there intercepted 'inv', sent
+-- 'invdata' in its place and reprinted the result - our tracker just watched the
+-- tags go past. Porting the tracker without the interceptor left my_bags empty
+-- for the life of the plugin, with the word list quietly carrying the whole
+-- feature.
+--
+-- So this is the interceptor. 'inv' sends invdata, the tagged block is caught
+-- and reprinted, and the bag list fills itself. 'loot inv off' hands 'inv' back
+-- to the MUD untouched.
+---
+
+local inv_rows, inv_capturing, inv_t = {}, false, nil
+
+local function inv_stop()
+    inv_capturing = false
+    if inv_t then pcall(killTimer, inv_t); inv_t = nil end
+end
+
+function LT.inv()
+    if not CFG.inv then
+        send("inv", false)
+        return
+    end
+    inv_rows, inv_capturing = {}, true
+    if inv_t then pcall(killTimer, inv_t) end
+    -- if the block never closes, stop eating lines
+    inv_t = tempTimer(8, function()
+        if inv_capturing then inv_stop(); U.warn("Loot Tracker: invdata didn't finish - 'loot inv off' to use plain 'inv'.") end
+    end)
+    send("invdata", false)
+end
+
+function LT.on_invdata_start()
+    if not (CFG.inv and inv_capturing) then return end
+    inv_rows = {}
+    U.gag()
+end
+
+-- Grouped by what you'd actually read: identical short descriptions collapse to
+-- one line with a count, the way the MUD's own inventory does it.
+function LT.on_invdata_end()
+    if not (CFG.inv and inv_capturing) then return end
+    U.gag()
+    inv_stop()
+
+    if #inv_rows == 0 then
+        U.note("You are carrying nothing.")
+        return
+    end
+
+    local order, seen = {}, {}
+    for _, r in ipairs(inv_rows) do
+        local k = r.desc
+        if not seen[k] then
+            seen[k] = { desc = r.desc, level = r.level, bag = r.bag, n = 0, serial = r.serial }
+            order[#order + 1] = k
+        end
+        seen[k].n = seen[k].n + 1
+    end
+
+    U.note("You are carrying:")
+    for _, k in ipairs(order) do
+        local e = seen[k]
+        U.out(string.format("\n  &lt;#8a93a8&gt;%-5s&lt;r&gt;&lt;#c8d0dc&gt;%s&lt;r&gt;%s%s",
+            e.n &gt; 1 and ("(" .. e.n .. ")") or "",
+            e.desc,
+            e.level and e.level &gt; 0 and (" &lt;#8a93a8&gt;[" .. e.level .. "]&lt;r&gt;") or "",
+            e.bag and " &lt;#3ad07a&gt;(container)&lt;r&gt;" or ""))
+    end
+    echo("\n")
+end
+
+-- {invitem}serial,flags,desc,level,type,...  type 11 == a container
 function LT.on_invitem(payload)
     local parts = {}
     for p in (payload .. ","):gmatch("(.-),") do parts[#parts + 1] = p end
@@ -581,7 +710,18 @@ function LT.on_invitem(payload)
     local desc = U.trim(table.concat(d, ","))
     if desc == "" then return end
     inv_serial[desc:lower()] = U.trim(parts[1])
-    if tonumber(parts[n - 3]) == 11 then my_bags[desc:lower()] = true end
+    local isbag = tonumber(parts[n - 3]) == 11
+    if isbag then my_bags[desc:lower()] = true end
+
+    if inv_capturing then
+        inv_rows[#inv_rows + 1] = {
+            serial = U.trim(parts[1]),
+            desc   = desc,
+            level  = tonumber(parts[n - 4]) or 0,
+            bag    = isbag,
+        }
+        U.gag()
+    end
 end
 
 ---
@@ -1418,7 +1558,17 @@ function LT.cmd(arg)
             for x in pairs(my_bags) do carried[#carried + 1] = x end
             table.sort(carried)
             U.note("Containers you carry (from invdata, rename-proof):")
-            U.out("\n  &lt;#c8d0dc&gt;" .. (#carried &gt; 0 and table.concat(carried, ", ") or "(none seen yet - type 'inv')") .. "&lt;r&gt;")
+            if #carried &gt; 0 then
+                U.out("\n  &lt;#c8d0dc&gt;" .. table.concat(carried, ", ") .. "&lt;r&gt;")
+            else
+                -- Telling you to type 'inv' was wrong: {invitem} only arrives if
+                -- Aardwolf's inventory tag option is on, and it isn't - not from
+                -- us, not from the stock module, and not from your character's
+                -- own 'tags' settings. Nothing you type here changes that, so
+                -- say what's actually true rather than sending you round a loop.
+                U.out("\n  &lt;#8a93a8&gt;none - Aardwolf's inventory tags aren't on, so this can't"
+                    .. " learn them.\n  The word list below is what's doing the work.&lt;r&gt;")
+            end
             U.note("Fallback word-list (source containing any = ignored):")
             U.out("\n  &lt;#c8d0dc&gt;" .. set_csv(exclude):gsub(",", ", ") .. "&lt;r&gt;")
             U.out("\n  &lt;#8a93a8&gt;loot bags add &lt;word&gt; | loot bags del &lt;word&gt;&lt;r&gt;\n")
@@ -1451,6 +1601,16 @@ function LT.cmd(arg)
         else
             U.warn("Usage: appraise &lt;first&gt;-&lt;last&gt;  (e.g. appraise 1-12)  |  loot appraise stop")
         end
+
+    elseif verb == "inv" then
+        local v = U.trim(rest):lower()
+        if v == "on" or v == "off" then
+            CFG.inv = (v == "on"); save()
+        else
+            CFG.inv = not CFG.inv; save()
+        end
+        U.ok("Loot Tracker: 'inv' " .. (CFG.inv and "reads invdata, so containers are learned by type."
+            or "goes straight to the MUD - containers fall back to the word list."))
 
     elseif verb == "dedupe" then
         local renamed, merged = dedupe_variants()
@@ -1528,6 +1688,7 @@ function LT.cmd(arg)
             { "loot idnote on|off",   "confirm each stat capture on screen" },
             { "loot here &lt;keyword&gt;",  "get a room-floor spawn and record it" },
             { "loot del &lt;item&gt; [roomid]", "remove matching rows" },
+            { "loot inv on|off",   "read 'inv' as invdata so containers are learned" },
             { "loot bags [add|del &lt;word&gt;]", "container words ignored for gathers" },
             { "loot flags [add|del &lt;word&gt;]", "bonus-loot flags stripped from names" },
             { "loot dedupe",          "collapse variant rows already captured" },
