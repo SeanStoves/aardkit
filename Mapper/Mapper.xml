@@ -2324,9 +2324,18 @@ function M.on_move()
     -- knows a room is on the continent, and the continent is the part that
     -- wants tiles rather than boxes on strings.
     local co = info.coord
-    if co and (tonumber(co.cont) or 0) &gt; 0 and M.on_continent and roomExists(id) then
+    if roomExists(id) then
         local aid = area_of(id)
-        if aid then M.on_continent(aid) end
+        if aid then
+            -- the shops and healers in an area you've just walked into, once
+            if M.style_area then M.style_area(aid) end
+            -- and the room you're actually in, which every other room being a
+            -- loud colour had made impossible to pick out
+            if M.mark_here then M.mark_here(id) end
+            if co and (tonumber(co.cont) or 0) &gt; 0 and M.on_continent then
+                M.on_continent(aid)
+            end
+        end
     end
 
     local x, y, z
@@ -2517,6 +2526,14 @@ local SYMBOL   = {
 local ENV0 = "env0"
 
 local gridded = {}   -- areas already switched to grid mode this session
+local stamped = {}   -- ...and already marked up, so walking back in is free
+local lit            -- the room currently wearing the you-are-here highlight
+
+-- Their OUR_ROOM_COLOUR. Once every room is a loud flag colour, Mudlet's own
+-- player marker is lost in the crowd - a gold bank and a green trainer are
+-- exactly as bright as the room you're standing in, which makes the one thing
+-- you always want to find the one thing you can't.
+local HERE = { 0xff, 0x14, 0x93 }   -- #ff1493, deeppink
 
 ---
 -- symbols
@@ -2621,6 +2638,42 @@ local function stamp_area(aid)
     return n
 end
 
+-- Highlight the room you're in and let go of the last one.
+--
+-- A highlight is stored in the map, so the previous one has to be released or
+-- they accumulate and every room you have ever entered stays pink.
+function M.mark_here(id)
+    id = tonumber(id)
+    if lit and lit ~= id then
+        pcall(unHighlightRoom, lit)
+        -- it was wearing a flag symbol before we lit it; put that back
+        if CFG.symbols then M.mark_room(lit) end
+        lit = nil
+    end
+    if not id or CFG.style ~= "aard" then return false end
+    if not U.has("highlightRoom") then return false end
+    if lit == id then return true end
+    -- second colour and radius 1: a solid fill the size of the room, not a halo
+    -- that spills over its neighbours
+    local ok = pcall(highlightRoom, id, HERE[1], HERE[2], HERE[3],
+                                       HERE[1], HERE[2], HERE[3], 1, 255, 255)
+    if ok then lit = id end
+    return ok
+end
+
+-- Every area you walk into, once.
+--
+-- style_apply on load can only do the settings - there's no room to stand in
+-- yet, so no area to mark. That left the map drawn right but unmarked until
+-- 'mapper style aard' was typed, which is a default that isn't one.
+function M.style_area(aid)
+    if CFG.style ~= "aard" or not CFG.symbols then return 0 end
+    aid = tonumber(aid)
+    if not aid or stamped[aid] then return 0 end
+    stamped[aid] = true
+    return stamp_area(aid)
+end
+
 ---
 -- grid mode
 ---
@@ -2707,9 +2760,14 @@ function M.style_aard(quiet)
 
     local aid = area_here()
     local n = stamp_area(aid)
-    if aid then M.grid(aid, true) end
+    -- deliberately NOT gridding this area. Grid mode is for the continent and
+    -- nothing else: an indoor area drawn as solid blocks loses its exit lines,
+    -- and with them every door, every one-way, and the difference between two
+    -- rooms that connect and two that merely sit next to each other.
+    -- M.on_continent handles the continent, off GMCP, per area.
 
     if quiet then return end
+    M.mark_here(select(1, U.room()))
     U.ok("Map drawn the MUSHclient way - its background, its exit colour, square rooms, "
         .. "and shops, healers and banks in its colours.")
     U.note("Marked " .. n .. " room(s) in this area. 'mapper style symbols' does the next one.")

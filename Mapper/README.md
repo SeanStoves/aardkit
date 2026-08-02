@@ -140,9 +140,16 @@ appearance is most of what people miss about it. Square rooms with borders on a 
 safe rooms lightblue, and #9b0000 for a room you know is there and have never stood in. Those
 numbers are read off that plugin's own settings; none of its code is here.
 
-Continent areas draw as solid terrain-coloured tiles with no exit lines — their mapper
-tiles areas with terrain textures, Mudlet has no textures, and a coloured room is the nearest
-true thing. GMCP flags continent rooms, so it's per area and an inn keeps its corridors.
+Continent areas — and only those — draw as solid terrain-coloured tiles with no exit
+lines. GMCP flags continent rooms, so there's no guessing. Everywhere else keeps its gaps and
+its drawn exits, because an indoor area rendered as solid blocks loses every door, every
+one-way, and the difference between two rooms that connect and two that merely sit next to
+each other. `mapper style grid on` tiles the area you're in by hand if you want it.
+
+The room you're standing in is highlighted in their `#ff1493`. Once every shop, bank and
+healer is a loud colour, Mudlet's own player marker is lost in the crowd — the one room
+you always want to find becomes the one you can't. Only one room wears it at a time; the
+previous is released as you leave, or every room you had ever entered would stay pink.
 
 Everything `mapper style` changes is a Mudlet preference of yours. The old values are written
 down before anything is touched and `mapper style restore` puts them back exactly —

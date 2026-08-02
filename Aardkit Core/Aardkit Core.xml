@@ -763,6 +763,41 @@ end
 U.killhandler(aardkit_util_ready_handler)
 aardkit_util_ready_handler = registerAnonymousEventHandler("gmcp.char.status", drain_ready)
 
+---
+-- nothing goes to the MUD before you're in it
+--
+-- This has bitten twice now. sysConnectionEvent is the socket opening; the name
+-- and password prompts come after it, and a password prompt echoes nothing back
+-- - so a scripted command landing in that window IS the password, the login
+-- fails, and there is nothing on screen saying why. Last time it was helpwin's
+-- telnet negotiation on a 2s timer. This time I could not find the sender at
+-- all, having read every send() and every connection handler in the suite.
+--
+-- So stop looking for the culprit and make the window unreachable. Anything
+-- sent before char.status says 3 or 8 is held and goes out the moment you're
+-- in, and it says what it held so the next one names itself.
+--
+-- Safe for autologin: Mudlet sends the name and password from C++, through
+-- cTelnet, not through this Lua function. Typing in the command line doesn't
+-- come through here either. Only SCRIPTED sends do, and a scripted send before
+-- login is a bug every time.
+--
+-- Wrapped once. A rebuild re-runs this file, and wrapping the wrapper would
+-- queue behind a queue.
+if not aardkit_send_guarded then
+    aardkit_send_guarded = true
+    local real_send = send
+
+    send = function(what, echoBack)
+        if U.playing() then return real_send(what, echoBack) end
+        U.warn("held '" .. tostring(what) .. "' - not in the game yet."
+            .. " It'll go when you are. (A scripted send before login is what"
+            .. " gets typed into the password prompt.)")
+        U.ready(function() real_send(what, echoBack) end)
+        return true
+    end
+end
+
 -- In combat, in the MUD's own words. Three signals because no one of them
 -- holds on its own: state is 8 while fighting, enemy carries the name for as
 -- long as it lasts, and enemypct is the fallback.

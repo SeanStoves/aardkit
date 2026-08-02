@@ -68,7 +68,14 @@ scrollTo = note("scrollTo")
 scrollUp = note("scrollUp")
 getScroll = function() return 0 end
 getLastLineNumber = function() return 0 end
-send = note("send")
+-- Recorded rather than merely counted: the pre-login send guard in core has to
+-- be provable, and "did it go out, and when" is the whole question.
+SENT = {}
+send = function(what, echoBack)
+    calls.send = (calls.send or 0) + 1
+    SENT[#SENT + 1] = tostring(what)
+    return nil
+end
 sendAll = note("sendAll")
 enableTrigger = note("enableTrigger")
 disableTrigger = note("disableTrigger")
@@ -347,6 +354,9 @@ getGridMode = function(aid) return (MAP.grid or {})[tonumber(aid)] and true or f
 setRoomChar = function(id, c) local r = MAP.room(id); if r then r.char = tostring(c or "") end end
 getRoomChar = function(id) local r = MAP.room(id); return r and r.char or "" end
 setRoomCharColor = note("setRoomCharColor")
+highlightRoom = function(id, ...) local r = MAP.room(id); if r then r.lit = true end; return true end
+unHighlightRoom = function(id) local r = MAP.room(id); if r then r.lit = nil end; return true end
+getRoomLit = function(id) local r = MAP.room(id); return r and r.lit and true or false end
 setMapBackgroundColor = note("setMapBackgroundColor")
 setMapRoomExitsColor = note("setMapRoomExitsColor")
 centerview = function(id) MAP.centered = tonumber(id) end
