@@ -1,6 +1,6 @@
 # Mapper
 
-The MUSHclient mapper's commands, on Mudlet's own map — same words, same arguments, so moving across isn't a change of process. Notes live in room user data (saved inside the map, and searchable), custom exits are Mudlet special exits the whole client can speedwalk through, and doors are real: Mudlet draws open, closed and locked differently, which MUSHclient had no notion of. Search and Destroy uses a recorded portal when there's no path on foot — only if one is present, otherwise it fails as before.
+The MUSHclient mapper's commands, on Mudlet's own map — same words, same arguments, so moving across isn't a change of process. Notes live in room user data (saved inside the map, and searchable), custom exits are Mudlet special exits the whole client can speedwalk through, and doors are real: Mudlet draws open, closed and locked differently, which MUSHclient had no notion of. It also carries the map itself in a panel you can actually move — the stock AardwolfMudlet module nails its mapper into a fixed frame, and if that module is installed this takes the map out of it. Search and Destroy uses a recorded portal when there's no path on foot — only if one is present, otherwise it fails as before.
 
 ## Install
 
@@ -43,6 +43,8 @@ that every module here builds on. Without it nothing else loads.
 | `mapper door <dir> none\|open\|closed\|locked` | mark a door |
 | `mapper backup [path]` | write a copy of the map |
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
+| `mapper map` | the map panel — drag it, resize it, dock it, it stays put |
+| `mapper show\|hide\|dock\|embed` | where the map panel lives |
 | `mapper zoom in\|out` | map zoom |
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
 | `mapper database` | where the map lives |

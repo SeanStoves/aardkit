@@ -203,6 +203,74 @@ local function areaname(id)
 end
 
 ---
+-- the map panel
+--
+-- The stock module builds its own Geyser.Mapper, wraps it in a plain
+-- Geyser.Container and nails it into GUIframe's topright frame. A plain
+-- container has no drag handles and saves no geometry, which is exactly why it
+-- sits where it sits and won't move.
+--
+-- Ours is the same widget in an Adjustable.Container - drag it, resize it, dock
+-- or embed it, and it comes back where you left it, like every other panel
+-- here. Nothing clever: the difference is entirely which container it's in.
+--
+-- Theirs is removed from the frame if it's there, because two mappers is worse
+-- than either. Only if it's there: no stock module, nothing to disable, and
+-- this is simply the map.
+---
+
+local mapwin
+local panel = aardkit.panel.new({
+    name        = "map",
+    title       = "Map",
+    x           = "10px",
+    y           = "40px",
+    width       = 420,
+    height      = 420,
+    consoleless = true,
+    onbuild     = function()
+        mapwin = nil
+        if aardkit.mapper and aardkit.mapper.paint_map then aardkit.mapper.paint_map() end
+    end,
+    onresize    = function()
+        if aardkit.mapper and aardkit.mapper.paint_map then aardkit.mapper.paint_map() end
+    end,
+})
+
+M.panel = panel
+
+function M.paint_map()
+    if not panel.container then return end
+    if not mapwin then
+        -- gen-suffixed like every other widget here: Mudlet keeps the old object
+        -- alive across a dock switch and reusing the name orphans it
+        local ok, w = pcall(function()
+            return Geyser.Mapper:new({
+                name = "aardkit_map_" .. (panel.gen or 1),
+                x = 0, y = 0, width = "100%", height = "100%",
+            }, panel.container)
+        end)
+        if not ok or not w then return end
+        mapwin = w
+    end
+    pcall(function() mapwin:resize("100%", "100%") end)
+    pcall(function() mapwin:move(0, 0) end)
+    pcall(function() mapwin:show() end)
+end
+
+-- Take the stock module's map out of its frame, if that module is installed at
+-- all. Their widget stays alive and hidden rather than deleted - it isn't ours
+-- to destroy, and a reinstall of theirs just gets removed again next load.
+function M.unframe_theirs()
+    if not (GUIframe and GUIframe.removeWindow) then return false end
+    local ok = pcall(GUIframe.removeWindow, "Map", "topright")
+    if not ok then pcall(GUIframe.removeWindow, "Map") end
+    if mapcontainer then pcall(function() mapcontainer:hide() end) end
+    if minimap then pcall(function() minimap:hide() end) end
+    return true
+end
+
+---
 -- notes
 --
 -- Room user data, so they're saved inside the map rather than in a file beside
@@ -1183,6 +1251,14 @@ function M.cmd(arg)
         local z = (getMapZoom and getMapZoom()) or 10
         pcall(setMapZoom, d == "in" and math.max(1, z - 3) or (z + 3))
         U.ok("Zoom " .. (d == "in" and "in" or "out") .. ".")
+
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+        M.paint_map()
+        aardkit.panel.cmd("map " .. verb)
+
+    elseif verb == "map" or verb == "panel" then
+        M.paint_map()
+        panel:toggle()
     elseif verb == "shownotes" then
         CFG.shownotes = onoff(rest, CFG.shownotes); U.save("mapper", CFG)
         U.ok("Notes in search results: " .. (CFG.shownotes and "on" or "off"))
@@ -1298,6 +1374,8 @@ function M.help(which)
             { "" },
             { "mapper backup [path]", "write a copy of the map" },
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
+            { "mapper map",        "the map panel - drag it, resize it, it stays put" },
+            { "mapper show|hide|dock|embed", "where the map panel lives" },
             { "mapper zoom in|out", "map zoom" },
             { "" },
             { "mapper portals",    "hand-held portals   ('mapper help portals' for more)" },
@@ -1310,6 +1388,21 @@ end
 aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", M.cmd)
 
 aardkit.gmcp.watch("mapper_cexit", "room.info", "aardkit.mapper.on_room", true)
+
+-- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
+-- has to land after that or there's nothing in the frame to remove yet. It
+-- retries because their timing is theirs, not ours.
+local unframed = false
+local function claim_map()
+    if unframed then return end
+    if M.unframe_theirs() then
+        unframed = true
+        U.note("Took the stock module's map out of its fixed frame - 'mapper map' for ours.")
+    end
+end
+
+M.paint_map()
+for _, t in ipairs({ 1, 4, 9 }) do tempTimer(t, claim_map) end
 </script>
 				<eventHandlerList />
 			</Script>

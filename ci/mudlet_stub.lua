@@ -408,6 +408,7 @@ Geyser = {
     -- Real Mudlet ships GeyserScrollBox.lua, so code may reach for it. It is
     -- still guarded at the call site, because older builds don't have it.
     ScrollBox = ctor("ScrollBox"),
+    Mapper = ctor("Mapper"),
 }
 
 Adjustable = {
