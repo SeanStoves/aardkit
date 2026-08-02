@@ -30,6 +30,36 @@ and shared across your profiles.
 | 80 | [Goals](Goals/README.md) | Savings targets against the six currencies in `gmcp.char.worth` — qp, tp, gold, bank, trains, pracs — announced once the moment one is met, to your screen or a MUD channel. |
 | 85 | [Spellups](Spellups/README.md) | Tracks what's on you, what's blocked by a recovery and why the last cast failed, from Aardwolf's spell tag stream. The autocaster only ever types the MUD's own `spellup` and lets the MUD pick the spells. Separate opt-in extras, all off by default, do send individual casts — totem, eye of vigilance and a pre-cast list for wraith form. |
 
+## Colours
+
+Mudlet ships the VGA palette, in which the *normal* eight colours are the dark
+half — plain blue is `#000080`, navy on a black background. Aardwolf writes a
+great deal in plain `@b`, so a lot of the MUD arrives close to unreadable, and
+several other clients use a brighter set by default. It's not a terminal thing:
+Mudlet draws its own text and carries its own palette.
+
+Nothing here can change it for you. The palette lives in the profile's own
+settings and Mudlet has no Lua function to write it — `getAnsiColor` reads,
+nothing sets, and `setConfig` has no ANSI keys. So `aardkit colours` shows what
+you have beside a readable set and leaves the typing to you.
+
+**Settings → Preferences → Display**, the colour swatches:
+
+| | normal | | bright |
+|---|---|---|---|
+| black | `#3C3C3C` | light black | `#BCBCBC` |
+| red | `#F80000` | light red | `#FF7878` |
+| green | `#00F800` | light green | `#78FF78` |
+| yellow | `#F8F800` | light yellow | `#FFFF78` |
+| blue | `#0000F8` | light blue | `#7878FF` |
+| magenta | `#F800F8` | light magenta | `#FF78FF` |
+| cyan | `#00F8F8` | light cyan | `#78FFFF` |
+| white | `#FCFCFC` | light white | `#FFFFFF` |
+
+Black is `#3C3C3C` rather than `#000000` on purpose — that's what makes `@D`
+grey legible on a black background instead of invisible.
+
+
 ## Credits
 
 Spellups, Goals and Search and Destroy cover the same ground as plugins by

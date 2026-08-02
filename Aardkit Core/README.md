@@ -20,6 +20,7 @@ Shared foundation every other module builds on: a GMCP watcher that hands out ch
 | `aardkit plugins` | names of loaded modules |
 | `aardkit stock` | what we switch off in the stock AardwolfMudlet module |
 | `aardkit stock on\|off <alias>` | toggle one back on or off |
+| `aardkit colours` | your ANSI palette against a readable one |
 | `aardkit probe` | reports which Mudlet Lua functions exist here |
 | `aardkit gaglog on\|off` | keep gagged lines in the session log behind a marker |
 | `panel` | lists panels with mode and visibility |

@@ -46,6 +46,11 @@ deleteLine = note("deleteLine")
 selectCurrentLine = note("selectCurrentLine")
 selectString = function() return 1 end
 getFgColor = function() return 200, 180, 160 end
+-- Mudlet's VGA default, so the palette check has something real to disagree with
+local ANSI = { [0]={0,0,0},{128,0,0},{0,128,0},{128,128,0},{0,0,128},{128,0,128},
+  {0,128,128},{192,192,192},{128,128,128},{255,0,0},{0,255,0},{255,255,0},
+  {0,0,255},{255,0,255},{0,255,255},{255,255,255} }
+getAnsiColor = function(i) local c = ANSI[i] or {0,0,0}; return c[1], c[2], c[3] end
 copy = note("copy")
 appendBuffer = note("appendBuffer")
 getCurrentLine = function() return "" end

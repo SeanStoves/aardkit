@@ -1139,6 +1139,7 @@ function aardkit.cmd(arg)
             { "aardkit plugins", "what's loaded" },
             { "aardkit stock",        "what we switch off in the stock AardwolfMudlet module" },
             { "aardkit probe",   "which Mudlet functions actually exist here" },
+            { "aardkit colours", "your ANSI palette against a readable one" },
             { "aardkit gaglog on|off", "keep gagged lines in the session log" },
             { "panel",       "manage the docked/embedded windows" },
         }
@@ -1152,6 +1153,55 @@ function aardkit.cmd(arg)
 
     elseif verb == "stock" then
         if aardkit.stock then aardkit.stock.cmd(rest) else U.warn("stock module handling isn't loaded.") end
+
+    -- Mudlet ships the VGA palette, where the *normal* colours are the dark
+    -- half - blue is #000080, navy on a black background, and Aardwolf writes a
+    -- great deal in plain @b. MUSHclient inverts that: saturated normals, pastel
+    -- brights, which is why the same MUD reads darker here than it did there.
+    --
+    -- Nothing can fix it from in here. The palette lives in the profile's &lt;Host&gt;
+    -- element, and this Mudlet has no setter for it: no setAnsiColor, getAnsiColor
+    -- is read-only, and setConfig's key list has no ANSI colours in it. So the
+    -- most this can do is read what you've got, say whether it's the dark set,
+    -- and hand you the numbers.
+    elseif verb == "colours" or verb == "colors" then
+        -- ansi 0-7 normal, 8-15 bright, in the standard order
+        local NAMES = {
+            [0] = "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+            "light black", "light red", "light green", "light yellow",
+            "light blue", "light magenta", "light cyan", "light white",
+        }
+        -- lifted off the MUSHclient world file this profile was ported from
+        local WANT = {
+            [0] = "#3C3C3C", "#F80000", "#00F800", "#F8F800",
+            "#0000F8", "#F800F8", "#00F8F8", "#FCFCFC",
+            "#BCBCBC", "#FF7878", "#78FF78", "#FFFF78",
+            "#7878FF", "#FF78FF", "#78FFFF", "#FFFFFF",
+        }
+        if not U.has("getAnsiColor") then
+            U.warn("This Mudlet has no getAnsiColor - can't read the palette.")
+            return
+        end
+        local rows, differ = {}, 0
+        for i = 0, 15 do
+            local ok, r, g, b = pcall(getAnsiColor, i)
+            local cur = ok and r and string.format("#%02X%02X%02X", r, g, b) or "?"
+            local want = WANT[i]
+            local same = (cur:upper() == want:upper())
+            if not same then differ = differ + 1 end
+            rows[#rows + 1] = { NAMES[i],
+                string.format("&lt;%s&gt;%s&lt;r&gt;   %s%s", cur ~= "?" and cur or "#808080",
+                    cur, want, same and "" or "   &lt;- suggested") }
+        end
+        rows[#rows + 1] = { "" }
+        if differ == 0 then
+            rows[#rows + 1] = { "Nothing to do - that's the suggested palette already." }
+        else
+            rows[#rows + 1] = { differ .. " of 16 differ. Settings &gt; Preferences &gt; Display," }
+            rows[#rows + 1] = { "the colour swatches. Mudlet has no way to set these from" }
+            rows[#rows + 1] = { "a script, so they have to be typed in once." }
+        end
+        U.help("ANSI palette", rows)
 
     elseif verb == "gaglog" then
         local v = U.trim(rest):lower()
