@@ -875,10 +875,19 @@ local function id_store()
     r.last_id = os.time()
     r.synced = 0
     local found = db:fetch(T.item_stats, db:eq(T.item_stats.item, r.item))
+    local ok, why
     if found and found[1] then
-        U.dbupdate(T.item_stats, found[1], r)
+        ok = U.dbupdate(T.item_stats, found[1], r) ~= false
     else
-        db:add(T.item_stats, r)
+        -- db:add returns nil plus a message when a unique index rejects the row;
+        -- it does not raise. This reported "stats stored" either way, which is
+        -- how three portals could be announced as saved and not be in the table.
+        ok, why = db:add(T.item_stats, r)
+    end
+    if not ok then
+        U.err("Loot Tracker: couldn't store '" .. tostring(r.item) .. "'"
+            .. (why and (" - " .. tostring(why)) or " - the database rejected the row."))
+        return
     end
     if CFG.idnote then
         U.ok("Loot Tracker: stats stored for " .. r.item)

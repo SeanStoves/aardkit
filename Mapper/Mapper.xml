@@ -712,6 +712,54 @@ function M.roomflag(which, rest)
     end
 end
 
+-- Portal items you own, if the Loot Tracker happens to be installed.
+--
+-- Nothing here requires it. Aardwolf's id box gives 'Type: Portal' and a
+-- 'Leads to:' naming the destination AREA, and the Loot Tracker already parses
+-- and keeps that - so if it's there, this can tell you which portals you own
+-- and which you haven't recorded yet. If it isn't, you add them by hand with
+-- 'mapper portal &lt;command&gt;' exactly as before and nothing is missing.
+--
+-- An area name isn't a room, so this deliberately doesn't guess a destination.
+-- It lists what you have and leaves the recording to the one thing that knows
+-- for certain: you, standing where the portal dropped you.
+function M.portals_learn()
+    local LT = aardkit.loot
+    if not (LT and LT.t and LT.t.item_stats) then
+        U.note("No Loot Tracker installed, so there's nothing to read portal items from."
+            .. "  'mapper portal &lt;command&gt;' records one by hand.")
+        return
+    end
+    local ok, rows = pcall(db.fetch, db, LT.t.item_stats, db:eq(LT.t.item_stats.type, "Portal"))
+    if not ok or type(rows) ~= "table" or #rows == 0 then
+        U.note("No portal items in the loot database yet - 'id &lt;portal&gt;' while holding one.")
+        return
+    end
+    local known = {}
+    for _, p in ipairs(CFG.portals) do known[p.cmd:lower()] = true end
+
+    local out = {}
+    for _, r in ipairs(rows) do
+        local dest = U.trim(tostring(r.leads_to or ""))
+        local kw   = U.trim(tostring(r.keywords or "")):match("^(%S+)") or ""
+        local cmd  = kw ~= "" and ("enter " .. kw) or nil
+        out[#out + 1] = {
+            item = r.item, dest = dest ~= "" and dest or "?",
+            cmd = cmd, have = cmd and known[cmd:lower()] or false,
+        }
+    end
+    table.sort(out, function(a, b) return (a.dest or "") &lt; (b.dest or "") end)
+
+    local rowsout = {}
+    for _, e in ipairs(out) do
+        rowsout[#rowsout + 1] = { e.item,
+            e.dest .. (e.have and "   &lt;#3ad07a&gt;recorded&lt;r&gt;" or "   " .. (e.cmd or "no keyword")) }
+    end
+    U.help(#out .. " portal item(s) you've identified", rowsout)
+    U.note("Stand where one drops you and 'mapper portal &lt;command&gt;' to record the room."
+        .. "  The id box only names the area, which isn't a room.")
+end
+
 -- Which recorded portal, if any, gets us within reach of `dest`. Returns the
 -- portal and how many steps remain after it lands.
 --
@@ -883,7 +931,8 @@ function M.cmd(arg)
         U.note("Mudlet keeps one map per profile: " .. getMudletHomeDir() .. "/map"
             .. "   'mapper backup &lt;path&gt;' writes a copy.")
 
-    elseif verb == "portals" then M.portals(rest)
+    elseif verb == "portals" then
+        if U.trim(rest):lower() == "learn" then M.portals_learn() else M.portals(rest) end
     elseif verb == "portal" then M.portal(rest)
     elseif verb == "portalrecall" then M.portalrecall(rest)
     elseif verb == "portallevel" then
@@ -920,6 +969,7 @@ function M.help(which)
     elseif which == "portals" then
         U.help("mapper - portals", {
             { "mapper portals [here|&lt;area&gt;]", "list them" },
+            { "mapper portals learn",      "portal items you own, if Loot Tracker is installed" },
             { "mapper portal &lt;command&gt;",   "record it - stand where it drops you" },
             { "mapper portalrecall &lt;#&gt;",   "flag it as using a recall" },
             { "mapper portallevel &lt;#&gt; &lt;n&gt;", "level lock, 0 for none" },

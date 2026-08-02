@@ -47,6 +47,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper shownotes\|quicklist\|compact\|updown` | display toggles |
 | `mapper database` | where the map lives |
 | `mapper portals [here\|<area>]` | hand-held portals you have recorded |
+| `mapper portals learn` | portal items you own, read from Loot Tracker if it is installed |
 | `mapper portal <command>` | record one — stand where it drops you |
 | `mapper portalrecall <#>` | flag it as using a recall |
 | `mapper portallevel <#> <n>` | level lock, 0 for none |
