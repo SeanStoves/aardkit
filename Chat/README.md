@@ -26,10 +26,17 @@ that every module here builds on. Without it nothing else loads.
 | `chat clear [tab]` | empty one, or the one you're looking at |
 | `chat mark on\|off` | colour a tab that has something new |
 | `chat show\|hide\|dock\|embed` | where the window lives |
+| `chat standalone on\|off` | stop the stock module's own chat tabs |
 
 Each has its own `help` with the full list.
 
 ## Worth knowing
+
+**Installing this takes the channels over.** If the stock AardwolfMudlet module is
+present, its `onChannel` script is switched off and its eight tabs come out of the frame —
+two sets of chat tabs is worse than either. It is a switch, not a one-way door:
+`chat standalone off` hands them straight back, and nothing of theirs is deleted, only
+disabled. If that module isn't installed there is nothing to stand down.
 
 Each tab is its own console, so Mudlet owns the scrollback and the colours per tab and
 switching is a show and a hide rather than a repaint.

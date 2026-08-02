@@ -74,6 +74,13 @@ local CFG = U.load("chat", {
     -- module blinks; a steady colour says the same thing without moving.
     mark    = true,
     fontSize = 9,
+    -- ON, like the mapper's. Installing this takes the channels over: the stock
+    -- module's onChannel stands down and its eight tabs come out of the frame,
+    -- because two sets of chat tabs is worse than either.
+    --
+    -- A switch, not a one-way door: 'chat standalone off' gives them back.
+    -- Nothing of theirs is deleted, only disabled.
+    standalone = true,
 })
 
 local function save() U.save("chat", CFG) end
@@ -104,6 +111,16 @@ local PRIVATE = {
 }
 
 local TABH = 18          -- tab strip height
+
+-- Theirs. Same eight names as ours, which is no accident - we route the same
+-- channels the same way - but they're their windows in their frame, added by
+-- guiLoad with addWindow(All,"All","bottomright"). Removing them from the frame
+-- hides them; the objects stay alive because they aren't ours to destroy, and a
+-- reinstall of theirs just gets removed again next load.
+local THEIRS = {
+    { "onChannel", "script", "routes comm.channel into its own eight tabs",
+                             "this module, from the same GMCP and the same routing" },
+}
 
 -- Declared before anything that reads them. A table read by a function defined
 -- above it binds a nil global instead, which this project has paid for eight
@@ -186,6 +203,8 @@ function CH.layout()
 end
 
 function CH.paint()
+
+for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
     if not panel.container then return end
     local gen = panel.gen or 1
 
@@ -308,6 +327,7 @@ function CH.cmd(arg)
             { "chat clear [tab]",  "empty one, or the one you're looking at" },
             { "chat mark on|off",  "colour a tab that has something new" },
             { "chat show|hide|dock|embed", "where the window lives" },
+            { "chat standalone on|off", "stop the stock module's own tabs" },
             { "" },
             { "Nothing is gagged - the MUD's own lines stay in the main window." },
             { "These are copies, routed the same way the stock module routes them." },
@@ -316,6 +336,45 @@ function CH.cmd(arg)
     elseif verb == "on" or verb == "off" then
         CFG.on = (verb == "on"); save()
         U.ok("Chat collection " .. verb .. ".")
+
+    elseif verb == "standalone" then
+        local v = U.trim(rest):lower()
+        if v ~= "on" and v ~= "off" then
+            local rows = { { "state", CFG.standalone and "on - ours has the channels"
+                                      or "off - theirs is running too" } }
+            if not aard then
+                rows[#rows + 1] = { "installed", "no stock module - nothing to stand down" }
+            end
+            rows[#rows + 1] = { "" }
+            for _, t in ipairs(THEIRS) do
+                rows[#rows + 1] = { t[1] .. "  (" .. t[2] .. ")", t[3] }
+                rows[#rows + 1] = { "", "-&gt; " .. t[4] }
+            end
+            rows[#rows + 1] = { "", "-&gt; and its eight tabs come out of the frame" }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "chat standalone on|off", "switch it" }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "Nothing of theirs is deleted, only disabled." }
+            U.help("Standalone chat", rows)
+            return
+        end
+        CFG.standalone = (v == "on"); save()
+        if not aard then
+            U.note("The stock module isn't installed - ours already has the channels.")
+            return
+        end
+        for _, t in ipairs(THEIRS) do
+            aardkit.stock.cmd((v == "on" and "off " or "on ") .. t[1])
+        end
+        if v == "on" then
+            stood_down, unframed = false, false
+            stand_down()
+            U.ok("Stock chat off - ours has the channels.")
+        else
+            CH.reframe_theirs()
+            stood_down, unframed = false, false
+            U.ok("Stock chat back in its frame. Reload to be sure it's routing again.")
+        end
 
     elseif verb == "mark" then
         CFG.mark = U.trim(rest):lower() ~= "off"; save()
@@ -340,6 +399,51 @@ function CH.cmd(arg)
 
     else
         U.warn("chat &lt;tab&gt; | on | off | clear | mark | show|hide|dock|embed   ('chat help')")
+    end
+end
+
+---
+-- standing theirs down
+--
+-- guiLoad builds its tabs on a timer after this script has run, so a single
+-- attempt at load is too early. It retries, and only says anything the first
+-- time it works.
+---
+
+function CH.unframe_theirs()
+    if not (GUIframe and GUIframe.removeWindow and GUIframe.initialized) then return false end
+    local gone = false
+    for _, name in ipairs(TABS) do
+        if pcall(GUIframe.removeWindow, name, "bottomright") then gone = true end
+    end
+    return gone
+end
+
+function CH.reframe_theirs()
+    if not (GUIframe and GUIframe.addWindow and GUIframe.initialized) then return false end
+    local back = false
+    for _, name in ipairs(TABS) do
+        local w = _G[name]
+        if type(w) == "table" then
+            if pcall(GUIframe.addWindow, w, name, "bottomright") then back = true end
+            pcall(function() w:show() end)
+        end
+    end
+    return back
+end
+
+local stood_down, unframed = false, false
+
+local function stand_down()
+    if not CFG.standalone or not aard then return end
+    if not stood_down then
+        for _, t in ipairs(THEIRS) do aardkit.stock.cmd("off " .. t[1]) end
+        stood_down = true
+    end
+    if not unframed and CH.unframe_theirs() then
+        unframed = true
+        U.note("Stock chat tabs taken out of the frame - two sets of tabs is worse"
+            .. " than either. 'chat standalone off' hands them back.")
     end
 end
 
