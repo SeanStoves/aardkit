@@ -125,7 +125,7 @@ local THEIRS = {
 -- Declared before anything that reads them. A table read by a function defined
 -- above it binds a nil global instead, which this project has paid for eight
 -- times over.
-local cons, tabs, unread = {}, {}, {}
+local cons, tabs, unread, back = {}, {}, {}, nil
 
 ---
 -- the panel
@@ -134,13 +134,18 @@ local cons, tabs, unread = {}, {}, {}
 local panel = aardkit.panel.new({
     name        = "chat",
     title       = "Chat",
-    x           = "10px",
-    y           = "470px",
-    width       = 520,
+    -- Bottom right, which is where the stock module put its tabs - so somebody
+    -- coming across finds chat where their eye already goes. Dead centre of the
+    -- screen, over the room descriptions, is where it started and that was
+    -- wrong. Drag it anywhere; it remembers, like every panel here, and
+    -- 'chat dock' pops it into a window of its own.
+    x           = "1050px",
+    y           = "530px",
+    width       = 560,
     height      = 240,
     consoleless = true,      -- eight of our own, one per tab
     onbuild     = function()
-        cons, tabs = {}, {}
+        cons, tabs, back = {}, {}, nil
         if aardkit.chat and aardkit.chat.paint then aardkit.chat.paint() end
     end,
     onresize    = function()
@@ -175,13 +180,26 @@ function CH.restyle()
     end
 end
 
+-- A container built this instant reports no size yet, and laying out against
+-- zero leaves eight consoles ten pixels wide - which looks exactly like an
+-- empty window you can see the game through, because that is what it is.
+-- So a layout that finds nothing to measure asks again shortly.
+local relayout = 0
+
 function CH.layout()
     if not panel.container then return end
     local w = U.px(panel.container.get_width and panel.container:get_width()
                    or panel.container.width)
     local h = U.px(panel.container.get_height and panel.container:get_height()
                    or panel.container.height)
-    if w &lt; 40 or h &lt; 40 then return end
+    if w &lt; 40 or h &lt; 40 then
+        if relayout &lt; 8 then
+            relayout = relayout + 1
+            tempTimer(0.5, function() CH.layout() end)
+        end
+        return
+    end
+    relayout = 0
 
     local each = math.floor(w / #TABS)
     for i, name in ipairs(TABS) do
@@ -200,6 +218,11 @@ function CH.layout()
             pcall(function() c:resize(w, h - TABH) end)
         end
     end
+    if back then
+        pcall(function() back:move(0, 0) end)
+        pcall(function() back:resize(w, h) end)
+        pcall(function() back:lower() end)
+    end
 end
 
 function CH.paint()
@@ -207,6 +230,23 @@ function CH.paint()
 for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
     if not panel.container then return end
     local gen = panel.gen or 1
+
+    if not back then
+        local ok, b = pcall(function()
+            return Geyser.Label:new({
+                name = "aardkit_chat_bg_" .. gen,
+                x = 0, y = 0, width = "100%", height = "100%",
+            }, panel.container)
+        end)
+        if ok and b then
+            back = b
+            -- solid, and behind everything: the container's own background is
+            -- painted on the frame rather than the inside, so without this the
+            -- main window shows through the gaps
+            pcall(function() b:setStyleSheet("background-color: #0d1117;") end)
+            pcall(function() b:lower() end)
+        end
+    end
 
     for i, name in ipairs(TABS) do
         if not tabs[name] then
