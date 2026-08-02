@@ -1208,6 +1208,118 @@ end
 local pending_of  = LT.pending_of
 local pending_all = LT.pending_all
 
+---
+-- clear-time backups
+--
+-- 'loot clear' used to wipe a table with no confirmation and nothing kept, and
+-- that cost 247 rows: cleared, re-pulled from the pool, and the pool only ever
+-- had what the (then broken) uploader had managed to send. 155 id'd stat blocks
+-- went with it and only 82 came back, out of SQLite's free pages, by hand.
+--
+-- So a clear writes the table out first. Same JSON shape as 'loot export', so
+-- merge_dump reads it back with no second format to keep in step, and restored
+-- rows land unsynced - after that loss the point is to get them to the pool.
+--
+-- These live in the profile alongside everything else and are yours to delete.
+-- Five per table is enough to undo a mistake and not enough to be a filing
+-- system: the last one is nearly always the one you want.
+---
+
+local BAK_KEEP = 5
+
+local function bak_name(name)
+    return "lootbak-" .. name .. "-" .. os.date("%Y%m%d-%H%M%S") .. ".json"
+end
+
+-- newest first
+local function bak_list(name)
+    local out = {}
+    local pat = "^lootbak%-" .. (name and (name .. "%-") or "(.-)%-") .. "(%d+%-%d+)%.json$"
+    local ok, iter = pcall(lfs.dir, U.datadir())
+    if not ok then return out end
+    for f in iter do
+        if type(f) == "string" and f:match("^lootbak%-") and f:match("%.json$") then
+            local who, stamp = f:match("^lootbak%-(.-)%-(%d+%-%d+)%.json$")
+            if who and (not name or who == name) then
+                out[#out + 1] = { file = f, table = who, stamp = stamp }
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.stamp &gt; b.stamp end)
+    return out
+end
+
+local function bak_prune(name)
+    local all = bak_list(name)
+    for i = BAK_KEEP + 1, #all do
+        os.remove(U.datafile(all[i].file))
+    end
+end
+
+-- Returns the filename, or nil and why. The caller decides whether a failure
+-- stops the clear - and it does, because a clear you can't undo is the thing
+-- this exists to prevent.
+local function bak_write(name)
+    local rows = db:fetch(T[name]) or {}
+    if #rows == 0 then return nil, "nothing in it" end
+    local arr = {}
+    for _, r in ipairs(rows) do
+        local o = {}
+        for k, v in pairs(r) do
+            if k ~= "_row_id" and k ~= "synced" then o[k] = v end
+        end
+        arr[#arr + 1] = o
+    end
+    local okj, body = pcall(yajl.to_string, { [name] = arr })
+    if not okj then return nil, "couldn't encode it (" .. tostring(body) .. ")" end
+    local fn = bak_name(name)
+    local f, why = io.open(U.datafile(fn), "w")
+    if not f then return nil, tostring(why) end
+    f:write(body)
+    f:close()
+    bak_prune(name)
+    return fn, #rows
+end
+
+local function do_restore(rest)
+    rest = U.trim(rest):lower()
+    local map = { loot = "loot", shop = "shop_stock", gathered = "gathered", stats = "item_stats" }
+
+    if rest == "" then
+        local all = bak_list(nil)
+        if #all == 0 then
+            U.note("No clear-time backups. One is written every time you 'loot clear'.")
+            return
+        end
+        local rows = {}
+        for _, b in ipairs(all) do
+            local d, t = b.stamp:match("^(%d+)%-(%d+)$")
+            rows[#rows + 1] = { b.table, d:sub(1,4) .. "-" .. d:sub(5,6) .. "-" .. d:sub(7,8)
+                .. " " .. t:sub(1,2) .. ":" .. t:sub(3,4) }
+        end
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "loot restore &lt;loot|shop|gathered|stats&gt;", "put the newest one back" }
+        U.help("Clear-time backups (newest first)", rows)
+        return
+    end
+
+    local name = map[rest]
+    if not name then U.warn("Usage: loot restore &lt;loot|shop|gathered|stats&gt;"); return end
+    local all = bak_list(name)
+    if #all == 0 then U.warn("No backup of the " .. rest .. " table."); return end
+
+    local f = io.open(U.datafile(all[1].file), "r")
+    if not f then U.err("Loot Tracker: can't read " .. all[1].file); return end
+    local text = f:read("*a")
+    f:close()
+    -- not from_pool: these are yours, and after losing a batch of them the
+    -- whole point is that the next upload finally puts them somewhere safe
+    local added, seen = merge_dump(text, false)
+    U.ok("Loot Tracker: restored " .. added .. " row(s) into " .. name
+        .. " (" .. seen .. " in the backup; anything already there was left alone).")
+    if added &gt; 0 then U.note("'loot upload' will push them to the pool.") end
+end
+
 local function do_export(fn)
     fn = U.trim(fn)
     if fn == "" then fn = "aardkit-loot-share.json" end
@@ -1375,15 +1487,30 @@ function LT.cmd(arg)
             U.ok("Loot Tracker: all rows marked unsynced - 'loot upload' will re-send everything.")
         end
 
+    elseif verb == "restore" then do_restore(rest)
+
     elseif verb == "clear" then
         local what = U.trim(rest):lower()
         local map = { loot = T.loot, shop = T.shop_stock, gathered = T.gathered, stats = T.item_stats }
         if map[what] then
+            local name = ({ loot = "loot", shop = "shop_stock",
+                            gathered = "gathered", stats = "item_stats" })[what]
+            local fn, n = bak_write(name)
+            if not fn and n ~= "nothing in it" then
+                -- No backup, no clear. The whole reason this is here.
+                U.err("Loot Tracker: couldn't back up " .. name .. " (" .. tostring(n) .. ") - not clearing.")
+                return
+            end
             -- Not db:gt(sheet._row_id, -1): there is no field object for
             -- _row_id, and asking for one raises rather than returning nil.
             -- db:delete takes a raw WHERE, which is how you say "all of them".
             db:delete(map[what], "1=1")
-            U.ok(what .. " table cleared.")
+            if fn then
+                U.ok(what .. " table cleared - " .. n .. " row(s) saved to " .. fn .. ".")
+                U.note("'loot restore " .. what .. "' puts them back.")
+            else
+                U.ok(what .. " table cleared (it was already empty).")
+            end
         else
             U.warn("Type 'loot clear loot|shop|gathered|stats'.")
         end
@@ -1410,7 +1537,8 @@ function LT.cmd(arg)
             { "loot export [file]",   "dump the DB to a file to share" },
             { "loot import &lt;file&gt;",   "merge a shared export" },
             { "loot api | auth | upload | update | resync yes", "" },
-            { "loot clear loot|shop|gathered|stats", "wipe a table" },
+            { "loot clear loot|shop|gathered|stats", "wipe a table (backs it up first)" },
+            { "loot restore [table]", "list clear-time backups, or put one back" },
         })
     end
 end

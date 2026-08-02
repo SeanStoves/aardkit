@@ -40,7 +40,8 @@ that every module here builds on. Without it nothing else loads.
 | `loot export [file]` | dump the DB to a file to share |
 | `loot import <file>` | merge a shared export |
 | `loot api \| auth \| upload \| update \| resync yes` | shared-pool sync commands |
-| `loot clear loot\|shop\|gathered\|stats` | wipe a table |
+| `loot clear loot\|shop\|gathered\|stats` | wipe a table — writes a backup first |
+| `loot restore [table]` | list clear-time backups, or put the newest back |
 
 Each has its own `help` with the full list.
 
