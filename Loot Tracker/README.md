@@ -31,8 +31,8 @@ that every module here builds on. Without it nothing else loads.
 | `loot idnote on\|off` | confirm each stat capture on screen |
 | `loot here <keyword>` | get a room-floor spawn and record it |
 | `loot del <item> [roomid]` | remove matching rows |
-| `inv` | reads invdata instead, so containers are learned by type — rename-proof |
-| `loot inv on\|off` | intercept 'inv', or hand it straight to the MUD |
+| `inv` | the MUD's own inventory, unchanged — invdata runs alongside it, silently, so containers are learned by type |
+| `loot inv on\|off` | send invdata alongside inv to learn containers, or not |
 | `loot bags [add\|del <word>]` | container words ignored for gathers (the fallback) |
 | `loot flags [add\|del <word>]` | bonus-loot flags stripped from names |
 | `loot dedupe` | collapse variant rows already captured |

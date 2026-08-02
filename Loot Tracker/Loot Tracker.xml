@@ -79,26 +79,6 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-				<name>invitem</name>
-				<script>aardkit.loot.on_invitem(matches[2])</script>
-				<triggerType>0</triggerType>
-				<conditonLineDelta>0</conditonLineDelta>
-				<mStayOpen>0</mStayOpen>
-				<mCommand />
-				<packageName />
-				<mFgColor>#ff0000</mFgColor>
-				<mBgColor>#ffff00</mBgColor>
-				<mSoundFile />
-				<colorTriggerFgColor>#000000</colorTriggerFgColor>
-				<colorTriggerBgColor>#000000</colorTriggerBgColor>
-				<regexCodeList>
-					<string>^\{invitem\}(.+)$</string>
-				</regexCodeList>
-				<regexCodePropertyList>
-					<integer>1</integer>
-				</regexCodePropertyList>
-			</Trigger>
-			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>id box start</name>
 				<script>aardkit.loot.on_id_start(matches[2])</script>
 				<triggerType>0</triggerType>
@@ -638,65 +618,71 @@ end
 -- to the MUD untouched.
 ---
 
-local inv_rows, inv_capturing, inv_t = {}, false, nil
+local inv_capturing, inv_t, inv_trig = false, nil, nil
 
 local function inv_stop()
     inv_capturing = false
     if inv_t then pcall(killTimer, inv_t); inv_t = nil end
+    if inv_trig then pcall(killTrigger, inv_trig); inv_trig = nil end
 end
+
+-- Aardwolf paints the short description with its own @-codes:
+--   @M(@YSeekers@M) @YElixir @Dof @MManeuverability@w
+-- my_bags is matched against the plain source text of "You get X from Y", so
+-- the key has to be the plain name. @@ is a literal @ and has to survive.
+local function decode(s)
+    return (tostring(s or "")
+        :gsub("@@", "\1")
+        :gsub("@x%d+", "")
+        :gsub("@%a", "")
+        :gsub("\1", "@"))
+end
+
+LT.decode = decode
 
 function LT.inv()
     if not CFG.inv then
         send("inv", false)
         return
     end
-    inv_rows, inv_capturing = {}, true
+    -- The MUD's own inventory is what you read - we don't reprint it. invdata
+    -- goes out beside it purely so the container types can be learned, and every
+    -- line of that reply is gagged.
+    send("inv", false)
+    inv_capturing = true
     if inv_t then pcall(killTimer, inv_t) end
-    -- if the block never closes, stop eating lines
     inv_t = tempTimer(8, function()
-        if inv_capturing then inv_stop(); U.warn("Loot Tracker: invdata didn't finish - 'loot inv off' to use plain 'inv'.") end
+        if inv_capturing then
+            inv_stop()
+            U.warn("Loot Tracker: invdata didn't finish - 'loot inv off' stops sending it.")
+        end
     end)
     send("invdata", false)
 end
 
+-- The rows between {invdata} and {/invdata} carry no tag of their own - they
+-- are bare CSV - so the capture is a trigger armed for the block rather than a
+-- pattern on the lines themselves.
 function LT.on_invdata_start()
-    if not (CFG.inv and inv_capturing) then return end
-    inv_rows = {}
+    if not CFG.inv then return end
     U.gag()
+    if inv_trig then pcall(killTrigger, inv_trig) end
+    inv_trig = tempRegexTrigger([[^.*$]], function()
+        local line = getCurrentLine() or ""
+        if line:match("^%s*{/invdata}") then
+            U.gag()
+            inv_stop()
+            return
+        end
+        LT.on_invitem(line)
+        U.gag()
+    end)
 end
 
--- Grouped by what you'd actually read: identical short descriptions collapse to
--- one line with a count, the way the MUD's own inventory does it.
 function LT.on_invdata_end()
-    if not (CFG.inv and inv_capturing) then return end
+    if not CFG.inv then return end
     U.gag()
     inv_stop()
-
-    if #inv_rows == 0 then
-        U.note("You are carrying nothing.")
-        return
-    end
-
-    local order, seen = {}, {}
-    for _, r in ipairs(inv_rows) do
-        local k = r.desc
-        if not seen[k] then
-            seen[k] = { desc = r.desc, level = r.level, bag = r.bag, n = 0, serial = r.serial }
-            order[#order + 1] = k
-        end
-        seen[k].n = seen[k].n + 1
-    end
-
-    U.note("You are carrying:")
-    for _, k in ipairs(order) do
-        local e = seen[k]
-        U.out(string.format("\n  &lt;#8a93a8&gt;%-5s&lt;r&gt;&lt;#c8d0dc&gt;%s&lt;r&gt;%s%s",
-            e.n &gt; 1 and ("(" .. e.n .. ")") or "",
-            e.desc,
-            e.level and e.level &gt; 0 and (" &lt;#8a93a8&gt;[" .. e.level .. "]&lt;r&gt;") or "",
-            e.bag and " &lt;#3ad07a&gt;(container)&lt;r&gt;" or ""))
-    end
-    echo("\n")
 end
 
 -- {invitem}serial,flags,desc,level,type,...  type 11 == a container
@@ -709,19 +695,11 @@ function LT.on_invitem(payload)
     for i = 3, n - 5 do d[#d + 1] = parts[i] end   -- desc may itself contain commas
     local desc = U.trim(table.concat(d, ","))
     if desc == "" then return end
+    -- the name arrives painted; everything downstream matches plain text
+    desc = U.trim(decode(desc))
+    if desc == "" then return end
     inv_serial[desc:lower()] = U.trim(parts[1])
-    local isbag = tonumber(parts[n - 3]) == 11
-    if isbag then my_bags[desc:lower()] = true end
-
-    if inv_capturing then
-        inv_rows[#inv_rows + 1] = {
-            serial = U.trim(parts[1]),
-            desc   = desc,
-            level  = tonumber(parts[n - 4]) or 0,
-            bag    = isbag,
-        }
-        U.gag()
-    end
+    if tonumber(parts[n - 3]) == 11 then my_bags[desc:lower()] = true end
 end
 
 ---
@@ -1609,8 +1587,8 @@ function LT.cmd(arg)
         else
             CFG.inv = not CFG.inv; save()
         end
-        U.ok("Loot Tracker: 'inv' " .. (CFG.inv and "reads invdata, so containers are learned by type."
-            or "goes straight to the MUD - containers fall back to the word list."))
+        U.ok("Loot Tracker: 'inv' " .. (CFG.inv and "also sends invdata, quietly, so containers are learned by type."
+            or "is just 'inv' - containers fall back to the word list."))
 
     elseif verb == "dedupe" then
         local renamed, merged = dedupe_variants()
@@ -1688,7 +1666,7 @@ function LT.cmd(arg)
             { "loot idnote on|off",   "confirm each stat capture on screen" },
             { "loot here &lt;keyword&gt;",  "get a room-floor spawn and record it" },
             { "loot del &lt;item&gt; [roomid]", "remove matching rows" },
-            { "loot inv on|off",   "read 'inv' as invdata so containers are learned" },
+            { "loot inv on|off",   "send invdata beside 'inv' to learn containers" },
             { "loot bags [add|del &lt;word&gt;]", "container words ignored for gathers" },
             { "loot flags [add|del &lt;word&gt;]", "bonus-loot flags stripped from names" },
             { "loot dedupe",          "collapse variant rows already captured" },
