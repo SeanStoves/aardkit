@@ -1334,11 +1334,9 @@ local function save() U.save("spellauto", AC) end
 local lastfire = 0
 local backoff  = 0
 
-local function fighting()
-    local s = gmcp and gmcp.char and gmcp.char.status
-    local e = s and s.enemy
-    return e ~= nil and e ~= "" and e ~= "none"
-end
+-- core's now. This one was right - it handled "" and "none" - but it only read
+-- the enemy name, and there are three signals. One definition, no drift.
+local fighting = U.fighting
 
 -- how many spellups that are actually ours to recast are currently down
 function SP.downcount()

@@ -22,6 +22,8 @@ that every module here builds on. Without it nothing else loads.
 |---|---|
 | `snd` | toggle the target panel |
 | `snd cp \| quest \| gq` | ask the MUD for that target list |
+| `(panel) quest tab` | time left on the quest, and time until the next one |
+| `snd quest raw` | what gmcp.comm.quest actually sent |
 | `snd go <n>` | speedwalk to target n |
 | `(panel) click a target` | selects it; the buttons below act on it |
 | `snd next` | walk to the first target listed |

@@ -140,7 +140,7 @@
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>quest granted</name>
-				<script>aardkit.snd.on_quest_granted()</script>
+				<script>aardkit.snd.on_quest_granted(); aardkit.snd.on_quest_time(matches[2])</script>
 				<triggerType>0</triggerType>
 				<conditonLineDelta>0</conditonLineDelta>
 				<mStayOpen>0</mStayOpen>
@@ -152,7 +152,7 @@
 				<colorTriggerFgColor>#000000</colorTriggerFgColor>
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
-					<string>tells you 'You have \d+ minutes to complete your quest\.'</string>
+					<string>tells you 'You have (\d+) minutes to complete your quest\.'</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -378,6 +378,26 @@
 					<integer>1</integer>
 				</regexCodePropertyList>
 			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>quest wait clear</name>
+				<script>aardkit.snd.on_quest_ready()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^You do not have to wait to go on another quest\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
 		</TriggerGroup>
 	</TriggerPackage>
 	<TimerPackage />
@@ -570,7 +590,10 @@ function SD.where(term, quiet)
     term = U.trim(term)
     if term == "" then U.warn("Usage: mobwhere &lt;keyword&gt;"); return end
 
-    local rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. term .. "%"))
+    -- Search without the article. The table holds whatever the MUD printed, so
+    -- 'a kobold guard' and 'kobold guard' both live in there depending on where
+    -- we learned it - dropping the article matches both, keeping it matches one.
+    local rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. U.strip_art(term) .. "%"))
     if not rows or #rows == 0 then
         if not quiet then
             U.note("Nothing matching '" .. term .. "' on record. The database only knows mobs"
@@ -704,7 +727,35 @@ function SD.cmd(arg)
         SD.kind = "campaign"; SD.refresh("campaign"); SD.panel:show()
 
     elseif verb == "quest" or verb == "q" then
+        -- 'snd quest raw' exists to settle one question: comm.quest.timer's
+        -- unit. The stock module leaves that branch empty so nothing documents
+        -- it, and quest.lua is guessing from the value's size. Paste what this
+        -- prints while you're on a quest and the guess can come out.
+        if U.trim(rest):lower() == "raw" then
+            local q = gmcp and gmcp.comm and gmcp.comm.quest
+            if type(q) ~= "table" then
+                U.note("Nothing from gmcp.comm.quest yet this session.")
+            else
+                local rows = {}
+                for k, v in pairs(q) do rows[#rows + 1] = { k, tostring(v) } end
+                table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
+                U.help("gmcp.comm.quest", rows)
+            end
+            -- gmcp.comm.quest is the last message, not a live reading, so the
+            -- age matters: 'wait 16' beside 'next in 5m' is eleven minutes of
+            -- playing, not a disagreement.
+            local age = SD.quest_heard()
+            if age then
+                U.note("That message landed " .. (age &lt; 60 and (age .. "s")
+                    or (math.floor(age / 60) .. "m " .. (age % 60) .. "s")) .. " ago.")
+            end
+            local a, b = SD.quest_status()
+            U.note("Reading it as: " .. a .. ", " .. b)
+            return
+        end
         SD.kind = "quest"; SD.refresh("quest"); SD.panel:show()
+        local a, b = SD.quest_status()
+        U.note("Quest: " .. a .. ", " .. b)
 
     elseif verb == "gq" or verb == "gquest" then
         SD.kind = "gquest"; SD.refresh("gquest"); SD.panel:show()
@@ -759,6 +810,7 @@ function SD.cmd(arg)
         U.help("Search &amp; Destroy data", {
             { "snd",              "show/hide the target panel" },
             { "snd cp | quest | gq", "read your targets and show them" },
+            { "snd quest raw", "what gmcp.comm.quest actually sent" },
             { "snd go &lt;n&gt;",       "walk to target n" },
             { "snd next",         "walk to the first one still owed" },
             { "ah &lt;mob&gt;",         "auto-hunt: follow the MUD's hunt skill to it" },
@@ -871,8 +923,7 @@ function SD.locate(name)
     -- .name, so this errored on every call and mob lookup never worked at all.
     local rows = T.mobs and db:fetch(T.mobs, db:like(T.mobs.mob, n)) or {}
     if #rows == 0 then
-        local bare = n:gsub("^an? ", ""):gsub("^the ", "")
-        rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. bare .. "%"))
+        rows = db:fetch(T.mobs, db:like(T.mobs.mob, "%" .. U.strip_art(n) .. "%"))
     end
     if #rows == 0 then return nil end
 
@@ -983,7 +1034,7 @@ SD.arm_campaign = cp_start
 local TAIL = { " bent on ", " of ", " in ", " from ", " with ", " on " }
 
 local function huntkey(name)
-    local s = tostring(name or ""):gsub("^[Tt]he%s+", ""):gsub("^[Aa]n?%s+", "")
+    local s = U.strip_art(name)
     for _, sep in ipairs(TAIL) do
         local cut = s:lower():find(sep, 1, true)
         if cut then s = s:sub(1, cut - 1); break end
@@ -1132,6 +1183,7 @@ end
 
 function SD.on_quest_done()
     SD.targets.quest = {}
+    if SD.quest_cleared then SD.quest_cleared() end
     if SD.paint then SD.paint() end
 end
 
@@ -1202,6 +1254,225 @@ function SD.counts(kind)
     end
     return done, #t
 end
+</script>
+				<eventHandlerList />
+			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>snd/quest</name>
+				<packageName />
+				<script>--[[
+    Quest clocks
+    Sean Stoves, 2026-08-01
+
+    Two numbers the quest tab never showed: how long is left on the one you're
+    on, and how long until you're allowed another.
+
+    Both come from GMCP where we can get them, because comm.quest is the only
+    source that arrives on its own - everything else needs you to have typed
+    something. What the stock module does with it:
+
+        if (gmcp.comm.quest.wait) then
+            aard.qtime = gmcp.comm.quest.wait
+            aard.timerQuest = getEpoch() + gmcp.comm.quest.wait*60
+        elseif (gmcp.comm.quest.status == "ready") then
+        elseif (gmcp.comm.quest.action == "start" ...) then
+            if (gmcp.comm.quest.timer) then     --questing
+            elseif (gmcp.comm.quest.time) then  --qtime
+
+    So .wait is minutes (it multiplies by 60) and "ready" means go. The .timer
+    branch is an empty comment, which tells us the field exists and nothing
+    else - see to_secs below for what we do about that.
+
+    GMCP only speaks when the state changes, so storing the number it sends
+    would leave a countdown that never counts. We keep the epoch the clock runs
+    out at and do the subtraction on the way to the screen, which also means a
+    reconnect can't leave stale minutes sitting there looking authoritative.
+
+    The other half is the grant line, which the logs settle:
+
+        Alex, the Taskmaster tells you 'You have 50 minutes to complete your quest.'
+        [*Daily Blessing*] [5324/5324hp 3679/3679mn 4440/4440mv 50qt 418tnl] &gt;
+
+    50 minutes, 50qt on the prompt, three separate grants agreeing (42/42,
+    46/46, 50/50). That line is the one thing here that's certain, so a grant
+    sets the clock outright rather than waiting for GMCP to confirm it.
+
+    Nothing in here sends anything. The MUD tells us or it doesn't, and if it
+    doesn't the panel says so - 'quest time' is yours to type.
+]]
+
+aardkit = aardkit or {}
+aardkit.snd = aardkit.snd or {}
+
+local SD = aardkit.snd
+local U  = aardkit.util
+
+-- epochs, not durations. nil = we haven't been told.
+local deadline      -- current quest runs out
+local ready_at      -- allowed to ask for another
+local heard         -- when comm.quest last said anything
+
+local function now()
+    return (getEpoch and math.floor(getEpoch())) or os.time()
+end
+
+-- .wait is minutes on the stock module's authority. .timer is undocumented
+-- there, and guessing wrong is either a clock running 60x fast or one that
+-- never moves. Aardwolf quests are granted in the 30-60 minute range and the
+-- cap is well under two hours, so anything past that can't be minutes and has
+-- to be seconds. Both readings are safe inside the range the MUD actually
+-- uses; 'snd quest raw' prints what arrived if you ever see it jump.
+local function to_secs(v, unit)
+    local n = tonumber(v)
+    if not n or n &lt;= 0 then return nil end
+    if unit == "min" then return n * 60 end
+    return (n &gt; 180) and n or (n * 60)
+end
+
+---
+-- what we know
+---
+
+-- seconds left on the current quest, or nil
+function SD.quest_left()
+    if not deadline then return nil end
+    local s = deadline - now()
+    if s &lt;= 0 then deadline = nil; return nil end
+    return s
+end
+
+-- seconds until another can be requested. 0 means now, nil means unknown.
+function SD.quest_wait()
+    if not ready_at then return nil end
+    local s = ready_at - now()
+    if s &lt;= 0 then ready_at = 0; return 0 end
+    return s
+end
+
+-- Coarse until it matters. A quest runs the better part of an hour, and knowing
+-- that to the second for fifty of those minutes is just something twitching in
+-- the corner of your eye - the number is only worth reading when it changes
+-- what you do. Five-minute steps until the last five, then by the minute, and
+-- it sits on "1m" through the final minute rather than counting seconds.
+--
+-- Always floors, so it under-reports rather than over: told "45m" with 47 left
+-- you finish early, told "50m" with 47 left you don't finish. The last minute
+-- reads "&lt;1m" for the same reason - a flat "1m" would be the one place the
+-- strip claimed more time than you had.
+local function clip(s)
+    s = math.max(0, math.floor(s or 0))
+    if s &gt;= 300 then
+        local m = math.floor(s / 60)
+        return (m - m % 5) .. "m"
+    end
+    if s &lt; 60 then return "&lt;1m" end
+    return math.floor(s / 60) .. "m"
+end
+
+SD.quest_clip = clip
+
+-- One line for the panel and the same words for the text command, so the two
+-- can't drift into disagreeing about the same two numbers.
+function SD.quest_status()
+    local left, wait = SD.quest_left(), SD.quest_wait()
+    local a = left and (clip(left) .. " left")
+                    or "no quest running"
+    local b
+    if wait == nil then     b = "next: unknown"
+    elseif wait == 0 then   b = "next: ready"
+    else                    b = "next in " .. clip(wait) end
+    return a, b, left, wait
+end
+
+---
+-- being told
+---
+
+-- the grant line, which is minutes and is certain
+function SD.on_quest_time(mins)
+    local s = to_secs(mins, "min")
+    if not s then return end
+    deadline = now() + s
+    if SD.paint then SD.paint() end
+end
+
+function SD.on_quest_ready()
+    ready_at = 0
+    if SD.paint then SD.paint() end
+end
+
+function SD.on_gmcp_quest()
+    local q = gmcp and gmcp.comm and gmcp.comm.quest
+    if type(q) ~= "table" then return end
+    heard = now()
+
+    if q.wait ~= nil then
+        -- the stock module's one documented field
+        local s = to_secs(q.wait, "min")
+        ready_at = s and (now() + s) or 0
+    elseif q.status == "ready" then
+        ready_at = 0
+    end
+
+    if q.timer ~= nil then
+        local s = to_secs(q.timer)
+        if s then deadline = now() + s end
+    end
+
+    -- A quest ending is the MUD saying the current clock is done, whatever it
+    -- said about the next one. Aardwolf's own words for this vary; anything
+    -- that isn't "you are on one" clears it.
+    local act = tostring(q.action or "")
+    if act == "complete" or act == "fail" or act == "expire" or act == "reset" then
+        deadline = nil
+    end
+
+    if SD.paint then SD.paint() end
+end
+
+-- completion and expiry come through targets.lua's existing triggers
+function SD.quest_cleared()
+    deadline = nil
+end
+
+-- A reconnect brings a fresh session and nothing guarantees the old numbers
+-- survive it. Better blank than confidently wrong.
+function SD.quest_reset()
+    deadline, ready_at, heard = nil, nil, nil
+end
+
+-- How long ago comm.quest last spoke. The raw dump needs this: gmcp.comm.quest
+-- holds the last message, not a live reading, so "wait 16" beside "next in 5m"
+-- looks like a contradiction when it's just eleven minutes of playing.
+function SD.quest_heard()
+    if not heard then return nil end
+    return now() - heard
+end
+
+---
+-- the tick
+--
+-- Only the one label, and only while you can see it. Repainting the whole
+-- panel once a second is what made statmon jitter during combat, and there is
+-- nothing here worth paying that for - the rows haven't changed, one clock has.
+---
+
+function SD.quest_tick()
+    if SD.kind ~= "quest" then return end
+    if not (SD.panel and SD.panel.visible and SD.panel:visible()) then return end
+    if SD.paint_clock then SD.paint_clock() end
+end
+
+U.every("sndquest", 1, function()
+    if SD.quest_tick then SD.quest_tick() end
+end)
+
+aardkit.gmcp.watch("sndquest", "comm.quest", "aardkit.snd.on_gmcp_quest", true)
+
+U.killhandler(aardkit_snd_quest_connect)
+aardkit_snd_quest_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    SD.quest_reset()
+end)
 </script>
 				<eventHandlerList />
 			</Script>
@@ -1686,7 +1957,11 @@ function SD.ask_where(mob, cb)
     -- can't collapse to one keyword; just strip the separator itself.
     local sep = getCommandSeparator and getCommandSeparator() or ";"
     if sep ~= "" then mob = (mob or ""):gsub(sep:gsub("(%W)", "%%%1"), " ") end
-    mob = U.trim(mob)
+    -- The article is fatal here: 'where a kobold guard' comes back "There is no
+    -- a kobold guard around here." while 'where kobold guard' finds it in The
+    -- Dungeons. Unlike hunt this keeps every remaining word, because 'where' is
+    -- happy with several ("kul tiras", "dirty old man").
+    mob = U.trim(U.strip_art(mob))
 
     drop_where()
     where_trigs = {}
@@ -1815,6 +2090,7 @@ local U  = aardkit.util
 
 local TAB_H, ROW_H, PAD = 24, 22, 4
 local BTN_H, SEL_H = 22, 18
+local CLK_H = 18
 
 local COL = {
     bg     = "#0d1117",
@@ -1839,6 +2115,7 @@ local SHORT = { quest = "Q", campaign = "CP", gquest = "GQ" }
 -- closes over these locals and not globals of the same name
 local tabs, rows, foot = {}, {}, nil
 local seltxt, btns = nil, {}
+local clock, clocktxt = nil, nil
 
 local panel = aardkit.panel.new({
     name = "snd", title = "Search &amp; Destroy",
@@ -1852,7 +2129,7 @@ local panel = aardkit.panel.new({
     -- pointing at widgets inside the OLD, now-hidden container, and paint()'s
     -- "if not cached, make one" kept right on reusing the orphaned ones.
     onbuild = function()
-        tabs, rows, btns, seltxt = {}, {}, {}, nil
+        tabs, rows, btns, seltxt, clock, clocktxt = {}, {}, {}, nil, nil, nil
         if aardkit.snd.paint then aardkit.snd.paint() end
     end,
 })
@@ -2011,6 +2288,25 @@ local function button(key, label, cb, x, w, y)
     return b
 end
 
+-- The clocks tick because time passed, not because anything changed, so they
+-- repaint on their own rather than dragging the whole panel through paint()
+-- once a second. That is what made statmon jitter mid-fight.
+function SD.paint_clock(force)
+    if not clock then return end
+    local a, b, left, wait = SD.quest_status()
+    -- The strip reads in five-minute steps for most of a quest, so a once-a-
+    -- second tick would spend all but one of those seconds writing the same
+    -- string into Geyser. Do the arithmetic, skip the widget.
+    local txt = a .. "\1" .. b
+    if txt == clocktxt and not force then return end
+    clocktxt = txt
+    clock:echo(string.format(
+        "&lt;span style='color:%s'&gt;&amp;nbsp;%s&lt;/span&gt;"
+        .. "&lt;span style='color:%s'&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;%s&lt;/span&gt;",
+        (left and left &lt;= 300) and COL.accent or (left and COL.text or COL.dim), a,
+        (wait == 0) and COL.done or COL.dim, b))
+end
+
 function SD.paint()
     if not panel.container then return end
     if not panel:visible() then return end   -- hidden panel, skip the Geyser work
@@ -2032,8 +2328,27 @@ function SD.paint()
         l:show()
     end
 
+    -- the quest clocks get their own strip under the tabs, and only on the tab
+    -- they belong to - a campaign has no such thing and the rows want the room
+    local clky = PAD * 2 + TAB_H
+    if SD.kind == "quest" then
+        if not clock then
+            clock = Geyser.Label:new({
+                name = "aardkit_snd_clock" .. (panel.gen or 1),
+                x = 0, y = 0, width = 10, height = CLK_H,
+            }, panel.container)
+        end
+        clock:move(PAD, clky)
+        clock:resize(w - PAD * 2, CLK_H)
+        clock:setStyleSheet(style(COL.row, COL.border))
+        SD.paint_clock(true)
+        clock:show()
+    elseif clock then
+        clock:hide()
+    end
+
     local t = SD.targets[SD.kind] or {}
-    local top  = PAD * 2 + TAB_H
+    local top  = clky + ((SD.kind == "quest") and (CLK_H + PAD) or 0)
     local ph   = U.px(panel.container and (panel.container.get_height
                  and panel.container:get_height() or panel.container.height))
     -- what's left once the tabs, the selection line and the buttons are out. The

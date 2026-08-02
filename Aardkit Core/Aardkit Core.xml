@@ -265,6 +265,17 @@ function U.strip_flags(m)
     return U.trim(s)
 end
 
+-- Aardwolf's own commands take the article literally. 'where a kobold guard'
+-- answers "There is no a kobold guard around here." while 'where kobold guard'
+-- finds it, and the same goes for hunt and for matching against anything we
+-- stored under the name without one. Nothing that feeds a mob name to the MUD
+-- or to a lookup wants the leading article.
+--
+-- 'An?' has to keep the %s+ or it eats the front of "Ancient dragon".
+function U.strip_art(m)
+    return (tostring(m or ""):gsub("^%s*[Tt]he%s+", ""):gsub("^%s*[Aa]n?%s+", ""))
+end
+
 ---
 -- gagging
 --
@@ -599,10 +610,38 @@ function U.charname()
     return c or getProfileName()
 end
 
--- Aardwolf sets char.status.state; 3 = playing
+-- Aardwolf sets char.status.state: 3 is in the game, 8 is in the game and
+-- fighting. This accepted only 3, so "am I playing" answered no for the whole
+-- of every fight. Healme's watcher bailed on its first line on every combat
+-- tick and never drank while anything was hitting you - which is the one time
+-- it's for. Confirmed off a live 'healme raw' mid-fight (state 8, pos
+-- "Fighting", enemy named) and off the stock module, which branches on
+-- state == 8 for in-combat in four separate keybinds.
+--
+-- Anything wanting "in the game and NOT fighting" wants U.fighting() below,
+-- not this. Spellups already had its own check and is unaffected.
 function U.playing()
-    local st = gmcp and gmcp.char and gmcp.char.status and gmcp.char.status.state
-    return tonumber(st) == 3
+    local st = tonumber(gmcp and gmcp.char and gmcp.char.status and gmcp.char.status.state)
+    return st == 3 or st == 8
+end
+
+-- In combat, in the MUD's own words. Three signals because no one of them
+-- holds on its own: state is 8 while fighting, enemy carries the name for as
+-- long as it lasts, and enemypct is the fallback.
+--
+-- enemy arrives as "" and as "none" when there's nobody, and enemypct arrives
+-- as an empty string - so `tonumber(x or 0) &gt; 0` never sees its `or 0` (in Lua
+-- "" is truthy), gets nil out of tonumber, and raises comparing nil to a
+-- number. That's how healme's combat mode failed: silently, inside the gmcp
+-- watcher's pcall, on every tick. One copy here so that only had to be worked
+-- out once.
+function U.fighting()
+    local st = gmcp and gmcp.char and gmcp.char.status
+    if not st then return false end
+    if tonumber(st.state) == 8 then return true end
+    local e = st.enemy
+    if e ~= nil and e ~= "" and e ~= "none" then return true end
+    return (tonumber(tostring(st.enemypct or "")) or 0) &gt; 0
 end
 </script>
 				<eventHandlerList />

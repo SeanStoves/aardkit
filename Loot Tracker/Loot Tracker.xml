@@ -1477,20 +1477,39 @@ end
 -- request plumbing
 ---
 
-local function handle_done(event, url, body)
+-- Mudlet raises sys*HttpDone on success and sys*HttpError on failure - and if
+-- the connection simply hangs, neither. The entry then sits in `pending`
+-- forever, the upload stops between batches, and nothing says so: 'uploading 52
+-- new/changed rows...' and then silence, with no way to tell a stall from a
+-- finished run. Every request carries a timer now, so the worst case is a
+-- message rather than a question.
+local REQ_TIMEOUT = 30
+
+-- Settle a request exactly once, whichever of the three gets here first.
+local function settle(url, how, arg)
     local h = pending[url]
-    if not h then return end
+    if not h then
+        -- Qt echoes back the URL off its own reply object rather than the
+        -- string we handed it, so any normalisation difference would drop the
+        -- callback on the floor. Only one request is ever in flight, so if the
+        -- key misses and there's exactly one waiting, it's that one.
+        local only, n = nil, 0
+        for k in pairs(pending) do only = k; n = n + 1 end
+        if n ~= 1 then return end
+        url, h = only, pending[only]
+    end
     pending[url] = nil
-    h.ok(body)
+    if h.timer then pcall(killTimer, h.timer); h.timer = nil end
+    if how == "ok" then h.ok(arg) else h.fail(arg) end
+end
+
+local function handle_done(event, url, body)
+    settle(url, "ok", body)
 end
 
 local function handle_err(event, a, b)
     -- sysPostHttpError(response, url) / sysGetHttpError(response, url)
-    local url = b or a
-    local h = pending[url]
-    if not h then return end
-    pending[url] = nil
-    h.fail(a)
+    settle(b or a, "fail", a)
 end
 
 if aardkit_loot_http_handlers then
@@ -1503,14 +1522,35 @@ aardkit_loot_http_handlers = {
     registerAnonymousEventHandler("sysGetHttpError",  handle_err),
 }
 
+-- The timer checks identity rather than just the key, or a slow reply that
+-- landed and started the next batch would be timed out by its predecessor's
+-- timer and fail a request that was fine.
+local function arm(url, ok, fail)
+    local h = { ok = ok, fail = fail }
+    pending[url] = h
+    h.timer = tempTimer(REQ_TIMEOUT, function()
+        if pending[url] ~= h then return end
+        pending[url] = nil
+        h.fail("no reply after " .. REQ_TIMEOUT .. "s")
+    end)
+    return h
+end
+
+-- postHTTP raising has to end the request too. Left to itself it would take the
+-- error up through the alias and leave the entry pending with the run stopped.
+local function fire(url, fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok then settle(url, "fail", "couldn't send the request (" .. tostring(err) .. ")") end
+end
+
 local function post(url, body, headers, ok, fail)
-    pending[url] = { ok = ok, fail = fail }
-    postHTTP(body, url, headers)
+    arm(url, ok, fail)
+    fire(url, postHTTP, body, url, headers)
 end
 
 local function get(url, headers, ok, fail)
-    pending[url] = { ok = ok, fail = fail }
-    getHTTP(url, headers)
+    arm(url, ok, fail)
+    fire(url, getHTTP, url, headers)
 end
 
 ---
@@ -1581,8 +1621,13 @@ local function loot_request(method, body, on_ok, retried)
     end
 
     local function fail(err)
-        fail_streak = fail_streak + 1
-        if not retried and key() ~= "" and fail_streak &gt;= REAUTH_AFTER then
+        -- Only the server rejecting us says anything about the key. A hang or a
+        -- send that never left counts for nothing here, or three bad minutes of
+        -- network would throw away a perfectly good key and re-register.
+        local local_problem = tostring(err):match("^no reply after")
+            or tostring(err):match("^couldn't send the request")
+        if not local_problem then fail_streak = fail_streak + 1 end
+        if not local_problem and not retried and key() ~= "" and fail_streak &gt;= REAUTH_AFTER then
             local name = U.charname()
             if not name or name == "" then
                 U.warn("Loot Tracker: request failed and no character name to re-auth with.")
