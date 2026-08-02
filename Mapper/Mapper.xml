@@ -271,7 +271,9 @@ M.areaname = areaname
 -- this is simply the map.
 ---
 
-local mapwin
+local ourmap    -- OURS. Their module has a global of its own called 'mapwin',
+                -- and a local by that name here would shadow it - so anything
+                -- reaching for theirs must go through _G, and this isn't it.
 -- Bumped every time ours is rebuilt. Mudlet keeps a Geyser widget alive under
 -- its name, so remaking one with the same name leaves the old object orphaned
 -- on top of the new one - and this gets remade whenever the stock module's map
@@ -292,7 +294,7 @@ local panel = aardkit.panel.new({
     height      = 420,
     consoleless = true,
     onbuild     = function()
-        mapwin = nil
+        ourmap = nil
         if aardkit.mapper and aardkit.mapper.paint_map then aardkit.mapper.paint_map() end
     end,
     onresize    = function()
@@ -307,7 +309,7 @@ M.panel = panel
 -- when the answer is usually that the container isn't up yet.
 function M.paint_map()
     if not panel.container then return false, "the panel hasn't been built yet" end
-    if not mapwin then
+    if not ourmap then
         -- gen-suffixed like every other widget here: Mudlet keeps the old object
         -- alive across a dock switch and reusing the name orphans it
         local ok, w = pcall(function()
@@ -318,11 +320,11 @@ function M.paint_map()
         end)
         if not ok then return false, tostring(w) end
         if not w then return false, "Geyser.Mapper gave nothing back" end
-        mapwin = w
+        ourmap = w
     end
-    pcall(function() mapwin:resize("100%", "100%") end)
-    pcall(function() mapwin:move(0, 0) end)
-    pcall(function() mapwin:show() end)
+    pcall(function() ourmap:resize("100%", "100%") end)
+    pcall(function() ourmap:move(0, 0) end)
+    pcall(function() ourmap:show() end)
     return true
 end
 
@@ -344,12 +346,12 @@ end
 -- doing so would steal the view to wherever it used to be.
 function M.repaint_map()
     if not panel.container then return false, "the panel hasn't been built yet" end
-    if not mapwin then return M.paint_map() end
+    if not ourmap then return M.paint_map() end
     -- reposition() bails on a hidden widget, so show first
-    pcall(function() mapwin:show() end)
-    pcall(function() mapwin:resize("100%", "100%") end)
-    pcall(function() mapwin:move(0, 0) end)
-    local ok, err = pcall(function() mapwin:reposition() end)
+    pcall(function() ourmap:show() end)
+    pcall(function() ourmap:resize("100%", "100%") end)
+    pcall(function() ourmap:move(0, 0) end)
+    local ok, err = pcall(function() ourmap:reposition() end)
     if not ok then return false, tostring(err) end
     return true
 end
@@ -387,6 +389,29 @@ function M.unframe_theirs()
         end
     end
     return ok or hid
+end
+
+-- The other direction. Whatever this module takes it has to be able to give
+-- back, or 'standalone' is a one-way door with a switch drawn on it.
+function M.reframe_theirs()
+    if not GUIframe then return false end
+    local shown = false
+    for _, name in ipairs({ "mapcontainer", "mapwin", "minimap" }) do
+        local w = _G[name]
+        if type(w) == "table" and w.show then
+            if pcall(function() w:show() end) then shown = true end
+        end
+    end
+    if GUIframe.addWindow and GUIframe.initialized and type(mapcontainer) == "table" then
+        pcall(GUIframe.addWindow, mapcontainer, "Map", "topright")
+    end
+    -- and the map view itself, which is a singleton: theirs has to claim it
+    -- back or it stays wherever ours last put it
+    local theirmap = _G.mapwin
+    if type(theirmap) == "table" and theirmap.reposition then
+        pcall(function() theirmap:reposition() end)
+    end
+    return shown
 end
 
 ---
@@ -1304,7 +1329,7 @@ end
 -- say what it's switching off rather than just doing it.
 local THEIRS = {
     { "onRoom",          "script",  "writes rooms and exits on every move",
-                                    "this module does the same, from the same GMCP" },
+                                    "this module, via their own aard.map.enable flag" },
     { "where",           "trigger", "'Players near you' capture",
                                     "Player Tracker, and 'mapper where &lt;room&gt;' for directions" },
     { "map quest cp gq", "trigger", "campaign and quest target capture",
@@ -1435,14 +1460,23 @@ function M.cmd(arg)
         local v = U.trim(rest):lower()
         if v ~= "on" and v ~= "off" then
             local rows = { { "state", CFG.standalone and "on - ours has the map" or "off - theirs is running too" },
-                           { "writing", M.mapping() and "ours is creating rooms" or (M.why_not_mapping() or "?") },
-                           { "" } }
+                           { "writing", M.mapping() and "ours is creating rooms" or (M.why_not_mapping() or "?") } }
+            if type(aard) == "table" and type(aard.map) == "table" then
+                rows[#rows + 1] = { "their mapper", aard.map.init and "running" or "stood down via aard.map.enable" }
+            end
+            rows[#rows + 1] = { "" }
             for _, t in ipairs(THEIRS) do
                 rows[#rows + 1] = { t[1] .. "  (" .. t[2] .. ")", t[3] }
                 rows[#rows + 1] = { "", "-&gt; " .. t[4] }
             end
             rows[#rows + 1] = { "" }
-            rows[#rows + 1] = { "mapper standalone on|off", "switch it" }
+            rows[#rows + 1] = { "mapper standalone on", "ours maps, theirs stands down" }
+            rows[#rows + 1] = { "mapper standalone off", "theirs maps again, ours stops writing" }
+            rows[#rows + 1] = { "mapper reframe", "just hand their map widget back" }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "Their mapping goes down through their own aard.map.enable, not by" }
+            rows[#rows + 1] = { "disabling their script - so nothing of theirs is touched that they" }
+            rows[#rows + 1] = { "didn't put a switch on. Swap back and forth as often as you like." }
             U.help("Standalone mapping", rows)
             return
         end
@@ -1457,8 +1491,11 @@ function M.cmd(arg)
         end
         CFG.standalone = (v == "on")
         save()
+        local theirs = their_map(v ~= "on")
         for _, t in ipairs(THEIRS) do
-            aardkit.stock.cmd((v == "on" and "off " or "on ") .. t[1])
+            if not (theirs and t[1] == "onRoom") then
+                aardkit.stock.cmd((v == "on" and "off " or "on ") .. t[1])
+            end
         end
         stood_down = (v == "on")
         U.ok(v == "on" and "Stock mapping off - ours has the map to itself."
@@ -1472,9 +1509,11 @@ function M.cmd(arg)
             -- Mudlet draws into the map view that was made last, so leaving ours
             -- up would keep it rather than theirs. Ours goes; theirs comes back
             -- with the reload, because we can't rebuild somebody else's widget.
-            if mapwin then pcall(function() mapwin:hide() end) end
+            if ourmap then pcall(function() ourmap:hide() end) end
             panel:hide()
-            U.note("Ours is down. Reload the profile to get their map drawing again.")
+            unframed = false
+            M.reframe_theirs()
+            U.note("Ours is down and theirs is back in its frame. Reload if anything looks half-done.")
         end
 
     elseif verb == "map" or verb == "panel" then
@@ -1491,6 +1530,17 @@ function M.cmd(arg)
             if GUIframe then
                 U.note("The stock module has a map view too. 'mapper unframe' takes it down, then try again.")
             end
+        end
+
+    elseif verb == "reframe" then
+        if not GUIframe then
+            U.note("The stock module isn't installed - there's nothing to hand back to.")
+        else
+            their_map(true)
+            M.reframe_theirs()
+            unframed, stood_down = false, false
+            U.ok("Their map is back: widget reframed and aard.map.enable set.")
+            U.note("This is display and mapping only - 'mapper standalone off' is the full swap.")
         end
 
     elseif verb == "unframe" then
@@ -1622,6 +1672,7 @@ function M.help(which)
             { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
             { "mapper map",        "the map panel - drag it, resize it, it stays put" },
             { "mapper unframe",    "hide the stock module's embedded map, by hand" },
+            { "mapper reframe",    "give it straight back to them" },
             { "mapper standalone on|off", "stop the stock module writing to the map too" },
             { "mapper show|hide|dock|embed", "where the map panel lives" },
             { "mapper zoom in|out", "map zoom" },
@@ -1647,11 +1698,53 @@ aardkit.gmcp.watch("mapper_room", "room.info", "aardkit.mapper.on_move", true)
 -- retries because their timing is theirs, not ours.
 local unframed, stood_down = false, false
 
+-- Their own switch, which is better than ours.
+--
+-- Their config script has `aard.map.enable`, guiLoad does
+-- `if (aard.map.enable) then aard:init_map() end`, init_map sets
+-- `aard.map.init = true`, and onRoom's second line is
+-- `if not (aard.map.init) then return end`. So the flag is the supported way to
+-- stop their mapper, and it beats disabling the script by name on every count:
+-- it's what their author put there for this, it survives them renaming a script
+-- out from under us, and it can't half-fail the way a name lookup can.
+--
+-- It's also more precise. The guard sits BELOW the line that keeps
+-- aard.map.current_room up to date, so their other pieces that read that go on
+-- working - only the writing stops, which is the only part we're replacing.
+--
+-- `enable` is for their next load, `init` is for right now. Both, so it takes
+-- effect immediately and stays taken.
+local function their_map(on)
+    if type(aard) ~= "table" or type(aard.map) ~= "table" then return false end
+    aard.map.enable = on and true or false
+    if on then
+        -- init_map builds the state tables parseGmcpRoom then reads. Setting
+        -- init true without them would have their mapper raise on the next room
+        -- rather than map it.
+        if type(aard.init_map) == "function" then pcall(aard.init_map, aard)
+        else aard.map.init = false end
+    else
+        aard.map.init = false
+    end
+    return true
+end
+
+M.their_map = their_map
+
 local function stand_down()
     if stood_down or not CFG.standalone then return end
-    if not (aard and U.has("disableScript")) then return end
+    if not aard then return end
+
+    -- their switch first; ours only for the pieces it doesn't cover
+    local theirs = their_map(false)
+    if not (theirs or U.has("disableScript")) then return end
+
     for _, t in ipairs(THEIRS) do
-        aardkit.stock.cmd("off " .. t[1])
+        -- onRoom is handled by the flag above, and disabling the script as well
+        -- would stop the current_room bookkeeping their other pieces still want
+        if not (theirs and t[1] == "onRoom") then
+            aardkit.stock.cmd("off " .. t[1])
+        end
     end
     stood_down = true
     U.note("Stock mapping stood down - two things writing one map is how rooms end up"

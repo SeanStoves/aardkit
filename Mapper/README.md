@@ -59,6 +59,7 @@ that every module here builds on. Without it nothing else loads.
 | `mapper purgeroom \| purgezone <area>` | delete a room or an area |
 | `mapper map` | the Mapper panel — drag it, resize it, dock it, it stays put |
 | `mapper unframe` | hide the stock module's embedded map by hand, if it comes back |
+| `mapper reframe` | give their map widget straight back to them |
 | `mapper standalone on\|off` | stop the stock module writing to the map — costs you its speedwalk, coordrun and 'where' |
 | `mapper show\|hide\|dock\|embed` | where the Mapper panel lives |
 | `mapper zoom in\|out` | map zoom |
@@ -97,9 +98,13 @@ how rooms end up in the wrong place:
 
 | Theirs | What it did | What does it here |
 |---|---|---|
-| `onRoom` (script) | wrote rooms and exits on every move | this module, from the same GMCP |
+| `onRoom` (script) | wrote rooms and exits on every move | this module, via their own `aard.map.enable` |
 | `where` (trigger) | the 'Players near you' capture | Player Tracker, and `mapper where <room>` |
 | `map quest cp gq` (triggers) | campaign and quest target capture | Search and Destroy's own capture and panel |
+
+Their mapper is stood down through **their own switch**, not by disabling their script. Their config sets `aard.map.enable`, `guiLoad` does `if (aard.map.enable) then aard:init_map() end`, and `onRoom`'s second line is `if not (aard.map.init) then return end`. That flag is what their author put there for this, it survives them renaming a script, and it is more precise than a name lookup: the guard sits below the line that keeps `aard.map.current_room` fresh, so their other pieces that read it keep working and only the map writing stops.
+
+Their `aard.gui.enable` is declared and never read — their own comment marks it "currently unused" — so there is no built-in switch for the rest of their GUI. That is what `aardkit stock all off` is for.
 
 **It is a switch, not a one-way door.** `mapper standalone off` hands the map straight back to
 theirs; `mapper standalone on` takes it again; `mapper standalone` on its own lists exactly what
