@@ -2336,12 +2336,20 @@ local M   = aardkit.mapper
 local U   = aardkit.util.named("Mapper")
 local CFG = M.CFG
 
--- The preference keys, straight out of Mudlet's own getConfig list. Room and
--- exit size are deliberately absent, for the reason in the header: their scale
--- isn't discoverable and a wrong guess resizes every map you have.
+-- The preference keys, straight out of Mudlet's own getConfig list.
+--
+-- mapRoomSize is in here now that a live 'mapper style' has said what the scale
+-- actually is: 0.5 by default, so it's the fraction of the cell a room fills.
+-- The MUSHclient mapper draws a room 12 wide with 8 between, which is 12/20 -
+-- 0.6, and that is the whole of the difference.
+--
+-- mapExitSize stays out. It reads 10 against a room size of 0.5, so it is not
+-- the same kind of number at all - a line width in some unit of its own - and
+-- there is nothing in the MUSHclient settings that converts to it.
 local KEYS = {
     "mapRoundRooms", "mapShowRoomBorders", "mapShowGrid",
     "showRoomIdsOnMap", "show3dMapView", "showUpperLowerLevels",
+    "mapRoomSize",
 }
 
 -- Square rooms with a border, no ids painted over them, exits drawn flat.
@@ -2355,6 +2363,7 @@ local AARD = {
     showRoomIdsOnMap     = false,
     show3dMapView        = false,
     showUpperLowerLevels = false,
+    mapRoomSize          = 0.6,
 }
 
 -- The MUSHclient mapper's own colours, read off its settings rather than
@@ -2538,16 +2547,20 @@ end
 -- applying
 ---
 
+-- Records anything not recorded yet, rather than all-or-nothing. A key added to
+-- KEYS after somebody already had a snapshot would never be captured otherwise,
+-- and 'mapper style restore' would quietly not restore it.
 local function snapshot()
-    if CFG.stylewas and next(CFG.stylewas) then return end
     if not U.has("getConfig") then return end
-    local was = {}
+    local was = CFG.stylewas or {}
+    local added = false
     for _, k in ipairs(KEYS) do
-        local ok, v = pcall(getConfig, k)
-        if ok and v ~= nil then was[k] = v end
+        if was[k] == nil then
+            local ok, v = pcall(getConfig, k)
+            if ok and v ~= nil then was[k] = v; added = true end
+        end
     end
-    CFG.stylewas = was
-    M.save()
+    if added then CFG.stylewas = was; M.save() end
 end
 
 local function apply(tbl)

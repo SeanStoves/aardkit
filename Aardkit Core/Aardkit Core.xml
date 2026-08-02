@@ -1840,8 +1840,35 @@ local CFG = U.load("stock", {
     off    = { ["runto rt"] = true },      -- aliases
     trig   = { ["cp check"] = true },      -- triggers
     script = {},                           -- scripts; empty, see below
+    -- The whole module, off. Every package in it - triggers, aliases, scripts,
+    -- keys - is wrapped in one top-level group called 'aard', so four calls
+    -- switch off all of it and four more bring it back. Nothing is deleted.
+    --
+    -- Off by default, and it has to stay that way: their module is where the
+    -- chat tabs, the gauges, the group panel and the numpad bindings come from,
+    -- and none of those have been rebuilt here yet. See 'aardkit stock all'.
+    all    = false,
 })
 CFG.script = CFG.script or {}
+
+-- Their whole module lives under one group name per package.
+local GROUP = "aard"
+local WHOLE = {
+    { "disableTrigger", "enableTrigger", "triggers" },
+    { "disableAlias",   "enableAlias",   "aliases" },
+    { "disableScript",  "enableScript",  "scripts" },
+    { "disableKey",     "enableKey",     "keys" },
+}
+
+-- What you lose with it, said plainly rather than discovered afterwards. Kept
+-- here so the warning can't drift away from the switch it belongs to.
+local COSTS = {
+    "chat tabs - All, Private, Group, Tell, Say, Spouse, Clan, Friend",
+    "the gauges along the bottom",
+    "the group panel",
+    "22 numpad bindings - potions, directions, scan, con all, portal",
+    "vconfig, PlayerNotes, startermap, their GUI frame",
+}
 
 -- why each one is switched off, shown by 'aardkit stock'
 local WHY = {
@@ -1893,6 +1920,14 @@ function S.apply()
         end
     end
 
+    -- the whole module, if that's been asked for. Last, so the named switches
+    -- above still report honestly on their own.
+    if CFG.all then
+        for _, g in ipairs(WHOLE) do
+            if U.has(g[1]) then pcall(_G[g[1]], GROUP) end
+        end
+    end
+
     tries = tries + 1
     if #missing &gt; 0 then
         -- Their package loads on its own schedule, so a fixed handful of retries
@@ -1931,9 +1966,47 @@ function S.cmd(arg)
         end
         table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
         rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "whole module", CFG.all and "DISABLED" or "running" }
+        rows[#rows + 1] = { "" }
         rows[#rows + 1] = { "aardkit stock on &lt;alias&gt;", "let the module's alias run again" }
         rows[#rows + 1] = { "aardkit stock off &lt;alias&gt;", "switch it off again" }
+        rows[#rows + 1] = { "aardkit stock all", "what switching the whole module off costs" }
         U.help("Stock module", rows)
+
+    elseif verb == "all" then
+        local v = rest:lower()
+        if v ~= "on" and v ~= "off" then
+            local rows = { { "whole module", CFG.all and "DISABLED" or "running" }, { "" } }
+            if not aard then
+                rows[#rows + 1] = { "installed", "no - nothing here to switch" }
+            end
+            rows[#rows + 1] = { "What goes with it:" }
+            for _, c in ipairs(COSTS) do rows[#rows + 1] = { "", c } end
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "None of those have been rebuilt here yet. The mapping half has -" }
+            rows[#rows + 1] = { "'mapper standalone' switches only that, and leaves the rest running." }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "aardkit stock all off", "disable every trigger, alias, script and key of theirs" }
+            rows[#rows + 1] = { "aardkit stock all on", "put it back" }
+            rows[#rows + 1] = { "" }
+            rows[#rows + 1] = { "Nothing is deleted either way, and it takes a reload to settle." }
+            U.help("The whole stock module", rows)
+            return
+        end
+        CFG.all = (v == "off")
+        U.save("stock", CFG)
+        for _, g in ipairs(WHOLE) do
+            local fn = CFG.all and g[1] or g[2]
+            if U.has(fn) then pcall(_G[fn], GROUP) end
+        end
+        if CFG.all then
+            U.ok("Stock module disabled - all four packages.")
+            U.warn("Gone with it: " .. table.concat(COSTS, "; ") .. ".")
+            U.note("Their scripts already ran this session, so reload to see it properly."
+                .. "  'aardkit stock all on' puts it back.")
+        else
+            U.ok("Stock module enabled again. Reload to be sure it's all running.")
+        end
 
     elseif verb == "on" and rest ~= "" then
         CFG.off[rest], CFG.trig[rest], CFG.script[rest] = nil, nil, nil
@@ -1955,7 +2028,7 @@ function S.cmd(arg)
         U.ok("Disabled '" .. rest .. "'.")
 
     else
-        U.warn("aardkit stock [list | on &lt;alias&gt; | off &lt;alias&gt;]")
+        U.warn("aardkit stock [list | on &lt;alias&gt; | off &lt;alias&gt; | all on|off]")
     end
 end
 

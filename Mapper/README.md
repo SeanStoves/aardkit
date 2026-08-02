@@ -107,6 +107,8 @@ moves in each direction and which way round you are now. Nothing of theirs is de
 disabled — and if that module isn't installed there is nothing to stand down and this changes
 nothing. Their `tools` script is deliberately left alone: their own init calls it.
 
+If you want the whole of their module gone rather than just its mapping, `aardkit stock all off` disables every trigger, alias, script and key of theirs in one go — they all live under a single group per package, so nothing is deleted and `aardkit stock all on` puts it back. Read `aardkit stock all` first: it lists what goes with it, and the chat tabs, gauges, group panel and numpad bindings have not been rebuilt here yet.
+
 Swapping back costs you what theirs provides and this doesn't: their speedwalk, their coordrun.
 Swapping to ours costs you nothing you haven't been given a replacement for, which is what the
 table above is for.
