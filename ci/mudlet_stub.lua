@@ -277,7 +277,40 @@ db = {
         t[#t + 1] = row
         return row._row_id
     end,
-    fetch = function(self, sheet, where) return db.__data[sheet] or {} end,
+    -- Actually filter. This used to return every row whatever you asked for,
+    -- which meant an upsert's "have I seen this already" always said yes and a
+    -- second distinct mob looked like a duplicate of the first. A stub that
+    -- answers differently from the database is worse than no stub - that is
+    -- exactly how the db:update signature bug survived.
+    fetch = function(self, sheet, where)
+        local rows = db.__data[sheet] or {}
+        if type(where) ~= "table" or not where.op then return rows end
+        local function match(row, q)
+            if q.op == "and" then
+                for _, p in ipairs(q.parts or {}) do if not match(row, p) then return false end end
+                return true
+            elseif q.op == "or" then
+                for _, p in ipairs(q.parts or {}) do if match(row, p) then return true end end
+                return false
+            elseif q.op == "eq" then
+                return tostring(row[q.col]) == tostring(q.v)
+            elseif q.op == "like" then
+                -- SQL's wildcard is % and so is Lua's escape character, so the
+                -- wildcards come out first, everything left gets escaped as a
+                -- literal, and then they go back in as .*
+                local v = tostring(q.v):lower():gsub("%%", "\1")
+                v = v:gsub("[%^%$%(%)%.%[%]%*%+%-%?%%]", "%%%0")
+                v = v:gsub("\1", ".*")
+                return tostring(row[q.col] or ""):lower():find(v) ~= nil
+            elseif q.op == "gt" then return (tonumber(row[q.col]) or 0) > (tonumber(q.v) or 0)
+            elseif q.op == "lt" then return (tonumber(row[q.col]) or 0) < (tonumber(q.v) or 0)
+            end
+            return true
+        end
+        local out = {}
+        for _, r in ipairs(rows) do if match(r, where) then out[#out + 1] = r end end
+        return out
+    end,
 
     -- Hold the real contract, not a permissive one. This used to be
     -- update(self, sheet, fields, where) returning 0, which is why ten call
@@ -299,10 +332,11 @@ db = {
         return 0
     end,
     delete = function(self, sheet, where) return 0 end,
-    eq = function(self, col, v) return { op = "eq" } end,
-    like = function(self, col, v) return { op = "like" } end,
-    gt = function(self, col, v) return { op = "gt" } end,
-    lt = function(self, col, v) return { op = "lt" } end,
-    AND = function(self, ...) return { op = "and" } end,
-    OR = function(self, ...) return { op = "or" } end,
+    -- carry the column and value, so fetch above can honour them
+    eq   = function(self, col, v) return { op = "eq",   col = col and col.__col, v = v } end,
+    like = function(self, col, v) return { op = "like", col = col and col.__col, v = v } end,
+    gt   = function(self, col, v) return { op = "gt",   col = col and col.__col, v = v } end,
+    lt   = function(self, col, v) return { op = "lt",   col = col and col.__col, v = v } end,
+    AND  = function(self, ...) return { op = "and", parts = { ... } } end,
+    OR   = function(self, ...) return { op = "or",  parts = { ... } } end,
 }

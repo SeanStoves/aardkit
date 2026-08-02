@@ -186,8 +186,19 @@ function C.on_line()
     end
     if not name or name == "" then return end
 
+    -- 'con all' names every mob in the room in the same short form the campaign
+    -- and quest lists use - "An ettin berserker", not "An ettin berserker
+    -- charges wantonly around the dug-out encampment". That makes it a much
+    -- better source for S&amp;D's mob table than the room description, which is
+    -- prose and mostly matches nothing.
+    --
+    -- Guarded: this module ships on its own and has to work without S&amp;D.
+    if aardkit.snd and aardkit.snd.on_scan then
+        pcall(aardkit.snd.on_scan, name)
+    end
+
     U.gag()
-    -- leading newline: deleteLine leaves the cursor mid-line, so without it each
+    -- leading newline: U.gag leaves the cursor mid-line, so without it each
     -- mob concatenates onto the last one and the whole block reads as one line
     U.out(string.format("\n&lt;%s&gt;%-9s&lt;r&gt; &lt;#8a93a8&gt;%3s&lt;r&gt;  &lt;#c8d0dc&gt;%s&lt;r&gt;%s",
         colour, label,

@@ -1,6 +1,6 @@
 # Consider
 
-Rewrites what `con all` tells you about the room: verdict first and colour-coded, then the level difference, the name and any flags. No panel — it tidies the lines where they stand.
+Rewrites what `con all` tells you about the room: verdict first and colour-coded, then the level difference, the name and any flags. No panel — it tidies the lines where they stand. If Search and Destroy is installed it also feeds it every mob it names, which is a far better source than the room description.
 
 ## Install
 

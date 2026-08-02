@@ -628,7 +628,11 @@ end
 -- commands
 ---
 
-local scan_on = false
+-- Persisted. It was a bare local, so 'snd scan on' lasted until the next
+-- reload and then quietly went back off - a good part of why the mob table has
+-- only ever held what the migration put in it.
+local SCFG = U.load("sndscan", { on = false })
+local scan_on = SCFG.on
 
 function SD.cmd(arg)
     local verb, rest = U.split_verb(arg)
@@ -696,9 +700,11 @@ function SD.cmd(arg)
         local v = U.trim(rest):lower()
         if v == "on" or v == "off" then
             scan_on = (v == "on")
+            SCFG.on = scan_on
+            U.save("sndscan", SCFG)
             enableTrigger("scan mob line")
             if not scan_on then disableTrigger("scan mob line") end
-            U.ok("S&amp;D: room scanning " .. v .. ".")
+            U.ok("S&amp;D: room scanning " .. v .. " (and it stays that way).")
         else
             U.warn("Usage: snd scan on|off")
         end
@@ -724,6 +730,9 @@ function SD.cmd(arg)
         })
     end
 end
+
+-- the trigger ships disabled, so a saved 'on' has to switch it back on
+if scan_on then tempTimer(1, function() pcall(enableTrigger, "scan mob line") end) end
 
 aardkit.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
 </script>

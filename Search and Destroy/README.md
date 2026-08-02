@@ -34,7 +34,7 @@ that every module here builds on. Without it nothing else loads.
 | `(auto)` | a failed MUD 'where' falls back to the database by itself |
 | `snd area [text]` | area list with level ranges and start rooms |
 | `snd keywords` | read 'area keyword' so runto works for unmapped areas |
-| `snd scan on\|off` | record mobs from room descriptions while moving |
+| `snd scan on\|off` | record mobs from room descriptions while moving (remembered) |
 | `snd rewrite on\|off` | tidy 'cp check' into a clickable list (default on) |
 | `snd dock\|embed\|hide\|show` | panel placement |
 
@@ -47,6 +47,12 @@ mobs!" line, which doesn't name the mob — so it reads back up the buffer for t
 death line that came with it. Regular quests have no such line, so a quest target is
 cleared by re-running `snd quest`. The mob database ships empty: fill it with
 `snd scan on` or a migration.
+
+The mob table learns two ways. `snd scan on` records what room descriptions name as
+you walk, but most Aardwolf mobs have a custom long description - "An ettin berserker
+charges wantonly around the dug-out encampment" - which that can't read. `con all`
+names every mob in the room in the same short form the campaign and quest lists use,
+so with Consider installed that fills the table properly. Use both.
 
 `ah <mob>` walks you room by room off the MUD's hunt skill, opening doors on the way.
 It stops rather than guessing: portals, warded rooms, a locked door with no key, and
