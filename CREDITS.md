@@ -31,7 +31,7 @@ from observed `consider` output instead of ported.
 
 **The Gaardian Map Archives** — <https://maps.gaardian.com/>
 
-Explorer draws in Gaardian's house style on purpose — plain white boxes, black
+MapExporter draws in Gaardian's house style on purpose — plain white boxes, black
 borders, the room name across the top, a bar across a link for a door, and a stub
 with a link marker instead of a line running across the map for a distant exit.
 That visual language is theirs and it is what every Aardwolf player already reads
