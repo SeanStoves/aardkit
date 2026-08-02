@@ -52,6 +52,7 @@ local ANSI = { [0]={0,0,0},{128,0,0},{0,128,0},{128,128,0},{0,0,128},{128,0,128}
   {0,0,255},{255,0,255},{0,255,255},{255,255,255} }
 getAnsiColor = function(i) local c = ANSI[i] or {0,0,0}; return c[1], c[2], c[3] end
 copy = note("copy")
+replace = note("replace")
 appendBuffer = note("appendBuffer")
 getCurrentLine = function() return "" end
 getLineCount = function() return 0 end

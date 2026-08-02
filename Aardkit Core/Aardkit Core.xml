@@ -940,7 +940,17 @@ function P.new(spec)
     p.onresize   = spec.onresize
     p.defmode    = spec.mode or DEFAULT_MODE
 
+    p.transient  = spec.transient
+
     p:_build()
+    -- A transient panel holds one thing at a time and is put up by whatever
+    -- produced it - help files, and anything else that arrives rather than
+    -- accumulates. Restoring it visible at login would show an empty frame, or
+    -- last session's leftovers. Geometry still persists; only visibility is
+    -- forced, and the state is set rather than just the widget hidden, or
+    -- visible() would disagree with what's on screen and toggle would need two
+    -- presses.
+    if p.transient then st(p.name).hidden = true end
     if st(p.name).hidden then p.holder:hide() end
 
     -- Overwriting silently would strand the previous panel's widgets on screen

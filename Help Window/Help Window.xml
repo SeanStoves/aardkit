@@ -139,6 +139,10 @@ local panel = aardkit.panel.new({
     x        = "120px",
     y        = "60px",
     fontSize = 10,
+    -- put up by a help file arriving and by nothing else. Where and how big it
+    -- is still persists - Adjustable.Container saves that itself on exit and
+    -- reloads it by name; it's only whether it's showing that gets forced.
+    transient = true,
 })
 
 HW.panel = panel
@@ -186,6 +190,13 @@ local function arm(kind)
             U.gag()
             stop()
             return
+        end
+        -- Not every tag is a line of its own. {helpkeywords} arrives welded to
+        -- the front of the keywords line, so gagging by line would take the
+        -- text with it - strip the tag off the line and keep the rest.
+        local tag = line:match("^%s*(%b{})")
+        if tag then
+            if pcall(selectString, tag, 1) then pcall(replace, "") end
         end
         panel:capture_line()
         U.gag()
