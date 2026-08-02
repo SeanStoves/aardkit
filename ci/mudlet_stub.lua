@@ -134,6 +134,23 @@ getHTTP = function(url, headers)
 end
 
 -- map api
+getAreaTableSwap = function() return { Midgaard = 1 } end
+getAreaRooms = function() return { 1234 } end
+searchRoom = function() return {} end
+searchRoomUserData = function() return {} end
+getExitStubs = function() return {} end
+getSpecialExits = function() return {} end
+removeSpecialExit = function() return nil end
+clearSpecialExits = function() return nil end
+deleteRoom = function() return nil end
+deleteArea = function() return nil end
+getDoors = function() return {} end
+setDoor = function() return nil end
+getRoomExits = function() return {} end
+getRoomName = function() return "Somewhere" end
+getTime = function() return "20260802-1300" end
+clearRoomUserData = function() return nil end
+getRoomUserData = function() return "" end
 addRoom = note("addRoom")
 addAreaName = function() return 1 end
 setRoomArea = note("setRoomArea")

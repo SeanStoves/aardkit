@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 22 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>mapper</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>mapper</name>
+				<script>aardkit.mapper.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^mapper(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>mapper</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>mapper</name>
+				<packageName />
+				<script>--[[
+    Mapper — the MUSHclient mapper's commands, on Mudlet's map
+    Sean Stoves, 2026-08-02
+
+    Same words, same order, same arguments. Someone moving across shouldn't have
+    to relearn a workflow they already have in their fingers, and "it's the same
+    thing but everything is called something else" is most of why people don't
+    move.
+
+    The commands come from the MUSHclient mapper's own help - six sections,
+    sixty-odd commands - and are reimplemented against Mudlet's map API. No code
+    is taken from it: that plugin is Fiendish's and this is ours, written from
+    the interface it publishes to its users.
+
+    What changes underneath, and why it can't not:
+
+      * There is one map per Mudlet profile, held by the client, not a SQLite
+        file you point at. So 'mapper database' reports the profile's map and
+        'mapper set database' has nothing to set. 'mapper backup' still works -
+        saveMap() writes a copy wherever you like.
+
+      * Notes are room user data, which lives inside the map file. MUSHclient
+        kept them in a column. Same idea, and Mudlet can search them, which is
+        how 'mapper notes' works without a full-text index.
+
+      * Custom exits are Mudlet special exits, which the client's own mapper
+        already draws and already speedwalks through. That's the big win of
+        moving: 'mapper cexit open south;;south' stops being a private thing the
+        plugin knows and becomes an exit the whole client understands.
+
+      * Doors are real here. Mudlet has setDoor(room, dir, open|closed|locked)
+        and draws each differently; MUSHclient had no such notion, which is why
+        every door in your database is a cexit reading "open south;south". Those
+        convert on import, and 'mapper door' marks them by hand.
+
+    Not built yet, and said out loud rather than quietly missing: the fifteen
+    portal commands. They're their own bookkeeping - a portal list with indexes,
+    bounce portals, level locks - and none of it maps onto anything Mudlet
+    already has, so it's a module's worth of work on its own rather than a
+    translation.
+]]
+
+aardkit = aardkit or {}
+aardkit.mapper = aardkit.mapper or {}
+
+local M = aardkit.mapper
+local U = aardkit.util.named("Mapper")
+
+local CFG = U.load("mapper", {
+    shownotes = true,
+    quicklist = false,
+    compact   = false,
+    updown    = true,
+})
+
+local LONG = {
+    n = "north", s = "south", e = "east", w = "west", u = "up", d = "down",
+    ne = "northeast", nw = "northwest", se = "southeast", sw = "southwest",
+}
+local SHORT = {}
+for s, l in pairs(LONG) do SHORT[l] = s end
+
+local function short_dir(cmd)
+    cmd = U.trim(tostring(cmd or "")):lower()
+    if LONG[cmd] then return cmd end
+    if SHORT[cmd] then return SHORT[cmd] end
+    return nil
+end
+
+local function here()
+    local id = getPlayerRoom and getPlayerRoom()
+    if not id or id == -1 then
+        id = U.room()
+    end
+    return id
+end
+
+local function areaname(id)
+    local a = getRoomArea and getRoomArea(id)
+    if not a then return "?" end
+    local ok, t = pcall(getAreaTableSwap)
+    if ok and type(t) == "table" then
+        for name, aid in pairs(t) do if aid == a then return name end end
+    end
+    return tostring(a)
+end
+
+---
+-- notes
+--
+-- Room user data, so they're saved inside the map rather than in a file beside
+-- it, and searchRoomUserData can find them - which is what 'mapper notes' and
+-- 'mapper find' are built on.
+---
+
+local NOTE = "note"
+
+local function get_note(id)
+    if not (id and getRoomUserData) then return nil end
+    local ok, v = pcall(getRoomUserData, id, NOTE)
+    if ok and v and v ~= "" then return v end
+    return nil
+end
+
+function M.addnote(text)
+    local id = here()
+    if not id then U.warn("Mudlet doesn't know which room you're in."); return end
+    text = U.trim(text)
+    if text == "" then
+        local cur = get_note(id)
+        U.note(cur and ("Note on " .. U.rid(id) .. ": " .. cur)
+            or "No note here. 'mapper addnote &lt;text&gt;' to add one.")
+        return
+    end
+    pcall(setRoomUserData, id, NOTE, text)
+    U.ok("Noted on " .. U.rid(id) .. ": " .. text)
+end
+
+function M.delnote()
+    local id = here()
+    if not id then return end
+    if not get_note(id) then U.note("No note here."); return end
+    pcall(clearRoomUserData, id, NOTE)
+    U.ok("Note removed from " .. U.rid(id) .. ".")
+end
+
+---
+-- searching
+---
+
+-- rows -&gt; a numbered, clickable result list you can 'mapper next' through
+local last_results = {}
+
+local function results(title, list)
+    last_results = list
+    if #list == 0 then U.note("Nothing found."); return end
+    U.note(#list .. " result(s) - click one, or 'mapper next' to walk them:")
+    for i, r in ipairs(list) do
+        if i &gt; 30 then U.out("\n  &lt;#8a93a8&gt;... " .. (#list - 30) .. " more&lt;r&gt;"); break end
+        U.out(string.format("\n  &lt;#8a93a8&gt;%2d&lt;r&gt;  &lt;#c8d0dc&gt;%s&lt;r&gt;  &lt;#8a93a8&gt;%s&lt;r&gt;",
+            i, r.name or "?", r.area or ""))
+        if r.note then U.out("\n        &lt;#e0af68&gt;" .. r.note .. "&lt;r&gt;") end
+        U.outLink("  &lt;#3ad07a&gt;[go]&lt;r&gt;", "aardkit.mapper.goto_room(" .. r.id .. ")",
+            "Speedwalk to " .. U.rid(r.id), true)
+    end
+    echo("\n")
+end
+
+local function scope_rooms(scope)
+    scope = U.trim(tostring(scope or "")):lower()
+    if scope == "" then return nil end                 -- everywhere
+    local id = here()
+    if scope == "here" then
+        local a = id and getRoomArea and getRoomArea(id)
+        return a and select(2, pcall(getAreaRooms, a)) or nil
+    end
+    local ok, t = pcall(getAreaTableSwap)
+    if ok and type(t) == "table" then
+        for name, aid in pairs(t) do
+            if name:lower():find(scope, 1, true) then
+                return select(2, pcall(getAreaRooms, aid))
+            end
+        end
+    end
+    return nil
+end
+
+local function in_scope(id, allowed)
+    if not allowed then return true end
+    for _, rid in ipairs(allowed) do if rid == id then return true end end
+    return false
+end
+
+function M.find(text, scope)
+    text = U.trim(text)
+    if text == "" then U.warn("Usage: mapper find &lt;text&gt;"); return end
+    local allowed = scope_rooms(scope)
+    local out, seen = {}, {}
+    local ok, rooms = pcall(searchRoom, text)
+    if ok and type(rooms) == "table" then
+        for rid, name in pairs(rooms) do
+            local id = tonumber(rid) or rid
+            if not seen[id] and in_scope(id, allowed) then
+                seen[id] = true
+                out[#out + 1] = { id = id, name = name, area = areaname(id), note = get_note(id) }
+            end
+        end
+    end
+    -- and anything whose note mentions it, which is the half MUSHclient's
+    -- full-text search had and a plain room-name search doesn't
+    local ok2, hits = pcall(searchRoomUserData, NOTE, text)
+    if ok2 and type(hits) == "table" then
+        for _, rid in pairs(hits) do
+            local id = tonumber(rid)
+            if id and not seen[id] and in_scope(id, allowed) then
+                seen[id] = true
+                out[#out + 1] = { id = id, name = getRoomName and getRoomName(id) or "?",
+                                  area = areaname(id), note = get_note(id) }
+            end
+        end
+    end
+    table.sort(out, function(a, b) return (a.area or "") &lt; (b.area or "") end)
+    results("find", out)
+end
+
+-- rooms carrying a given Aardwolf flag, which the importer stored as 'info'
+local function flagged(want, scope)
+    local allowed = scope_rooms(scope)
+    local out = {}
+    local ok, hits = pcall(searchRoomUserData, "info", want)
+    if ok and type(hits) == "table" then
+        for _, rid in pairs(hits) do
+            local id = tonumber(rid)
+            if id and in_scope(id, allowed) then
+                out[#out + 1] = { id = id, name = getRoomName and getRoomName(id) or "?",
+                                  area = areaname(id), note = get_note(id) }
+            end
+        end
+    end
+    return out
+end
+
+function M.notes(scope)
+    local allowed = scope_rooms(scope)
+    local out = {}
+    local ok, hits = pcall(getAllRoomUserData and function() return nil end or function() return nil end)
+    -- searchRoomUserData with an empty needle isn't defined, so walk the areas
+    local areas = {}
+    local okt, t = pcall(getAreaTableSwap)
+    if okt and type(t) == "table" then for _, aid in pairs(t) do areas[#areas + 1] = aid end end
+    for _, aid in ipairs(areas) do
+        local okr, rooms = pcall(getAreaRooms, aid)
+        if okr and type(rooms) == "table" then
+            for _, id in pairs(rooms) do
+                local n = get_note(id)
+                if n and in_scope(id, allowed) then
+                    out[#out + 1] = { id = id, name = getRoomName and getRoomName(id) or "?",
+                                      area = areaname(id), note = n }
+                end
+            end
+        end
+    end
+    results("notes", out)
+end
+
+function M.goto_room(id)
+    id = tonumber(id)
+    if not id then return end
+    if not (roomExists and roomExists(id)) then U.warn("Room " .. tostring(id) .. " isn't in the map."); return end
+    local from = here()
+    if not from then U.warn("Mudlet doesn't know where you are."); return end
+    if not (getPath and getPath(from, id)) then
+        U.warn("No known path to " .. U.rid(id) .. " from here.")
+        return
+    end
+    U.ok("Walking to " .. U.rid(id) .. " - " .. #speedWalkDir .. " step(s).")
+    doSpeedWalk()
+end
+
+local next_i = 0
+
+function M.next(idx)
+    idx = tonumber(idx)
+    if idx then next_i = idx - 1 end
+    if #last_results == 0 then U.note("No search results to walk."); return end
+    next_i = next_i + 1
+    if next_i &gt; #last_results then next_i = 1 end
+    local r = last_results[next_i]
+    U.note("Result " .. next_i .. " of " .. #last_results .. ": " .. (r.name or "?"))
+    M.goto_room(r.id)
+end
+
+function M.where(id)
+    id = tonumber(U.trim(id))
+    if not id then U.warn("Usage: mapper where &lt;room id&gt;"); return end
+    local from = here()
+    if not (from and getPath and getPath(from, id)) then
+        U.warn("No known path to " .. tostring(id) .. ".")
+        return
+    end
+    U.note(#speedWalkDir .. " step(s) to " .. U.rid(id) .. ":")
+    U.out("\n  &lt;#c8d0dc&gt;" .. table.concat(speedWalkDir, ", ") .. "&lt;r&gt;")
+    U.outLink("  &lt;#3ad07a&gt;[walk it]&lt;r&gt;", "aardkit.mapper.goto_room(" .. id .. ")", "Speedwalk there", true)
+    echo("\n")
+end
+
+---
+-- exploring
+---
+
+function M.thisroom()
+    local id = here()
+    if not id then U.warn("Mudlet doesn't know which room you're in."); return end
+    local rows = {
+        { "id",    U.rid(id) },
+        { "name",  getRoomName and getRoomName(id) or "?" },
+        { "area",  areaname(id) },
+    }
+    local x, y, z = getRoomCoordinates and getRoomCoordinates(id)
+    if x then rows[#rows + 1] = { "coords", string.format("%d, %d, %d", x, y, z or 0) } end
+    local okd, info = pcall(getRoomUserData, id, "info")
+    if okd and info and info ~= "" then rows[#rows + 1] = { "flags", info } end
+    local n = get_note(id)
+    if n then rows[#rows + 1] = { "note", n } end
+
+    local ex = (getRoomExits and getRoomExits(id)) or {}
+    local dirs = {}
+    for d in pairs(ex) do dirs[#dirs + 1] = d end
+    table.sort(dirs)
+    if #dirs &gt; 0 then rows[#rows + 1] = { "exits", table.concat(dirs, " ") } end
+
+    local doors = (getDoors and select(2, pcall(getDoors, id))) or {}
+    if type(doors) == "table" then
+        local ds = {}
+        for d, st in pairs(doors) do
+            ds[#ds + 1] = d .. "=" .. ({ [1] = "open", [2] = "closed", [3] = "locked" })[st]
+        end
+        table.sort(ds)
+        if #ds &gt; 0 then rows[#rows + 1] = { "doors", table.concat(ds, " ") } end
+    end
+
+    local sp = (getSpecialExits and select(2, pcall(getSpecialExits, id))) or {}
+    if type(sp) == "table" then
+        for dest, cmd in pairs(sp) do
+            rows[#rows + 1] = { "cexit", tostring(cmd) .. "  -&gt; " .. U.rid(dest) }
+        end
+    end
+    U.help("Room", rows)
+end
+
+function M.areas(filter)
+    filter = U.trim(tostring(filter or "")):lower()
+    local ok, t = pcall(getAreaTableSwap)
+    if not ok or type(t) ~= "table" then U.warn("No areas in the map."); return end
+    local names = {}
+    for name in pairs(t) do
+        if filter == "" or name:lower():find(filter, 1, true) then names[#names + 1] = name end
+    end
+    table.sort(names)
+    if #names == 0 then U.note("No areas matching '" .. filter .. "'."); return end
+    local rows = {}
+    for _, name in ipairs(names) do
+        local okr, rooms = pcall(getAreaRooms, t[name])
+        local n = (okr and type(rooms) == "table") and #rooms or 0
+        rows[#rows + 1] = { name, n .. " rooms" }
+    end
+    U.help(#names .. " area(s)", rows)
+end
+
+function M.showroom(id)
+    id = tonumber(U.trim(id))
+    if not id then U.warn("Usage: mapper showroom &lt;room id&gt;"); return end
+    if not (roomExists and roomExists(id)) then U.warn("Room " .. id .. " isn't in the map."); return end
+    pcall(centerview, id)
+    U.ok("Map centred on " .. U.rid(id) .. ".")
+end
+
+-- an exit that goes nowhere yet: Mudlet calls these stubs
+function M.unmapped(scope)
+    local allowed = scope_rooms(scope == "" and "here" or scope)
+    if not allowed then U.warn("Usage: mapper unmapped [here|&lt;area&gt;]"); return end
+    local rows, total = {}, 0
+    for _, id in ipairs(allowed) do
+        local ok, stubs = pcall(getExitStubs, id)
+        if ok and type(stubs) == "table" and #stubs &gt; 0 then
+            total = total + #stubs
+            if #rows &lt; 30 then
+                rows[#rows + 1] = { U.rid(id) .. "  " .. (getRoomName and getRoomName(id) or "?"),
+                                    #stubs .. " unmapped" }
+            end
+        end
+    end
+    if total == 0 then U.ok("No unmapped exits there."); return end
+    U.help(total .. " unmapped exit(s)", rows)
+end
+
+---
+-- custom exits
+---
+
+function M.cexits(scope)
+    local allowed = scope_rooms(scope == "" and "here" or scope)
+    if not allowed then U.warn("Usage: mapper cexits [here|&lt;area&gt;]"); return end
+    local rows = {}
+    for _, id in ipairs(allowed) do
+        local ok, sp = pcall(getSpecialExits, id)
+        if ok and type(sp) == "table" then
+            for dest, cmd in pairs(sp) do
+                rows[#rows + 1] = { tostring(cmd), U.rid(id) .. " -&gt; " .. U.rid(dest) }
+            end
+        end
+    end
+    if #rows == 0 then U.note("No custom exits there."); return end
+    table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
+    U.help(#rows .. " custom exit(s)", rows)
+end
+
+-- 'mapper cexit &lt;command&gt;' - run it, see where you end up, link it. MUSHclient
+-- used ;; to get a multi-command cexit past its line parser; keep that so the
+-- syntax people have written down still works.
+local pending
+
+function M.cexit(cmd)
+    cmd = U.trim(cmd)
+    if cmd == "" then U.warn("Usage: mapper cexit &lt;command&gt;   (';;' separates steps)"); return end
+    local from = here()
+    if not from then U.warn("Mudlet doesn't know where you are."); return end
+    pending = { from = from, cmd = cmd }
+    U.note("Following '" .. cmd .. "' from " .. U.rid(from) .. " - it'll link when you arrive.")
+    for raw in (cmd .. ";;"):gmatch("(.-);;") do
+        local step = U.trim(raw)
+        local wait = step:match("^wait%((%d+)%)$")
+        if wait then
+            -- their syntax for a pause mid-cexit
+        elseif step ~= "" then
+            send(step, false)
+        end
+    end
+end
+
+-- room.info arriving after a cexit is what tells us where it went
+function M.on_room()
+    if not pending then return end
+    local to = here()
+    local p = pending
+    pending = nil
+    if not to or to == p.from then return end
+    pcall(addSpecialExit, p.from, to, p.cmd)
+    U.ok("Linked: " .. U.rid(p.from) .. " -&gt; " .. U.rid(to) .. "   '" .. p.cmd .. "'")
+    -- 'open south;;south' is a door and Mudlet can say so, which MUSHclient never could
+    local d = short_dir((p.cmd:gsub("^%s*open%s+", ""):gsub(";.*$", "")))
+    if d and p.cmd:lower():match("^%s*open%s") then
+        pcall(setDoor, p.from, d, 2)
+        U.note("...and marked a closed door " .. (LONG[d] or d) .. ".")
+    end
+end
+
+function M.fullcexit(cmd, from, to)
+    from, to = tonumber(from), tonumber(to)
+    if not (cmd and from and to) then
+        U.warn("Usage: mapper fullcexit {&lt;command&gt;} &lt;source&gt; &lt;destination&gt;")
+        return
+    end
+    if not (roomExists(from) and roomExists(to)) then U.warn("One of those rooms isn't in the map."); return end
+    pcall(addSpecialExit, from, to, cmd)
+    U.ok("Linked: " .. U.rid(from) .. " -&gt; " .. U.rid(to) .. "   '" .. cmd .. "'")
+end
+
+function M.delcexits()
+    local id = here()
+    if not id then return end
+    local ok, sp = pcall(getSpecialExits, id)
+    local n = 0
+    if ok and type(sp) == "table" then
+        for dest, cmd in pairs(sp) do
+            pcall(removeSpecialExit, id, cmd)
+            n = n + 1
+        end
+    end
+    U.ok("Removed " .. n .. " custom exit(s) from " .. U.rid(id) .. ".")
+end
+
+function M.delexits(which, room)
+    room = tonumber(U.trim(room))
+    local id = here()
+    if not (room and id) then U.warn("Usage: mapper delete exits from|to &lt;room id&gt;"); return end
+    local a, b = room, id
+    if which == "to" then a, b = id, room end
+    local ok, sp = pcall(getSpecialExits, a)
+    local n = 0
+    if ok and type(sp) == "table" then
+        for dest, cmd in pairs(sp) do
+            if dest == b then pcall(removeSpecialExit, a, cmd); n = n + 1 end
+        end
+    end
+    U.ok("Removed " .. n .. " exit(s) " .. which .. " " .. U.rid(room) .. ".")
+end
+
+---
+-- doors — beyond MUSHclient, because Mudlet can draw them
+---
+
+function M.door(rest)
+    local id = here()
+    if not id then return end
+    local dir, what = U.split_verb(rest)
+    local d = short_dir(dir)
+    if not d then
+        -- no direction: show what this room has
+        local doors = (getDoors and select(2, pcall(getDoors, id))) or {}
+        local rows = {}
+        if type(doors) == "table" then
+            for dd, st in pairs(doors) do
+                rows[#rows + 1] = { LONG[dd] or dd,
+                    ({ [1] = "open", [2] = "closed", [3] = "locked" })[st] or "?" }
+            end
+        end
+        if #rows == 0 then
+            U.note("No doors recorded here. 'mapper door &lt;dir&gt; closed|locked|open|none'.")
+        else
+            table.sort(rows, function(a, b) return a[1] &lt; b[1] end)
+            U.help("Doors in " .. U.rid(id), rows)
+        end
+        return
+    end
+    what = U.trim(what):lower()
+    local st = ({ none = 0, open = 1, closed = 2, locked = 3 })[what]
+    if not st then U.warn("Usage: mapper door &lt;dir&gt; none|open|closed|locked"); return end
+    pcall(setDoor, id, d, st)
+    U.ok("Door " .. (LONG[d] or d) .. " marked " .. what .. ".")
+end
+
+---
+-- utils
+---
+
+function M.backup(path)
+    path = U.trim(path)
+    if path == "" then
+        path = getMudletHomeDir() .. "/map-backup-" .. getTime(true, "yyyyMMdd-hhmm") .. ".dat"
+    end
+    local ok, err = pcall(saveMap, path)
+    if ok then U.ok("Map saved to " .. path)
+    else U.err("Couldn't save the map: " .. tostring(err)) end
+end
+
+function M.purgeroom()
+    local id = here()
+    if not id then return end
+    pcall(deleteRoom, id)
+    U.ok("Room " .. U.rid(id) .. " deleted from the map.")
+end
+
+function M.purgezone(name)
+    name = U.trim(name)
+    if name == "" then U.warn("Usage: mapper purgezone &lt;area&gt;"); return end
+    local ok, t = pcall(getAreaTableSwap)
+    if not ok or type(t) ~= "table" then return end
+    for area, aid in pairs(t) do
+        if area:lower() == name:lower() then
+            pcall(deleteArea, aid)
+            U.ok("Deleted area '" .. area .. "'.")
+            return
+        end
+    end
+    U.warn("No area called '" .. name .. "'.")
+end
+
+---
+-- the command tree
+---
+
+local function onoff(v, cur)
+    v = U.trim(tostring(v or "")):lower()
+    if v == "on" then return true elseif v == "off" then return false end
+    return not cur
+end
+
+function M.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    -- exploring
+    if verb == "thisroom" then M.thisroom()
+    elseif verb == "showroom" then M.showroom(rest)
+    elseif verb == "areas" then M.areas(rest)
+    elseif verb == "unmapped" then M.unmapped(rest)
+
+    -- searching
+    elseif verb == "find" then M.find(rest)
+    elseif verb == "area" then M.find(rest, "here")
+    elseif verb == "list" then M.find(rest)
+    elseif verb == "notes" then M.notes(rest)
+    elseif verb == "shops" then results("shops", flagged("shop", rest))
+    elseif verb == "train" then results("trainers", flagged("trainer", rest))
+    elseif verb == "quest" then results("quest givers", flagged("quest", rest))
+    elseif verb == "next" then M.next(rest)
+    elseif verb == "where" then M.where(rest)
+
+    -- exits
+    elseif verb == "cexits" then M.cexits(rest)
+    elseif verb == "cexit" then M.cexit(rest)
+    elseif verb == "fullcexit" then
+        local cmd, a, b = rest:match("^%s*{(.-)}%s*(%d+)%s+(%d+)")
+        M.fullcexit(cmd, a, b)
+    elseif verb == "lockexit" then
+        U.note("Mudlet has no level locks; use 'mapper door' for doors, or room weights for pathing.")
+
+    -- doors (ours)
+    elseif verb == "door" then M.door(rest)
+
+    -- utils
+    elseif verb == "addnote" then M.addnote(rest)
+    elseif verb == "backup" then M.backup(rest)
+    elseif verb == "purgeroom" then M.purgeroom()
+    elseif verb == "purgezone" then M.purgezone(rest)
+
+    elseif verb == "delete" then
+        local what, more = U.split_verb(rest)
+        more = U.trim(more)
+        if what == "note" then M.delnote()
+        elseif what == "cexits" then M.delcexits()
+        elseif what == "exits" then
+            local dirn, room = U.split_verb(more)
+            if dirn == "from" or dirn == "to" then M.delexits(dirn, room)
+            else U.warn("Usage: mapper delete exits from|to &lt;room id&gt;") end
+        else U.warn("mapper delete note | cexits | exits from|to &lt;room&gt;") end
+
+    elseif verb == "purge" then
+        local what, more = U.split_verb(rest)
+        if what == "cexits" then
+            local scope = U.trim(more):lower() == "area" and "here" or nil
+            local rooms = scope and scope_rooms("here") or nil
+            local n = 0
+            local list = rooms
+            if not list then
+                list = {}
+                local okt, t = pcall(getAreaTableSwap)
+                if okt then for _, aid in pairs(t) do
+                    local okr, rr = pcall(getAreaRooms, aid)
+                    if okr and type(rr) == "table" then for _, r in pairs(rr) do list[#list + 1] = r end end
+                end end
+            end
+            for _, id in ipairs(list) do
+                local ok, sp = pcall(getSpecialExits, id)
+                if ok and type(sp) == "table" then
+                    for _, cmd in pairs(sp) do pcall(removeSpecialExit, id, cmd); n = n + 1 end
+                end
+            end
+            U.ok("Removed " .. n .. " custom exit(s).")
+        else
+            U.warn("mapper purge cexits [area]")
+        end
+
+    -- config
+    elseif verb == "zoom" then
+        local d = U.trim(rest):lower()
+        local z = (getMapZoom and getMapZoom()) or 10
+        pcall(setMapZoom, d == "in" and math.max(1, z - 3) or (z + 3))
+        U.ok("Zoom " .. (d == "in" and "in" or "out") .. ".")
+    elseif verb == "shownotes" then
+        CFG.shownotes = onoff(rest, CFG.shownotes); U.save("mapper", CFG)
+        U.ok("Notes in search results: " .. (CFG.shownotes and "on" or "off"))
+    elseif verb == "quicklist" then
+        CFG.quicklist = onoff(rest, CFG.quicklist); U.save("mapper", CFG)
+        U.ok("Quicklist: " .. (CFG.quicklist and "on" or "off"))
+    elseif verb == "compact" then
+        CFG.compact = onoff(rest, CFG.compact); U.save("mapper", CFG)
+        U.ok("Compact output: " .. (CFG.compact and "on" or "off"))
+    elseif verb == "updown" then
+        CFG.updown = onoff(rest, CFG.updown); U.save("mapper", CFG)
+        U.ok("Up/down drawing: " .. (CFG.updown and "on" or "off"))
+    elseif verb == "database" then
+        U.note("Mudlet keeps one map per profile: " .. getMudletHomeDir() .. "/map"
+            .. "   'mapper backup &lt;path&gt;' writes a copy.")
+
+    elseif verb == "portals" or verb == "portal" or verb == "bounceportal"
+        or verb == "bouncerecall" or verb == "portalrecall" or verb == "portallevel" then
+        U.warn("Portals aren't built yet - they're fifteen commands of their own"
+            .. " bookkeeping and none of it maps onto anything Mudlet already has.")
+
+    else
+        M.help(verb)
+    end
+end
+
+function M.help(which)
+    if which == "exits" then
+        U.help("mapper - exits", {
+            { "mapper cexits [here|&lt;area&gt;]", "list custom exits" },
+            { "mapper cexit &lt;command&gt;",      "run it and link where you end up (';;' between steps)" },
+            { "mapper fullcexit {&lt;cmd&gt;} &lt;from&gt; &lt;to&gt;", "link without walking it" },
+            { "mapper delete cexits",        "remove this room's custom exits" },
+            { "mapper delete exits from|to &lt;room&gt;", "remove exits between here and there" },
+            { "mapper purge cexits [area]",  "remove them everywhere, or in this area" },
+            { "mapper door &lt;dir&gt; none|open|closed|locked", "mark a door (Mudlet draws each differently)" },
+        })
+    elseif which == "search" or which == "searching" then
+        U.help("mapper - searching", {
+            { "mapper find &lt;text&gt;",   "search room names and notes, everywhere" },
+            { "mapper area &lt;text&gt;",   "the same, this area only" },
+            { "mapper notes [here|&lt;area&gt;]", "rooms you've noted" },
+            { "mapper shops|train|quest [here|&lt;area&gt;]", "rooms flagged as such" },
+            { "mapper where &lt;room id&gt;", "directions from here" },
+            { "mapper next [n]",      "walk to the next result" },
+        })
+    else
+        U.help("mapper", {
+            { "mapper thisroom",   "everything known about where you're standing" },
+            { "mapper areas [name]", "areas and their room counts" },
+            { "mapper showroom &lt;id&gt;", "centre the map somewhere else" },
+            { "mapper unmapped [here|&lt;area&gt;]", "exits that lead nowhere yet" },
+            { "" },
+            { "mapper find &lt;text&gt;", "search names and notes   ('mapper help search' for more)" },
+            { "mapper addnote &lt;text&gt;", "note this room" },
+            { "mapper delete note", "remove it" },
+            { "" },
+            { "mapper cexit &lt;command&gt;", "custom exits   ('mapper help exits' for more)" },
+            { "mapper door &lt;dir&gt; closed|locked", "mark a door" },
+            { "" },
+            { "mapper backup [path]", "write a copy of the map" },
+            { "mapper purgeroom | purgezone &lt;area&gt;", "delete a room or an area" },
+            { "mapper zoom in|out", "map zoom" },
+            { "" },
+            { "Same commands as the MUSHclient mapper, on Mudlet's own map." },
+            { "Portals aren't built yet." },
+        })
+    end
+end
+
+aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", M.cmd)
+
+aardkit.gmcp.watch("mapper_cexit", "room.info", "aardkit.mapper.on_room", true)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
