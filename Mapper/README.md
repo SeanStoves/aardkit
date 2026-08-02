@@ -157,13 +157,16 @@ including the terrain colour sitting under a flag fill, which is parked in room 
 rather than thrown away. `mapper style autogrid off` stops the continent tiling,
 `mapper style grid on|off` does one area by hand.
 
-The MUSHclient map draws a 12-pixel room with 8 between it and the next. That gives both of the
-numbers this needs: a room fills 12/20 of its cell, so `mapRoomSize` is 0.6, and a cell
-measures 20 pixels, so the map zoom is 20. Both are set by the style and both are put back by
-`mapper style restore`. `mapper zoom in|out|<n>` overrides by hand — bigger is closer.
+**Room size is not ours to set and the style doesn't try.** Mudlet's Lua `setConfig` rounds
+`mapRoomSize` to a whole number, so anything under 1 becomes 0 and every room draws zero pixels
+wide — a map of exit lines with nothing on the ends. The dial is **Settings → Mapper
+→ Room size**, which takes a small whole number and stores a tenth of it: 4 there is 0.4
+here, and 4 is what this style is drawn around.
 
-`mapExitSize` is left alone: it reads 10 against a room size of 0.5, so it is a different kind
-of number and nothing in their settings converts to it.
+The zoom is ours, and the style sets **8**. That number is measured off a profile drawing the
+picture we wanted, not calculated — zoom is not pixels-per-cell, whatever it looks like.
+`mapper zoom in|out|<n>` overrides by hand; bigger is closer. `mapper style` prints room size
+and zoom together, and says so loudly if the room size is zero.
 
 ## Config
 
