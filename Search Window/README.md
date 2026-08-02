@@ -1,6 +1,6 @@
 # Search Window
 
-'search all' / 'eqsearch all' in a panel of its own, paged and fresh every run. Aardwolf has no tag for this the way it does for helpfiles, so it reads the report's own opening line and stops at the prompt — the Note block at the end is advice the MUD can reword, the prompt is structural.
+A second, readable copy of 'search all' / 'eqsearch all' in a panel of its own, paged and fresh every run — the report still scrolls past in the main window, this just doesn't scroll away. Aardwolf has no tag for this the way it does for helpfiles, so it reads the report's own opening line and stops at the prompt — the Note block at the end is advice the MUD can reword, the prompt is structural.
 
 ## Install
 
@@ -21,7 +21,7 @@ that every module here builds on. Without it nothing else loads.
 | Command | Does |
 |---|---|
 | `searchwin` | show or hide the panel |
-| `searchwin on\|off` | capture it, or leave it in the main window |
+| `searchwin on\|off` | copy it to the panel, or main window only |
 | `searchwin next\|prev` | page through it, same as the buttons |
 | `searchwin clear` | empty it |
 | `searchwin dock\|embed\|show\|hide` | panel placement |

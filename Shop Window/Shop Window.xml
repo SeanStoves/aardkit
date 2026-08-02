@@ -39,26 +39,6 @@
 				</regexCodePropertyList>
 			</Trigger>
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
-				<name>shop rule</name>
-				<script>aardkit.util.gag()</script>
-				<triggerType>0</triggerType>
-				<conditonLineDelta>0</conditonLineDelta>
-				<mStayOpen>0</mStayOpen>
-				<mCommand />
-				<packageName />
-				<mFgColor>#ff0000</mFgColor>
-				<mBgColor>#ffff00</mBgColor>
-				<mSoundFile />
-				<colorTriggerFgColor>#000000</colorTriggerFgColor>
-				<colorTriggerBgColor>#000000</colorTriggerBgColor>
-				<regexCodeList>
-					<string>^---\s+-----\s+-------\s+---\s+-+\s*$</string>
-				</regexCodeList>
-				<regexCodePropertyList>
-					<integer>1</integer>
-				</regexCodePropertyList>
-			</Trigger>
-			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>shop row</name>
 				<script>aardkit.shopwin.on_row(matches[2], matches[3], matches[4], matches[5], matches[6])</script>
 				<triggerType>0</triggerType>
@@ -131,7 +111,9 @@
     Shop window
     Sean Stoves, 2026-08-02
 
-    'list' in a shop, caught and reprinted as a row of buttons you can buy from.
+    'list' in a shop, copied into a panel as rows you can click to buy from. The
+    MUD's own list still scrolls past in the main window - this is an extra, and
+    the extra is that the rows are buttons.
 
     The MUD's own output, which is what this reads:
 
@@ -235,7 +217,6 @@ function SH.on_head()
     listing = true
     -- a list with no footer would otherwise leave this armed for the session
     listing_t = tempTimer(10, listing_off)
-    U.gag()
 end
 
 -- "  1      5       20  ---  [Potion] Optical Precision"
@@ -251,7 +232,6 @@ function SH.on_row(num, lvl, price, qty, item)
         item  = item,
         col   = colour_of(item),
     }
-    U.gag()
     panel:show()
     SH.paint()
 end
@@ -260,7 +240,6 @@ end
 function SH.on_foot()
     if not (CFG.on and listing) then return end
     listing_off()
-    U.gag()
     SH.paint()
 end
 
@@ -364,7 +343,7 @@ function SH.cmd(arg)
         CFG.on = (verb == "on")
         U.save("shopwin", CFG)
         U.ok("Shop window " .. verb
-            .. (CFG.on and " - 'list' goes to the panel." or " - it stays in the main window."))
+            .. (CFG.on and " - 'list' is copied to the panel." or " - main window only."))
 
     elseif verb == "up"   then SH.scroll(-5)
     elseif verb == "down" then SH.scroll(5)
@@ -387,14 +366,15 @@ function SH.cmd(arg)
             { "stock",   #items &gt; 0 and (#items .. " item(s) listed") or "nothing listed yet" },
             { "" },
             { "shopwin",          "show or hide the panel" },
-            { "shopwin on | off", "catch 'list', or leave it in the main window" },
+            { "shopwin on | off", "copy 'list' to the panel, or main window only" },
             { "shopwin up | down", "scroll the list" },
             { "shopwin buy &lt;row&gt;", "same as clicking that row" },
             { "shopwin clear",    "empty it" },
             { "shopwin dock | embed | show | hide", "panel placement" },
             { "" },
-            { "Type 'list' in a shop. Clicking a row sends 'buy &lt;num&gt;' and" },
-            { "stops there - it won't wear or wield it for you." },
+            { "Type 'list' in a shop. The MUD's own list still prints in the" },
+            { "main window; this is a clickable copy. A row sends 'buy &lt;num&gt;'" },
+            { "and stops there - it won't wear or wield it for you." },
         })
     end
 end
