@@ -864,9 +864,18 @@ local STYLE = {
     text    = "#c8d0dc",
 }
 
-local function container_style()
+-- 235 rather than 255 so a panel sits on the output rather than blotting it.
+--
+-- `clear` drops it to nothing, and exists for exactly one case: Mudlet's map.
+-- An embedded map is NOT a child of the container it appears to live in -
+-- createMapper draws it at absolute coordinates in the main window - so the
+-- container's background is painted OVER the map rather than behind it. At
+-- alpha 235 that reads as the map having gone dim, and any repaint of the map
+-- brings it forward and it looks fine again. It isn't a fade: it's a tinted
+-- sheet of glass that the map keeps coming back through.
+local function container_style(clear)
     return [[
-        background-color: rgba(13,17,23,235);
+        background-color: rgba(13,17,23,]] .. (clear and "0" or "235") .. [[);
         border: 1px solid ]] .. STYLE.border .. [[;
         border-radius: 3px;
     ]]
@@ -934,7 +943,7 @@ function Panel:_build()
             width       = self.w, height = self.h,
             titleText   = self.title,
             titleTxtColor = STYLE.title,
-            adjLabelstyle = container_style(),
+            adjLabelstyle = container_style(self.clear),
             padding     = TITLEBAR,
             autoSave    = true,
             autoLoad    = true,
@@ -1265,6 +1274,8 @@ function P.new(spec)
     p.fontSize   = spec.fontSize
     p.wrap       = spec.wrap
     p.consoleless = spec.consoleless
+    -- no background at all; see container_style. Only the map wants this.
+    p.clear      = spec.clear
     p.onbuild    = spec.onbuild
     p.onresize   = spec.onresize
     p.defmode    = spec.mode or DEFAULT_MODE

@@ -305,6 +305,11 @@ local panel = aardkit.panel.new({
     width       = 420,
     height      = 420,
     consoleless = true,
+    -- No background. The map is drawn at absolute coordinates in the main
+    -- window rather than inside this container, so a background here is painted
+    -- over the map, not behind it - which is the map "fading" until something
+    -- repaints it. It was a tinted sheet of glass the whole time.
+    clear       = true,
     onbuild     = function()
         map = nil
         M.map = nil
@@ -2696,10 +2701,15 @@ function M.mark_here(id)
     if not id or CFG.style ~= "aard" then return false end
     if not U.has("highlightRoom") then return false end
     if lit == id then return true end
-    -- second colour and radius 1: a solid fill the size of the room, not a halo
-    -- that spills over its neighbours
+    -- A RING, not a fill. Their map keeps the room's own colour and draws the
+    -- pink around it, so you can still see you're standing in a shop - filling
+    -- it solid throws away the one fact the colour was carrying.
+    --
+    -- highlightRoom(id, outer rgb, inner rgb, radius, outer alpha, inner alpha).
+    -- Radius is a multiple of the room, so 1.5 spills just past its edge, and an
+    -- inner alpha of 0 leaves the middle clear for the room to show through.
     local ok = pcall(highlightRoom, id, HERE[1], HERE[2], HERE[3],
-                                       HERE[1], HERE[2], HERE[3], 1, 255, 255)
+                                       HERE[1], HERE[2], HERE[3], 1.5, 255, 0)
     if ok then lit = id end
     return ok
 end
