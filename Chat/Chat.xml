@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 27 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>chat</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>chat</name>
+				<script>aardkit.chat.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^chat(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>chat</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>chat</name>
+				<packageName />
+				<script>--[[
+    Chat — the channels in tabs, in a window you can move
+    Sean Stoves, 2026-08-02
+
+    Eight tabs: All, Private, Group, Tell, Say, Spouse, Clan, Friend. The
+    routing is the stock module's, because it's right and there is nothing to
+    improve about it:
+
+        tell     -&gt; Tell        say      -&gt; Say
+        gtell    -&gt; Group       ftalk    -&gt; Friend
+        clantalk -&gt; Clan        spouse   -&gt; Spouse
+        anything else           -&gt; All only
+
+    Those six also copy into Private, which is the point of that tab: everything
+    addressed to you personally, in one place, without the channel noise. And
+    everything lands in All.
+
+    Off GMCP - comm.channel carries { chan, msg, player } with the MUD's own
+    colours in the message - rather than off screen triggers. A trigger has to
+    match text that moves with your settings; the channel name in GMCP does not.
+
+    NOTHING IS GAGGED. The MUD's text stays in the main window exactly as it
+    arrived; these are copies. That has been the rule since the search and shop
+    windows and it holds here: additive, never a move.
+
+    Each tab is its own MiniConsole rather than one console repainted on
+    switching. Mudlet then owns the scrollback and the colours per tab, which is
+    the whole job, and switching is a show and a hide.
+]]
+
+aardkit = aardkit or {}
+aardkit.chat = aardkit.chat or {}
+
+local CH = aardkit.chat
+local U  = aardkit.util.named("Chat")
+
+local CFG = U.load("chat", {
+    on      = true,
+    active  = "All",
+    -- A tab that isn't the one you're looking at goes red until you look. Their
+    -- module blinks; a steady colour says the same thing without moving.
+    mark    = true,
+    fontSize = 9,
+})
+
+local function save() U.save("chat", CFG) end
+
+---
+-- the tabs
+--
+-- Order is theirs, which is the order they read in: everything, then the
+-- personal aggregate, then the individual channels.
+---
+
+local TABS = { "All", "Private", "Group", "Tell", "Say", "Spouse", "Clan", "Friend" }
+
+-- gmcp comm.channel 'chan' -&gt; tab. Anything not in here goes to All alone,
+-- which is what the MUD's own channels (gossip, market, auction) do.
+local ROUTE = {
+    tell     = "Tell",
+    say      = "Say",
+    gtell    = "Group",
+    ftalk    = "Friend",
+    clantalk = "Clan",
+    spouse   = "Spouse",
+}
+
+-- The six above are personal, so they copy into Private as well.
+local PRIVATE = {
+    Tell = true, Say = true, Group = true, Friend = true, Clan = true, Spouse = true,
+}
+
+local TABH = 18          -- tab strip height
+
+-- Declared before anything that reads them. A table read by a function defined
+-- above it binds a nil global instead, which this project has paid for eight
+-- times over.
+local cons, tabs, unread = {}, {}, {}
+
+---
+-- the panel
+---
+
+local panel = aardkit.panel.new({
+    name        = "chat",
+    title       = "Chat",
+    x           = "10px",
+    y           = "470px",
+    width       = 520,
+    height      = 240,
+    consoleless = true,      -- eight of our own, one per tab
+    onbuild     = function()
+        cons, tabs = {}, {}
+        if aardkit.chat and aardkit.chat.paint then aardkit.chat.paint() end
+    end,
+    onresize    = function()
+        if aardkit.chat and aardkit.chat.layout then aardkit.chat.layout() end
+    end,
+})
+
+CH.panel = panel
+
+local function style(name)
+    local on   = (name == CFG.active)
+    local hot  = unread[name] and CFG.mark
+    local fg   = on and "#c8d0dc" or (hot and "#e94560" or "#8a93a8")
+    local bg   = on and "#1f2937" or "#0d1117"
+    return "background-color: " .. bg .. "; border: 1px solid #3a4a6b;"
+        .. " qproperty-alignment: 'AlignCenter'; color: " .. fg .. ";"
+end
+
+local function label(name)
+    return "&lt;center&gt;&lt;span style=\"color:" .. ((name == CFG.active) and "#c8d0dc"
+        or (unread[name] and CFG.mark and "#e94560" or "#8a93a8")) .. ";\"&gt;"
+        .. name .. (unread[name] and CFG.mark and " *" or "") .. "&lt;/span&gt;&lt;/center&gt;"
+end
+
+function CH.restyle()
+    for _, name in ipairs(TABS) do
+        local b = tabs[name]
+        if b then
+            pcall(function() b:setStyleSheet(style(name)) end)
+            pcall(function() b:echo(label(name)) end)
+        end
+    end
+end
+
+function CH.layout()
+    if not panel.container then return end
+    local w = U.px(panel.container.get_width and panel.container:get_width()
+                   or panel.container.width)
+    local h = U.px(panel.container.get_height and panel.container:get_height()
+                   or panel.container.height)
+    if w &lt; 40 or h &lt; 40 then return end
+
+    local each = math.floor(w / #TABS)
+    for i, name in ipairs(TABS) do
+        local b = tabs[name]
+        if b then
+            -- the last one takes the rounding, so the strip meets the edge
+            local bw = (i == #TABS) and (w - each * (#TABS - 1)) or each
+            pcall(function() b:move(each * (i - 1), 0) end)
+            pcall(function() b:resize(bw, TABH) end)
+        end
+    end
+    for _, name in ipairs(TABS) do
+        local c = cons[name]
+        if c then
+            pcall(function() c:move(0, TABH) end)
+            pcall(function() c:resize(w, h - TABH) end)
+        end
+    end
+end
+
+function CH.paint()
+    if not panel.container then return end
+    local gen = panel.gen or 1
+
+    for i, name in ipairs(TABS) do
+        if not tabs[name] then
+            local ok, b = pcall(function()
+                return Geyser.Label:new({
+                    name = "aardkit_chat_tab_" .. name .. "_" .. gen,
+                    x = 0, y = 0, width = 10, height = TABH,
+                }, panel.container)
+            end)
+            if ok and b then
+                tabs[name] = b
+                -- a function, not a string: no quoting a tab name into Lua
+                pcall(function() b:setClickCallback(function() CH.show(name) end) end)
+            end
+        end
+        if not cons[name] then
+            local ok, c = pcall(function()
+                return Geyser.MiniConsole:new({
+                    name = "aardkit_chat_" .. name .. "_" .. gen,
+                    x = 0, y = TABH, width = 10, height = 10,
+                    autoWrap = true, scrollBar = true,
+                    fontSize = CFG.fontSize or 9,
+                }, panel.container)
+            end)
+            if ok and c then
+                cons[name] = c
+                pcall(function() c:setColor("#0d1117") end)
+            end
+        end
+    end
+
+    CH.layout()
+    CH.restyle()
+    for _, name in ipairs(TABS) do
+        local c = cons[name]
+        if c then
+            if name == CFG.active then pcall(function() c:show() end)
+            else pcall(function() c:hide() end) end
+        end
+    end
+end
+
+function CH.show(name)
+    if not cons[name] then return end
+    CFG.active = name
+    unread[name] = nil
+    save()
+    for _, n in ipairs(TABS) do
+        local c = cons[n]
+        if c then
+            if n == name then pcall(function() c:show() end)
+            else pcall(function() c:hide() end) end
+        end
+    end
+    CH.restyle()
+    panel:raise()
+end
+
+---
+-- what arrives
+---
+
+-- The MUD's own colours. comm.channel carries ANSI, and ansi2decho is Mudlet's
+-- own converter for exactly this - which is what the stock module uses too.
+local function to_screen(msg)
+    msg = tostring(msg or "")
+    if U.has("ansi2decho") then
+        local ok, out = pcall(ansi2decho, msg)
+        if ok and out then return out end
+    end
+    return msg
+end
+
+local function put(name, text)
+    local c = cons[name]
+    if not c then return end
+    pcall(function() decho(c.name, text .. "\n") end)
+    if name ~= CFG.active then unread[name] = true end
+end
+
+function CH.on_channel()
+    if not CFG.on then return end
+    local d = gmcp and gmcp.comm and gmcp.comm.channel
+    if not (d and d.msg) then return end
+
+    local tab = ROUTE[tostring(d.chan or ""):lower()]
+    local text = to_screen(d.msg)
+
+    if tab then
+        put(tab, text)
+        if PRIVATE[tab] then put("Private", text) end
+    end
+    put("All", text)
+    CH.restyle()
+end
+
+---
+-- commands
+---
+
+function CH.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    -- a bare tab name switches to it: 'chat clan' reads better than 'chat tab clan'
+    for _, name in ipairs(TABS) do
+        if verb == name:lower() then CH.show(name); return end
+    end
+
+    if verb == "" or verb == "help" then
+        U.help("Chat", {
+            { "state",   CFG.on and "on" or "off" },
+            { "showing", CFG.active },
+            { "tabs",    table.concat(TABS, "  ") },
+            { "" },
+            { "chat &lt;tab&gt;",        "switch - 'chat clan', 'chat tell'" },
+            { "chat on|off",       "stop collecting altogether" },
+            { "chat clear [tab]",  "empty one, or the one you're looking at" },
+            { "chat mark on|off",  "colour a tab that has something new" },
+            { "chat show|hide|dock|embed", "where the window lives" },
+            { "" },
+            { "Nothing is gagged - the MUD's own lines stay in the main window." },
+            { "These are copies, routed the same way the stock module routes them." },
+        })
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on"); save()
+        U.ok("Chat collection " .. verb .. ".")
+
+    elseif verb == "mark" then
+        CFG.mark = U.trim(rest):lower() ~= "off"; save()
+        CH.restyle()
+        U.ok("New-message marking: " .. (CFG.mark and "on" or "off"))
+
+    elseif verb == "clear" then
+        local which = rest ~= "" and rest or CFG.active
+        for _, name in ipairs(TABS) do
+            if name:lower() == which:lower() then
+                local c = cons[name]
+                if c then pcall(function() c:clear() end) end
+                U.ok("Cleared " .. name .. ".")
+                return
+            end
+        end
+        U.warn("No tab called '" .. which .. "'.  " .. table.concat(TABS, " "))
+
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+        aardkit.panel.cmd("chat " .. verb)
+        CH.paint()
+
+    else
+        U.warn("chat &lt;tab&gt; | on | off | clear | mark | show|hide|dock|embed   ('chat help')")
+    end
+end
+
+aardkit.register("chat", "the channels in tabs, in a window you can move", CH.cmd)
+
+aardkit.gmcp.watch("chat", "comm.channel", "aardkit.chat.on_channel", true)
+
+CH.paint()
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

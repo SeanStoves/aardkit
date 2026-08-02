@@ -33,13 +33,21 @@ function getMainWindowSize() return 1637, 900 end
 function getProfileName() return "aardwolf" end
 
 cecho = note("cecho")
-decho = note("decho")
+-- Recorded per window: the chat module's whole job is routing a message to the
+-- right tabs, and a decho that goes nowhere makes that untestable.
+DECHOED = {}
+decho = function(a, b)
+    calls.decho = (calls.decho or 0) + 1
+    if b ~= nil then
+        DECHOED[a] = DECHOED[a] or {}
+        table.insert(DECHOED[a], tostring(b))
+    end
+end
 dechoLink = note("dechoLink")
 hecho = note("hecho")
 startLogging = note("startLogging")
 openUrl = note("openUrl")
 echo = note("echo")
-decho = note("decho")
 hecho = note("hecho")
 cechoLink = note("cechoLink")
 echoLink = note("echoLink")   -- the fallback path when dechoLink is missing
@@ -60,6 +68,7 @@ clearWindow = note("clearWindow")
 -- a console's own answer for how many lines fit; the pager reads it every repaint
 getRowCount = function() return 24 end
 getColumnCount = function() return 80 end
+ansi2decho = function(t) return tostring(t) end
 -- the wrap setting, which is what text actually breaks at
 getWindowWrap = function() return 100 end
 getCurrentLine = function() return "" end
