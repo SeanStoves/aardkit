@@ -41,7 +41,8 @@ that every module here builds on. Without it nothing else loads.
 | `mapper delay <n> <command>` | wait n seconds for the room to change, this once |
 | `mapper delay <n>` | change the default wait (2 seconds) |
 | `mapper fullcexit {<cmd>} <from> <to>` | link without walking it |
-| `mapper delete cexits` | this room's custom exits |
+| `mapper delete cexit <cmd>` | one custom exit — or click [del] beside it in 'mapper cexits' |
+| `mapper delete cexits` | all of this room's custom exits |
 | `mapper delete exits from\|to <room>` | exits between here and there |
 | `mapper purge cexits [area]` | everywhere, or this area |
 | `mapper door <dir> none\|open\|closed\|locked` | mark a door |
@@ -101,6 +102,8 @@ manual step comes up rather than nagging at you on load.
 
 
 ## Worth knowing
+
+Linking the same two rooms again **replaces** the exit between them rather than adding a second. `addSpecialExit` only ever adds, so a corrected cexit used to sit beside the broken one it was fixing, and which of the two the walker took was down to `pairs()` order. `mapper cexits` lists them as a table with a `[del]` beside each row, and `mapper delete cexit <cmd>` does the same from the keyboard.
 
 `mapper cexit` and `mapper portal add` fire a command and link whatever room arrives next, so they wait — **2 seconds by default**, then give up and link nothing. That deadline is not a nicety: without one, a cexit that failed to move you stayed armed and attached itself to wherever you walked next, from the room you tried it in, silently and wrongly. `mapper delay 5 cexit west|say huzzah` gives one attempt longer; `mapper delay 5` on its own changes the default.
 

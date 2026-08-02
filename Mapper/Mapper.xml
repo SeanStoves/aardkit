@@ -891,8 +891,15 @@ function M.cexits(scope)
             for cmd in pairs(sp) do cmds[#cmds + 1] = cmd end
             table.sort(cmds)
             for _, cmd in ipairs(cmds) do
-                rows[#rows + 1] = { M.areaname(id), (getRoomName and getRoomName(id)) or "?",
-                                    id, cmd, sp[cmd] }
+                local row = { M.areaname(id), (getRoomName and getRoomName(id)) or "?",
+                              id, cmd, sp[cmd] }
+                -- a function, not a string: a cexit command is arbitrary MUD
+                -- text and quoting it into Lua at every call site is how a room
+                -- called Doctor Cameroon "Rusty" Baboon breaks a click
+                row.link = { "&lt;#e94560&gt;[del]&lt;r&gt;",
+                             function() M.delcexit(id, cmd) end,
+                             "Remove '" .. cmd .. "' from " .. U.rid(id) }
+                rows[#rows + 1] = row
             end
         end
     end
@@ -909,7 +916,8 @@ function M.cexits(scope)
         { "rm uid",    align = "r" },
         { "dir",       max = 59 },
         { "to uid",    align = "r" },
-    }, rows, "Found " .. #rows .. " custom exit(s).")
+    }, rows, "Found " .. #rows .. " custom exit(s).  [del] removes one; "
+       .. "'mapper delete cexits' clears this room.")
 end
 
 ---
@@ -1026,6 +1034,27 @@ end
 -- room.info arriving after a cexit or a 'portal add' is what tells us where it
 -- went. Both wait on the same event; neither can be pending at once because
 -- each is started by a command you typed.
+-- One custom exit per pair of rooms.
+--
+-- addSpecialExit ADDS. Link the same two rooms twice and both survive, and the
+-- walker takes whichever pairs() hands it first - so a corrected cexit competes
+-- with the broken one it was meant to replace, and which of them you get is
+-- undefined. Replacing is what somebody linking the same pair again means.
+local function link_cexit(from, to, cmd)
+    local replaced
+    local ok, sp = pcall(getSpecialExitsSwap, from)
+    if ok and type(sp) == "table" then
+        for old, dest in pairs(sp) do
+            if tonumber(dest) == to and old ~= cmd then
+                pcall(removeSpecialExit, from, old)
+                replaced = old
+            end
+        end
+    end
+    pcall(addSpecialExit, from, to, cmd)
+    return replaced
+end
+
 function M.on_room()
     if adding then
         local to = here()
@@ -1043,8 +1072,9 @@ function M.on_room()
     pending = nil
     disarm_confirm()
     if not to or to == p.from then return end
-    pcall(addSpecialExit, p.from, to, p.cmd)
+    local replaced = link_cexit(p.from, to, p.cmd)
     U.ok("Linked: " .. U.rid(p.from) .. " -&gt; " .. U.rid(to) .. "   '" .. p.cmd .. "'")
+    if replaced then U.note("...replacing '" .. replaced .. "', which went to the same room.") end
     -- 'open south;;south' is a door and Mudlet can say so, which MUSHclient never could
     local d = short_dir((p.cmd:gsub("^%s*open%s+", ""):gsub(";.*$", "")))
     if d and p.cmd:lower():match("^%s*open%s") then
@@ -1061,8 +1091,20 @@ function M.fullcexit(cmd, from, to)
         return
     end
     if not (roomExists(from) and roomExists(to)) then U.warn("One of those rooms isn't in the map."); return end
-    pcall(addSpecialExit, from, to, cmd)
+    local replaced = link_cexit(from, to, cmd)
     U.ok("Linked: " .. U.rid(from) .. " -&gt; " .. U.rid(to) .. "   '" .. cmd .. "'")
+    if replaced then U.note("...replacing '" .. replaced .. "', which went to the same room.") end
+end
+
+-- One named custom exit, from one room. 'mapper delete cexits' takes the lot;
+-- this is what the [del] beside a row in 'mapper cexits' calls.
+function M.delcexit(from, cmd)
+    from = tonumber(from)
+    if not (from and cmd and cmd ~= "") then return end
+    if not (roomExists and roomExists(from)) then U.warn("Room " .. tostring(from) .. " isn't in the map."); return end
+    local ok = pcall(removeSpecialExit, from, cmd)
+    if ok then U.ok("Removed '" .. cmd .. "' from " .. U.rid(from) .. ".")
+    else U.warn("Couldn't remove '" .. cmd .. "' from " .. U.rid(from) .. ".") end
 end
 
 function M.delcexits()
@@ -1662,13 +1704,18 @@ function M.cmd(arg)
         local what, more = U.split_verb(rest)
         more = U.trim(more)
         if what == "note" then M.delnote()
+        elseif what == "cexit" then
+            -- singular: one named exit out of this room, what [del] calls
+            local one = steps_in(more)
+            if one == "" then U.warn("Usage: mapper delete cexit &lt;command&gt;   ('|' between steps)")
+            else M.delcexit(here(), one) end
         elseif what == "cexits" then M.delcexits()
         elseif what == "portal" then M.delportal(more)
         elseif what == "exits" then
             local dirn, room = U.split_verb(more)
             if dirn == "from" or dirn == "to" then M.delexits(dirn, room)
             else U.warn("Usage: mapper delete exits from|to &lt;room id&gt;") end
-        else U.warn("mapper delete note | cexits | portal &lt;cmd|#n&gt; | exits from|to &lt;room&gt;") end
+        else U.warn("mapper delete note | cexit &lt;cmd&gt; | cexits | portal &lt;cmd|#n&gt; | exits from|to &lt;room&gt;") end
 
     elseif verb == "purge" then
         local what, more = U.split_verb(rest)
@@ -1934,7 +1981,8 @@ function M.help(which)
             { "mapper autocexit on|off",     "record non-direction moves automatically (off)" },
             { "mapper lockexit",             "MUSHclient had level locks; Mudlet has doors and weights" },
             { "mapper fullcexit {&lt;cmd&gt;} &lt;from&gt; &lt;to&gt;", "link without walking it" },
-            { "mapper delete cexits",        "remove this room's custom exits" },
+            { "mapper delete cexit &lt;cmd&gt;",   "remove one - or click [del] beside it in 'mapper cexits'" },
+            { "mapper delete cexits",        "remove all of this room's custom exits" },
             { "mapper delete exits from|to &lt;room&gt;", "remove exits between here and there" },
             { "mapper purge cexits [area]",  "remove them everywhere, or in this area" },
             { "mapper door &lt;dir&gt; none|open|closed|locked", "mark a door (Mudlet draws each differently)" },

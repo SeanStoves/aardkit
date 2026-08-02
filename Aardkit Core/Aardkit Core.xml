@@ -670,7 +670,16 @@ function U.table(cols, rows, foot)
         return t
     end)(), "#7aa2f7"))
     U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
-    for _, r in ipairs(rows) do U.out("\n" .. line(r, "#c8d0dc")) end
+    for _, r in ipairs(rows) do
+        U.out("\n" .. line(r, "#c8d0dc"))
+        -- A row can carry a clickable of its own: { label, command, hint }.
+        -- Appended after the closing bar rather than inside a cell, because a
+        -- link has no printable width the column arithmetic can account for and
+        -- putting one in a cell breaks the grid it exists to keep.
+        if type(r.link) == "table" and r.link[1] then
+            U.outLink("  " .. r.link[1], r.link[2], r.link[3], true)
+        end
+    end
     U.out("\n&lt;#3a4a6b&gt;" .. rule() .. "&lt;r&gt;")
     if foot then U.out("\n&lt;#8a93a8&gt;" .. foot .. "&lt;r&gt;") end
     echo("\n")
