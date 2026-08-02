@@ -1555,6 +1555,147 @@ end)
 </script>
 				<eventHandlerList />
 			</Script>
+			<Script isActive="yes" isFolder="no">
+				<name>50_gmcp</name>
+				<packageName />
+				<script>--[[
+    GMCP watcher
+    Sean Stoves, 2026-08-01
+
+    One place that listens to Aardwolf's GMCP and hands it out at a rate a
+    human can read.
+
+    GMCP does not arrive at a readable pace. char.vitals fires on every tick of
+    every fight, and a module that repaints on each one redraws several times a
+    second - the display visibly shifts while you are trying to read it, which
+    is worse than being a second stale. Every module that wanted GMCP was
+    solving that for itself, badly and differently.
+
+    So: events mark their subtree dirty, one timer ticks, and a watcher is
+    called at most once per tick and only when the data it asked about actually
+    changed. Work is bounded no matter how hard the MUD talks.
+
+        aardkit.gmcp.watch("statmon", { "char.vitals", "char.maxstats" }, fn)
+        aardkit.gmcp.val("char.vitals.hp")      -- nil-safe read
+        aardkit.gmcp.num("char.status.level")   -- and as a number
+
+    Aardwolf's char.* messages are one level deep, which is why the change
+    signature below only walks one level. If that ever stops being true this
+    starts missing nested changes rather than reporting them wrongly - it fails
+    quiet, so check here first if a watcher stops firing.
+]]
+
+aardkit = aardkit or {}
+aardkit.gmcp = aardkit.gmcp or {}
+
+local G = aardkit.gmcp
+local U = aardkit.util
+
+local CFG = U.load("gmcp", { rate = 1 })
+
+-- name -&gt; { paths = {...}, fn = f, sig = "..." }
+G.watchers = G.watchers or {}
+
+-- gmcp path -&gt; true, for the events we've already subscribed to
+local subscribed = {}
+
+local dirty = true
+
+---
+-- reading
+---
+
+-- "char.vitals.hp" -&gt; gmcp.char.vitals.hp, without exploding on any missing step
+function G.val(path)
+    local t = gmcp
+    for part in tostring(path or ""):gmatch("[^%.]+") do
+        if type(t) ~= "table" then return nil end
+        t = t[part]
+    end
+    if t == "" then return nil end
+    return t
+end
+
+function G.num(path)
+    return tonumber(tostring(G.val(path) or ""))
+end
+
+-- Aardwolf sends numbers as strings about half the time, so a signature has to
+-- compare their text rather than their type.
+local function sig_of(path)
+    local t = G.val(path)
+    if type(t) ~= "table" then return tostring(t) end
+    local keys, n = {}, 0
+    for k in pairs(t) do n = n + 1; keys[n] = k end
+    table.sort(keys)
+    local out = {}
+    for i, k in ipairs(keys) do out[i] = k .. "=" .. tostring(t[k]) end
+    return table.concat(out, ",")
+end
+
+---
+-- watching
+---
+
+function G.mark()
+    dirty = true
+end
+
+local function subscribe(path)
+    -- gmcp.char.vitals arrives as the event "gmcp.char.vitals"
+    local ev = "gmcp." .. path
+    if subscribed[ev] then return end
+    subscribed[ev] = true
+    local g = "aardkit_gmcp_" .. ev:gsub("%.", "_")
+    U.killhandler(_G[g])
+    _G[g] = registerAnonymousEventHandler(ev, "aardkit.gmcp.mark")
+end
+
+-- Re-registering the same name replaces it rather than stacking a second one,
+-- because a module reloads when you rebuild and would otherwise be called twice
+-- for the rest of the session.
+function G.watch(name, paths, fn)
+    if type(paths) == "string" then paths = { paths } end
+    G.watchers[name] = { paths = paths or {}, fn = fn, sig = nil }
+    for _, p in ipairs(paths or {}) do subscribe(p) end
+    dirty = true
+end
+
+function G.unwatch(name)
+    G.watchers[name] = nil
+end
+
+local function watcher_sig(w)
+    local out = {}
+    for i, p in ipairs(w.paths) do out[i] = sig_of(p) end
+    return table.concat(out, "|")
+end
+
+function G.tick()
+    if not dirty then return end
+    dirty = false
+    for name, w in pairs(G.watchers) do
+        local s = watcher_sig(w)
+        if s ~= w.sig then
+            w.sig = s
+            local ok, err = pcall(w.fn)
+            if not ok then U.err("gmcp watcher " .. tostring(name) .. ": " .. tostring(err)) end
+        end
+    end
+end
+
+U.every("gmcp", CFG.rate, G.tick)
+
+-- A reconnect brings a fresh char.*; forget what we last saw so every watcher
+-- fires once on the new data rather than deciding nothing changed.
+U.killhandler(aardkit_gmcp_connect)
+aardkit_gmcp_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    for _, w in pairs(G.watchers) do w.sig = nil end
+    dirty = true
+end)
+</script>
+				<eventHandlerList />
+			</Script>
 		</ScriptGroup>
 	</ScriptPackage>
 	<KeyPackage />

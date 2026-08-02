@@ -409,28 +409,19 @@ end
 ---
 -- updates
 --
--- One handler per message rather than a timer: GMCP arrives when something
--- changed, so there is nothing to poll for.
+-- core/50_gmcp.lua does the coalescing: it listens, ticks once a second, and
+-- calls back only when one of the subtrees we named actually changed. So a
+-- fight that fires char.vitals forty times a second draws this once, and an
+-- idle second draws nothing at all.
+--
+-- Repainting per event was what made the panel shift under you mid-combat.
 ---
 
-local pending = false
-
-local function touch()
-    -- vitals fire on every tick in combat; coalesce so a busy fight doesn't
-    -- repaint the panel several times for one screenful
-    if pending then return end
-    pending = true
-    tempTimer(0.2, function() pending = false; SM.paint() end)
-end
-
-SM.touch = touch
-
-for _, ev in ipairs({ "gmcp.char.vitals", "gmcp.char.status", "gmcp.char.base",
-                      "gmcp.char.stats", "gmcp.char.maxstats", "gmcp.char.worth" }) do
-    local g = "aardkit_sm_" .. ev:gsub("%.", "_")
-    U.killhandler(_G[g])
-    _G[g] = registerAnonymousEventHandler(ev, "aardkit.statmon.touch")
-end
+aardkit.gmcp.watch("statmon",
+    { "char.vitals", "char.maxstats", "char.status", "char.base", "char.stats", "char.worth" },
+    function()
+        if panel:visible() then SM.paint() end
+    end)
 
 ---
 -- commands

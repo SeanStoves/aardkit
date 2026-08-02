@@ -1,6 +1,6 @@
 # Aardkit Core
 
-Shared foundation every other module builds on: the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. Also switches off the stock AardwolfMudlet aliases that would otherwise fight ours, with `aardkit stock` to flip any one of them back on.
+Shared foundation every other module builds on: a GMCP watcher that hands out char.* at a rate you can read rather than the rate the MUD sends it, the panel manager, saved state under `<profile>/aardkit/`, coloured output and help formatting, the command registry, and the Aardwolf tag gag. Also switches off the stock AardwolfMudlet aliases that would otherwise fight ours, with `aardkit stock` to flip any one of them back on.
 
 ## Install
 
