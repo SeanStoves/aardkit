@@ -271,9 +271,14 @@ M.areaname = areaname
 -- this is simply the map.
 ---
 
-local ourmap    -- OURS. Their module has a global of its own called 'mapwin',
-                -- and a local by that name here would shadow it - so anything
-                -- reaching for theirs must go through _G, and this isn't it.
+-- OURS, and a global on purpose: theirs is a global called 'mapwin', so ours is
+-- 'aardkitmap' and there is never a question which one a line is talking about.
+-- It also means it can be poked from the command line the same way theirs can,
+-- which is how half of tonight's diagnosis got done.
+--
+-- This started life as a local called 'mapwin' - the same name as theirs - and
+-- the line meant to put THEIR map view back was quietly moving ours instead.
+aardkitmap = aardkitmap or nil
 -- Bumped every time ours is rebuilt. Mudlet keeps a Geyser widget alive under
 -- its name, so remaking one with the same name leaves the old object orphaned
 -- on top of the new one - and this gets remade whenever the stock module's map
@@ -294,7 +299,7 @@ local panel = aardkit.panel.new({
     height      = 420,
     consoleless = true,
     onbuild     = function()
-        ourmap = nil
+        aardkitmap = nil
         if aardkit.mapper and aardkit.mapper.paint_map then aardkit.mapper.paint_map() end
     end,
     onresize    = function()
@@ -309,22 +314,25 @@ M.panel = panel
 -- when the answer is usually that the container isn't up yet.
 function M.paint_map()
     if not panel.container then return false, "the panel hasn't been built yet" end
-    if not ourmap then
+    if not aardkitmap then
         -- gen-suffixed like every other widget here: Mudlet keeps the old object
         -- alive across a dock switch and reusing the name orphans it
         local ok, w = pcall(function()
             return Geyser.Mapper:new({
-                name = "aardkit_map_" .. (panel.gen or 1) .. "_" .. tostring(seq),
+                -- gen and seq suffixed: Mudlet keeps a Geyser object alive
+                -- under its name, so reusing one after a dock switch rebuilds
+                -- the container orphans the old widget on top of the new one
+                name = "aardkitmap_" .. (panel.gen or 1) .. "_" .. tostring(seq),
                 x = 0, y = 0, width = "100%", height = "100%",
             }, panel.container)
         end)
         if not ok then return false, tostring(w) end
         if not w then return false, "Geyser.Mapper gave nothing back" end
-        ourmap = w
+        aardkitmap = w
     end
-    pcall(function() ourmap:resize("100%", "100%") end)
-    pcall(function() ourmap:move(0, 0) end)
-    pcall(function() ourmap:show() end)
+    pcall(function() aardkitmap:resize("100%", "100%") end)
+    pcall(function() aardkitmap:move(0, 0) end)
+    pcall(function() aardkitmap:show() end)
     return true
 end
 
@@ -346,12 +354,12 @@ end
 -- doing so would steal the view to wherever it used to be.
 function M.repaint_map()
     if not panel.container then return false, "the panel hasn't been built yet" end
-    if not ourmap then return M.paint_map() end
+    if not aardkitmap then return M.paint_map() end
     -- reposition() bails on a hidden widget, so show first
-    pcall(function() ourmap:show() end)
-    pcall(function() ourmap:resize("100%", "100%") end)
-    pcall(function() ourmap:move(0, 0) end)
-    local ok, err = pcall(function() ourmap:reposition() end)
+    pcall(function() aardkitmap:show() end)
+    pcall(function() aardkitmap:resize("100%", "100%") end)
+    pcall(function() aardkitmap:move(0, 0) end)
+    local ok, err = pcall(function() aardkitmap:reposition() end)
     if not ok then return false, tostring(err) end
     return true
 end
@@ -360,7 +368,8 @@ end
 -- all. Their widget stays alive and hidden rather than deleted - it isn't ours
 -- to destroy, and a reinstall of theirs just gets removed again next load.
 -- Their map is a Geyser.Mapper called 'mapwin' inside a Geyser.Container called
--- 'mapcontainer', put into the frame with addWindow(mapcontainer, "Map",
+-- 'mapcontainer' - ours is 'aardkitmap' - put into the frame with
+-- addWindow(mapcontainer, "Map",
 -- "topright"). removeWindow throws if GUIframe hasn't initialised yet, which on
 -- a slow load it hasn't - and this used to return true regardless, so it
 -- announced it had taken their map out while the map was still sitting there.
@@ -1509,7 +1518,7 @@ function M.cmd(arg)
             -- Mudlet draws into the map view that was made last, so leaving ours
             -- up would keep it rather than theirs. Ours goes; theirs comes back
             -- with the reload, because we can't rebuild somebody else's widget.
-            if ourmap then pcall(function() ourmap:hide() end) end
+            if aardkitmap then pcall(function() aardkitmap:hide() end) end
             panel:hide()
             unframed = false
             M.reframe_theirs()
