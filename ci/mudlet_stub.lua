@@ -60,6 +60,8 @@ clearWindow = note("clearWindow")
 -- a console's own answer for how many lines fit; the pager reads it every repaint
 getRowCount = function() return 24 end
 getColumnCount = function() return 80 end
+-- the wrap setting, which is what text actually breaks at
+getWindowWrap = function() return 100 end
 getCurrentLine = function() return "" end
 getLineCount = function() return 0 end
 moveCursor = note("moveCursor")

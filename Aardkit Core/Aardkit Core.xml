@@ -639,28 +639,42 @@ end
 -- cols: { { title, align = "l"|"r", max = &lt;chars&gt;, flex = true }, ... }
 -- rows: lists of values; a row may carry .link = { label, command, hint }
 function U.table(cols, rows, foot)
-    local avail = 100
-    if U.has("getColumnCount") then
-        local ok, n = pcall(getColumnCount)
-        if ok and tonumber(n) and tonumber(n) &gt; 20 then avail = tonumber(n) end
+    -- The wrap setting, not the console width. Text wraps at getWindowWrap
+    -- whatever size the window is - a 200-column console wrapping at 100 still
+    -- breaks the grid at 100 - so that's the number that matters, and
+    -- getColumnCount is only the fallback for a Mudlet without it.
+    --
+    -- Read every time it renders rather than cached, which is the whole of
+    -- being responsive here: resize the window, run the command again, it fits.
+    local avail
+    for _, fn in ipairs({ "getWindowWrap", "getColumnCount" }) do
+        if not avail and U.has(fn) then
+            local ok, n = pcall(_G[fn], "main")
+            n = ok and tonumber(n) or nil
+            if n and n &gt; 20 then avail = n end
+        end
     end
+    avail = (avail or 100) - 2      -- two back, so a full row never touches the edge
+
     -- a trailing [del] sits outside the grid but still takes room on the line
     local linked = false
     for _, r in ipairs(rows) do if type(r.link) == "table" then linked = true; break end end
-    avail = avail - (linked and 8 or 1)
+    if linked then avail = avail - 7 end
 
     -- Cut with a marker, so a value that CONTINUES doesn't read as one that
     -- ended. 'get bus bag' and 'get bus bag;unlock down;...' are different
     -- exits and the difference has to survive the column.
     --
-    -- One ASCII character, not an ellipsis: every width here is counted with #,
-    -- which counts BYTES, and a three-byte '…' would put every column after it
-    -- out by two and break the grid this is all in aid of.
+    -- '...' and not the single '…' character: every width here is counted with
+    -- #, which counts BYTES, so a three-byte ellipsis would look like one column
+    -- and occupy three. Three full stops are three of each and the arithmetic
+    -- holds. The marker replaces the last three characters of the value rather
+    -- than being added to it, so the cell is exactly as wide as it says.
     local function cut(v, n)
         if n &lt; 1 then return "" end
         if #v &lt;= n then return v end
-        if n == 1 then return "~" end
-        return v:sub(1, n - 1) .. "~"
+        if n &lt;= 3 then return string.rep(".", n) end
+        return v:sub(1, n - 3) .. "..."
     end
 
     local function cell(c, v)
