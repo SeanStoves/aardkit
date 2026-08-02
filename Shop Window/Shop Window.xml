@@ -152,11 +152,18 @@ local CFG = U.load("shopwin", {
 
 local ROW_H, PAD, HEAD_H, BAR_H, FOOT_H = 20, 4, 18, 20, 16
 
+-- Aardwolf's buy takes a count: 'buy 20 2' is twenty of item 2. Presets rather
+-- than a stepper you click twenty times, and per row rather than a quantity
+-- setting that persists - a number remembered from the last purchase is the
+-- kind of state that empties your gold when you forget it's set.
+local QTYS = { 1, 5, 10, 25, 50, 100 }
+local QW = 30
+
 -- declared ahead of the closures below so they bind these locals and not
 -- globals of the same name, which are nil forever
-local panel, rows, head, items, page, pages, btns
+local panel, rows, head, items, page, pages, btns, qbtn
 
-items, rows, page, pages, btns = {}, {}, 1, 1, {}
+items, rows, page, pages, btns, qbtn = {}, {}, 1, 1, {}, {}
 
 panel = aardkit.panel.new({
     name     = "shop",
@@ -170,7 +177,7 @@ panel = aardkit.panel.new({
     transient   = true,
     onresize    = function() if aardkit.shopwin.paint then aardkit.shopwin.paint() end end,
     onbuild     = function()
-        rows, head, btns = {}, nil, {}
+        rows, head, btns, qbtn = {}, nil, {}, {}
         if aardkit.shopwin.paint then aardkit.shopwin.paint() end
     end,
 })
@@ -268,15 +275,31 @@ local function label(store, key, h, cb, arg)
     return store[key]
 end
 
+-- The row is a label, not a button. Every purchase goes through one of the
+-- quantity buttons beside it, so there is no click on this panel that spends
+-- money without naming a number first.
 local function row_label(i)
     if not rows[i] then
         rows[i] = Geyser.Label:new({
             name = "aardkit_shop_row" .. i .. "_" .. (panel.gen or 1),
             x = 0, y = 0, width = 10, height = ROW_H - 2,
         }, panel.container)
-        rows[i]:setClickCallback("aardkit.shopwin.buy", i)
     end
     return rows[i]
+end
+
+-- slot,qty -&gt; the little button. Keyed on the slot rather than the item index
+-- because the slots are reused as you page.
+local function qty_label(slot, qi)
+    qbtn[slot] = qbtn[slot] or {}
+    if not qbtn[slot][qi] then
+        qbtn[slot][qi] = Geyser.Label:new({
+            name = "aardkit_shop_q" .. slot .. "_" .. qi .. "_" .. (panel.gen or 1),
+            x = 0, y = 0, width = QW, height = ROW_H - 2,
+        }, panel.container)
+        qbtn[slot][qi]:setClickCallback("aardkit.shopwin.buyq", slot .. "," .. qi)
+    end
+    return qbtn[slot][qi]
 end
 
 -- HTML eats runs of spaces, so padding has to be non-breaking
@@ -300,16 +323,18 @@ function SH.paint()
 
     -- how much room the name gets, once the level and price columns are taken.
     -- roughly 7px a character at this size.
-    local chars = math.max(20, math.floor((w - PAD * 2) / 7))
+    local qwidth = QW * #QTYS + PAD
+    local chars = math.max(20, math.floor((w - PAD * 2 - qwidth) / 7))
     local LVL, PRICE = 4, 10
-    local NAME = math.max(10, chars - LVL - PRICE - 6)
+    local NAME = math.max(8, chars - LVL - PRICE - 6)
 
     local hd = label(btns, "head", HEAD_H)
     hd:move(PAD, PAD)
     hd:resize(w - PAD * 2, HEAD_H)
     hd:setStyleSheet("background-color: #0d1117; border: 0px; " .. MONO)
-    hd:echo(string.format("&lt;span style='color:%s'&gt;&amp;nbsp;%s&amp;nbsp;&amp;nbsp;%s&amp;nbsp;&amp;nbsp;%s&lt;/span&gt;",
-        COL.dim, pad("Lvl", LVL, true), pad("Item", NAME), pad("Price", PRICE, true)))
+    hd:echo(string.format("&lt;span style='color:%s'&gt;&amp;nbsp;%s&amp;nbsp;&amp;nbsp;%s&amp;nbsp;&amp;nbsp;%s&lt;/span&gt;"
+        .. "&lt;span style='color:%s'&gt;&amp;nbsp;&amp;nbsp;how many&lt;/span&gt;",
+        COL.dim, pad("Lvl", LVL, true), pad("Item", NAME), pad("Price", PRICE, true), COL.dim))
     hd:show()
 
     local listy = PAD * 2 + HEAD_H
@@ -326,7 +351,7 @@ function SH.paint()
         slot = slot + 1
         local l = row_label(slot)
         l:move(PAD, listy + (slot - 1) * ROW_H)
-        l:resize(w - PAD * 2, ROW_H - 2)
+        l:resize(w - PAD * 2 - qwidth, ROW_H - 2)
         l:setStyleSheet(string.format(
             "background-color: %s; border: 1px solid %s; border-radius: 3px; %s",
             COL.row, COL.border, MONO))
@@ -340,10 +365,32 @@ function SH.paint()
             e.col,   pad(name, NAME),
             COL.dim, pad(U.commas(e.price), PRICE, true),
             e.qty ~= "---" and ("&amp;nbsp;x" .. e.qty) or ""))
-        l:setClickCallback("aardkit.shopwin.buy", i)
         l:show()
+
+        -- the quantity buttons, right-aligned against the panel edge
+        for qi, q in ipairs(QTYS) do
+            local b = qty_label(slot, qi)
+            b:move(w - PAD - qwidth + (qi - 1) * QW, listy + (slot - 1) * ROW_H)
+            b:resize(QW - 2, ROW_H - 2)
+            b:setStyleSheet(string.format(
+                "background-color: %s; border: 1px solid %s; border-radius: 3px;",
+                q == 1 and "#1b2540" or "#141b2d", COL.border))
+            b:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%d&lt;/span&gt;&lt;/center&gt;",
+                q == 1 and COL.text or COL.dim, q))
+            b:setClickCallback("aardkit.shopwin.buyq", i .. "," .. q)
+            if b.setToolTip then
+                pcall(function()
+                    b:setToolTip("buy " .. q .. " x " .. e.item .. "   ("
+                        .. U.commas(e.price * q) .. " gold)")
+                end)
+            end
+            b:show()
+        end
     end
     for i = slot + 1, #rows do rows[i]:hide() end
+    for sl = slot + 1, #qbtn do
+        for _, b in pairs(qbtn[sl] or {}) do b:hide() end
+    end
 
     -- page bar, with the warning under it
     local y, bw = math.max(0, h - BAR_H - FOOT_H - PAD * 2), 70
@@ -382,18 +429,31 @@ function SH.paint()
     b:resize(w - PAD * 2, FOOT_H)
     b:setStyleSheet("background-color: #0d1117; border: 0px;")
     b:echo(string.format("&lt;center&gt;&lt;span style='color:%s'&gt;%s&lt;/span&gt;&lt;/center&gt;", COL.accent,
-        "clicking a row buys it at the price shown - there is no confirmation"))
+        "the number buttons buy that many at once - there is no confirmation"))
     b:show()
 end
 
 function SH.prev() if page &gt; 1 then page = page - 1; SH.paint() end end
 function SH.next() if page &lt; pages then page = page + 1; SH.paint() end end
 
--- the row index, not the shop's number - the list scrolls
-function SH.buy(i)
+-- the row index, not the shop's number - the list pages
+function SH.buy(i, qty)
     local e = items[tonumber(i) or 0]
     if not e then return end
-    send("buy " .. e.num, true)
+    qty = tonumber(qty) or 1
+    -- 'buy 1 3' and 'buy 3' are the same thing; send the shorter one
+    if qty &gt; 1 then
+        send("buy " .. qty .. " " .. e.num, true)
+    else
+        send("buy " .. e.num, true)
+    end
+end
+
+-- setClickCallback passes one string, so the row and the count ride on it
+function SH.buyq(arg)
+    local i, q = tostring(arg or ""):match("^(%d+),(%d+)$")
+    if not i then return end
+    SH.buy(tonumber(i), tonumber(q))
 end
 
 
@@ -424,8 +484,9 @@ function SH.cmd(arg)
     elseif verb == "down" or verb == "next" then SH.next()
 
     elseif verb == "buy" then
-        local n = tonumber(U.trim(rest))
-        if not n then U.warn("Usage: shop buy &lt;row&gt;") else SH.buy(n) end
+        local n, q = U.trim(rest):match("^(%d+)%s*(%d*)$")
+        if not n then U.warn("Usage: shopwin buy &lt;row&gt; [how many]")
+        else SH.buy(tonumber(n), tonumber(q)) end
 
     elseif verb == "clear" then
         items, page = {}, 1
@@ -446,13 +507,13 @@ function SH.cmd(arg)
             { "shopwin on | off", "copy 'list' to the panel, or main window only" },
             { "shopwin gag",      "hide it from the main window, or show it in both" },
             { "shopwin up | down", "page through the list, same as the buttons" },
-            { "shopwin buy &lt;row&gt;", "same as clicking that row" },
+            { "shopwin buy &lt;row&gt; [n]", "same as clicking that row's number button" },
             { "shopwin clear",    "empty it" },
             { "shopwin dock | embed | show | hide", "panel placement" },
             { "" },
             { "Type 'list' in a shop. The MUD's own list still prints in the" },
-            { "main window; this is a clickable copy. A row sends 'buy &lt;num&gt;'" },
-            { "and stops there - it won't wear or wield it for you." },
+            { "main window; this is a clickable copy. The number beside a row" },
+            { "sends 'buy &lt;n&gt; &lt;num&gt;' and stops there - it won't wear it for you." },
         })
     end
 end

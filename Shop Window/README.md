@@ -1,6 +1,6 @@
 # Shop Window
 
-A shop's 'list' copied into a panel as clickable rows — the MUD's own list still prints as normal: level, the item in the colour the MUD gave it, and the price. Clicking one sends 'buy <num>' — Aardwolf's buy takes the list number, so there is no keyword to guess at — and stops there. It won't wear or wield anything for you. Type `list` as normal — the module needs no alias of its own.
+A shop's 'list' copied into a panel as clickable rows — the MUD's own list still prints as normal: level, the item in the colour the MUD gave it, and the price. Each row carries 1/5/10/25/50/100 buttons that send 'buy <n> <num>' — Aardwolf's buy takes a count and the list number, so there is no keyword to guess at — and stop there. The row itself isn't clickable, so no purchase happens without naming a quantity first. It won't wear or wield anything for you. Type `list` as normal — the module needs no alias of its own.
 
 ## Install
 
@@ -20,13 +20,13 @@ that every module here builds on. Without it nothing else loads.
 
 | Command | Does |
 |---|---|
-| `(panel) click a row` | sends 'buy <num>' for that item and stops there |
+| `(panel) 1 5 10 25 50 100` | the buttons beside a row — sends 'buy <n> <num>' and stops there |
 | `shopwin` | this list |
 | `shopwin toggle` | show or hide the panel |
 | `shopwin gag` | hide it from the main window, or show it in both |
 | `shopwin on\|off` | copy 'list' to the panel, or main window only |
-| `shopwin up\|down` | scroll the list |
-| `shopwin buy <row>` | same as clicking that row |
+| `shopwin up\|down` | page through the list, same as the buttons |
+| `shopwin buy <row> [n]` | same as clicking that row's number button |
 | `shopwin clear` | empty it |
 | `shopwin dock\|embed\|show\|hide` | panel placement |
 
