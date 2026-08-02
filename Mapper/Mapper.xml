@@ -640,9 +640,9 @@ function M.goto_room(id)
     for i, d in ipairs(speedWalkDir or {}) do
         local to, cmd = path[i], d
         if to then
-            local oks, sp = pcall(getSpecialExits, prev)
+            local oks, sp = pcall(getSpecialExitsSwap, prev)
             if oks and type(sp) == "table" then
-                for dest, c in pairs(sp) do
+                for c, dest in pairs(sp) do
                     if tonumber(dest) == to then cmd = c; used_cexit = true; break end
                 end
             end
@@ -672,15 +672,23 @@ function M.goto_room(id)
     local compress = aardkit.snd and aardkit.snd.compress
     local cmds = compress and compress(steps) or steps
 
-    U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s)"
-        .. (used_cexit and ", through a custom exit." or "."))
-
+    -- Echo off, like their SendNoEcho - so the route has to be printed here or
+    -- a refusal from the MUD arrives with nothing on screen to attach it to.
+    -- "Sorry Solao, you can't do that." is unreadable until you can see which
+    -- of four commands earned it.
+    local out = {}
     for _, c in ipairs(cmds) do
         for part in tostring(c):gmatch("[^;]+") do
             local one = U.trim(part)
-            if one ~= "" then send(one, false) end
+            if one ~= "" then out[#out + 1] = one end
         end
     end
+
+    U.ok("Walking to " .. U.rid(id) .. " - " .. #steps .. " step(s)"
+        .. (used_cexit and ", through a custom exit." or "."))
+    U.note("sending: " .. table.concat(out, "  |  "))
+
+    for _, c in ipairs(out) do send(c, false) end
 end
 
 -- Click a room on the map and walk to it.
@@ -769,9 +777,9 @@ function M.thisroom()
         if #ds &gt; 0 then rows[#rows + 1] = { "doors", table.concat(ds, " ") } end
     end
 
-    local sp = (getSpecialExits and select(2, pcall(getSpecialExits, id))) or {}
+    local sp = (getSpecialExitsSwap and select(2, pcall(getSpecialExitsSwap, id))) or {}
     if type(sp) == "table" then
-        for dest, cmd in pairs(sp) do
+        for cmd, dest in pairs(sp) do
             rows[#rows + 1] = { "cexit", tostring(cmd) .. "  -&gt; " .. U.rid(dest) }
         end
     end
@@ -844,9 +852,9 @@ function M.cexits(scope)
     if not allowed then U.warn("Usage: mapper cexits [here|&lt;area&gt;]"); return end
     local rows = {}
     for _, id in ipairs(allowed) do
-        local ok, sp = pcall(getSpecialExits, id)
+        local ok, sp = pcall(getSpecialExitsSwap, id)
         if ok and type(sp) == "table" then
-            for dest, cmd in pairs(sp) do
+            for cmd, dest in pairs(sp) do
                 rows[#rows + 1] = { tostring(cmd), U.rid(id) .. " -&gt; " .. U.rid(dest) }
             end
         end
@@ -946,10 +954,10 @@ end
 function M.delcexits()
     local id = here()
     if not id then return end
-    local ok, sp = pcall(getSpecialExits, id)
+    local ok, sp = pcall(getSpecialExitsSwap, id)
     local n = 0
     if ok and type(sp) == "table" then
-        for dest, cmd in pairs(sp) do
+        for cmd in pairs(sp) do
             pcall(removeSpecialExit, id, cmd)
             n = n + 1
         end
@@ -963,11 +971,11 @@ function M.delexits(which, room)
     if not (room and id) then U.warn("Usage: mapper delete exits from|to &lt;room id&gt;"); return end
     local a, b = room, id
     if which == "to" then a, b = id, room end
-    local ok, sp = pcall(getSpecialExits, a)
+    local ok, sp = pcall(getSpecialExitsSwap, a)
     local n = 0
     if ok and type(sp) == "table" then
-        for dest, cmd in pairs(sp) do
-            if dest == b then pcall(removeSpecialExit, a, cmd); n = n + 1 end
+        for cmd, dest in pairs(sp) do
+            if tonumber(dest) == b then pcall(removeSpecialExit, a, cmd); n = n + 1 end
         end
     end
     U.ok("Removed " .. n .. " exit(s) " .. which .. " " .. U.rid(room) .. ".")
@@ -1541,9 +1549,9 @@ function M.cmd(arg)
                 end end
             end
             for _, id in ipairs(list) do
-                local ok, sp = pcall(getSpecialExits, id)
+                local ok, sp = pcall(getSpecialExitsSwap, id)
                 if ok and type(sp) == "table" then
-                    for _, cmd in pairs(sp) do pcall(removeSpecialExit, id, cmd); n = n + 1 end
+                    for cmd in pairs(sp) do pcall(removeSpecialExit, id, cmd); n = n + 1 end
                 end
             end
             U.ok("Removed " .. n .. " custom exit(s).")

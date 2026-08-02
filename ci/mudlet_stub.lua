@@ -300,10 +300,24 @@ addSpecialExit = function(from, to, cmd)
     r.special[tostring(cmd)] = tonumber(to)
     return true
 end
+-- The two are NOT the same shape, and this stub used to return the convenient
+-- one from both names. Mudlet:
+--   getSpecialExits(id)      -> { [destRoomID] = { [command] = lockFlag } }
+--   getSpecialExitsSwap(id)  -> { [command]    = destRoomID }
+-- Six call sites read the first as if the value were the command string, so a
+-- walk through a custom exit sent the MUD "table: 0x8bbcd3680" and got told off.
+-- Checked against Mudlet's own generic_mapper, which does
+-- `for cmd,room in pairs(getSpecialExitsSwap(k))`.
 getSpecialExits = function(id)
     local r = MAP.room(id)
     local t = {}
-    if r then for cmd, to in pairs(r.special) do t[to] = cmd end end
+    if r then for cmd, to in pairs(r.special) do t[to] = { [cmd] = "0" } end end
+    return t
+end
+getSpecialExitsSwap = function(id)
+    local r = MAP.room(id)
+    local t = {}
+    if r then for cmd, to in pairs(r.special) do t[cmd] = to end end
     return t
 end
 removeSpecialExit = function(id, cmd)
