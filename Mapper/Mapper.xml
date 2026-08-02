@@ -2828,6 +2828,32 @@ end
 -- Records anything not recorded yet, rather than all-or-nothing. A key added to
 -- KEYS after somebody already had a snapshot would never be captured otherwise,
 -- and 'mapper style restore' would quietly not restore it.
+-- The size this style is drawn around, and the only thing we can do about it.
+--
+-- It cannot be set from here. Three routes checked and all three are shut:
+-- setConfig rounds to a whole number so 0.4 lands on 0; there is no Lua
+-- setRoomSize (the symbol in Mudlet's binary is a dialog widget in the map's
+-- own context menu); and it isn't in Mudlet.ini, so it can't be stamped at
+-- build time the way the colour palette is.
+--
+-- So it gets said once, the first time the style is applied on a profile, and
+-- never again. Not a nag - somebody who prefers bigger rooms is entitled to
+-- them, and the only genuinely wrong value is zero, which is warned about
+-- separately because nothing draws at all.
+local WANT_RATIO = 0.4
+
+local function suggest_room_size()
+    if not U.has("getConfig") then return end
+    local ok, now = pcall(getConfig, "mapRoomSize")
+    now = ok and tonumber(now) or nil
+    if not now or now &lt; 0.1 then return end        -- zero has its own, louder, warning
+    if math.abs(now - WANT_RATIO) &lt; 0.05 then return end
+    U.note("This style is drawn around Settings -&gt; Mapper -&gt; Room size = 4"
+        .. " (yours reads " .. string.format("%.2f", now) .. "; that dial stores a tenth"
+        .. " of what you type). It can't be set from here - setConfig rounds to a whole"
+        .. " number and 0.4 becomes 0. Said once.")
+end
+
 local function snapshot()
     if not U.has("getConfig") then return end
     local was = CFG.stylewas or {}
@@ -2873,7 +2899,9 @@ end
 -- map dimensions is worse than leaving them where they are. 'mapper style'
 -- prints both, 'mapper style room|exit &lt;n&gt;' sets them.
 function M.style_apply()
+    local first = not (CFG.stylewas and next(CFG.stylewas))
     snapshot()
+    if first then suggest_room_size() end
     if not apply(AARD) then return false end
     pcall(setMapBackgroundColor, BACKGROUND[1], BACKGROUND[2], BACKGROUND[3])
     pcall(setMapRoomExitsColor, EXITS[1], EXITS[2], EXITS[3])
