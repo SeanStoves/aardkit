@@ -60,6 +60,17 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Better with
+
+Nothing here is required. This module works on its own; these only remove a
+manual step if you happen to have them, and it says so at the moment the
+manual step comes up rather than nagging at you on load.
+
+| Module | With it | Without it |
+|---|---|---|
+| [Loot Tracker](../Loot%20Tracker/README.md) | 'mapper portals learn' lists the portal items you've identified, reading 'Type: Portal' and 'Leads to:' off the id box | record portals by hand with 'mapper portal <command>' while standing where one drops you |
+
+
 ## Config
 
 Settings live in `<profile>/aardkit/mapper.lua`.

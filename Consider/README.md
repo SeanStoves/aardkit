@@ -25,6 +25,17 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Better with
+
+Nothing here is required. This module works on its own; these only remove a
+manual step if you happen to have them, and it says so at the moment the
+manual step comes up rather than nagging at you on load.
+
+| Module | With it | Without it |
+|---|---|---|
+| [Search and Destroy](../Search%20and%20Destroy/README.md) | every mob it names is fed to the mob database, which is a far better source than room descriptions | it just tidies the consider lines where they stand |
+
+
 ## Worth knowing
 
 It never sends `consider` for you — type `con all` yourself and this tidies the

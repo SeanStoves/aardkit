@@ -277,6 +277,61 @@ function U.strip_art(m)
 end
 
 ---
+-- cross-module suggestions
+--
+-- Every module stands alone. Nothing here requires anything else, and a missing
+-- sibling is never an error - it's a different, usually more manual, path.
+--
+-- But saying "do this by hand" and stopping there is only half an answer. The
+-- useful sentence is the one naming the thing that would have done it for you,
+-- said once, at the moment you're being asked to do the work - not at load, and
+-- never as a nag on a timer.
+--
+-- Private modules are deliberately absent from this table. Pointing someone at
+-- a repository they can't clone is worse than saying nothing.
+---
+
+local REPO = "https://github.com/SeanStoves/aardkit"
+
+local MODULES = {
+    loot     = { "Loot Tracker",       "Loot%20Tracker" },
+    snd      = { "Search and Destroy", "Search%20and%20Destroy" },
+    mapper   = { "Mapper",             "Mapper" },
+    pt       = { "Player Tracker",     "Player%20Tracker" },
+    recall   = { "Recall Manager",     "Recall%20Manager" },
+    consider = { "Consider",           "Consider" },
+    spellup  = { "Spellups",           "Spellups" },
+    coords   = { "Coordinates",        "Coordinates" },
+    statmon  = { "Stat Monitor",       "Stat%20Monitor" },
+    mapexporter = { "MapExporter",     "MapExporter" },
+    helpwin  = { "Help Window",        "Help%20Window" },
+    goals    = { "Goals",              "Goals" },
+}
+
+-- Is it actually loaded? The namespace existing is the test, because that's
+-- what every caller then goes on to use.
+function U.have(key)
+    local ns = aardkit[key]
+    return type(ns) == "table" and next(ns) ~= nil
+end
+
+-- "You can do X by hand. &lt;Module&gt; does it for you: &lt;link&gt;"
+--
+-- Silent when the module IS loaded, so a caller can put this after its fallback
+-- without checking twice, and silent for anything not in the table.
+function U.suggest(key, said)
+    if U.have(key) then return end
+    local m = MODULES[key]
+    if not m then return end
+    local url = REPO .. "/tree/main/" .. m[2]
+    U.out("\n  &lt;#8a93a8&gt;" .. (said or "") .. (said and "  " or "")
+        .. m[1] .. " does this for you:&lt;r&gt;")
+    U.outLink("  &lt;#3ad07a&gt;" .. url .. "&lt;r&gt;",
+        function() if U.has("openUrl") then openUrl(url) end end, "Open " .. url)
+    echo("\n")
+end
+
+---
 -- gagging
 --
 -- One choke point, so it's greppable and so the ownership rule has somewhere to

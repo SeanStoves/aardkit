@@ -35,6 +35,17 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Better with
+
+Nothing here is required. This module works on its own; these only remove a
+manual step if you happen to have them, and it says so at the moment the
+manual step comes up rather than nagging at you on load.
+
+| Module | With it | Without it |
+|---|---|---|
+| [Loot Tracker](../Loot%20Tracker/README.md) | clicking an item name appraises it and the stat box is caught and stored | the appraise still prints, it just is not recorded |
+
+
 ## Config
 
 Settings live in `<profile>/aardkit/shopwin.lua`.

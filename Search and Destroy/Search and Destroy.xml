@@ -1793,6 +1793,7 @@ function SD.walk(dest, cb, what)
             return true
         end
         U.warn("S&amp;D: no path from here to " .. (what or U.rid(dest)) .. ".")
+        U.suggest("mapper", "A recorded portal could bridge the gap.")
         return false
     end
 

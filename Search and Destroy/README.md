@@ -43,6 +43,17 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Better with
+
+Nothing here is required. This module works on its own; these only remove a
+manual step if you happen to have them, and it says so at the moment the
+manual step comes up rather than nagging at you on load.
+
+| Module | With it | Without it |
+|---|---|---|
+| [Mapper](../Mapper/README.md) | a recorded portal is used when there's no path on foot | the walk fails as it always did, and you travel there yourself |
+
+
 ## Worth knowing
 
 Targets tick off from the MUD's own "Congratulations, that was one of your CAMPAIGN

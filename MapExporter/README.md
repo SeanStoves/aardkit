@@ -32,6 +32,17 @@ that every module here builds on. Without it nothing else loads.
 
 Each has its own `help` with the full list.
 
+## Better with
+
+Nothing here is required. This module works on its own; these only remove a
+manual step if you happen to have them, and it says so at the moment the
+manual step comes up rather than nagging at you on load.
+
+| Module | With it | Without it |
+|---|---|---|
+| [Mapper](../Mapper/README.md) | room notes and doors you have recorded are drawn onto the SVG | the map draws from room data alone |
+
+
 ## Config
 
 Settings live in `<profile>/aardkit/mapexporter.lua`.

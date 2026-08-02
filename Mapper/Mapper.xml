@@ -726,8 +726,10 @@ end
 function M.portals_learn()
     local LT = aardkit.loot
     if not (LT and LT.t and LT.t.item_stats) then
-        U.note("No Loot Tracker installed, so there's nothing to read portal items from."
-            .. "  'mapper portal &lt;command&gt;' records one by hand.")
+        U.note("Nothing to read portal items from - record them by hand with"
+            .. " 'mapper portal &lt;command&gt;' while standing where one drops you.")
+        U.suggest("loot", "It reads 'Type: Portal' and 'Leads to:' off an id box, so you'd"
+            .. " only confirm the room.")
         return
     end
     local ok, rows = pcall(db.fetch, db, LT.t.item_stats, db:eq(LT.t.item_stats.type, "Portal"))

@@ -11,6 +11,12 @@ Install any of them with **Toolbox → Module Manager → Install** and set the
 priority listed in its README. Tick **Sync** to have edits saved back to the file
 and shared across your profiles.
 
+**Take only what you want.** Every module works on its own — nothing here
+requires anything but Aardkit Core. Where two of them together save you a
+manual step, each one's README says so under *Better with*, and the module
+itself tells you at the moment the manual step comes up, with a link. It
+never nags on load and it never fails because a sibling is absent.
+
 ## Modules
 
 | Priority | Module | What it does |
