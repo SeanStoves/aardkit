@@ -1841,7 +1841,8 @@ function P.cmd(arg)
                     U.ok(p.name .. " background " .. math.floor(n) .. "/255, overriding the default.")
                 end
             end
-        else U.warn("panel " .. verb .. " show|hide|dock|embed|clear|opacity")
+        else U.warn("panel " .. verb
+            .. " show|hide|dock [edge]|frame &lt;side&gt;|embed|clear|reset|opacity|autodock")
         end
     end
 end
@@ -2087,6 +2088,7 @@ aardkit.tags = aardkit.tags or {}
 
 local T = aardkit.tags
 local U = aardkit.util.named("Tags")
+
 
 -- the payload IS the tag; nothing to keep
 local LINE = {
@@ -2788,6 +2790,16 @@ end
 G.needs   = G.needs   or {}
 G.toggles = G.toggles or {}     -- "group on" -&gt; module that asked
 
+-- 'tags on' is core, not a plugin's business - core/30_tags.lua opens by saying
+-- it is what makes everything else possible, and then nothing ever sent it.
+-- Every module that reads a tag has been working on the STOCK module's
+-- handshake, so the first profile without it would have had spellups, invdata,
+-- statmon and roomchars quietly stop, with no tags arriving even to gag.
+--
+-- Declared here rather than in 30_tags because core files load in numeric order
+-- and that one runs first: calling into this file from there indexes a nil.
+G.toggles["tags on"] = "tags"
+
 -- Every package Aardwolf offers, asked for whether or not anything here reads
 -- it. Set REPLACES the server's list, so a Set naming only what WE read is a
 -- reduction for whoever else is loaded: install nothing but Gauges and
@@ -2810,11 +2822,21 @@ local function supports_list()
     return "[ " .. table.concat(a, ", ") .. " ]"
 end
 
+-- Aardwolf sends char.* and room.info when they CHANGE. On a fresh connect
+-- nothing has changed yet, so a panel that reads them has nothing to draw until
+-- you move or take a hit. Their guiLoad primes it with these; ours never did,
+-- which is why the first screen after connect was blank rather than wrong.
+local PRIME = { "request char", "request room", "request quest" }
+
 local function say_all(verb)
     local list = supports_list()
     if not list then return end
     pcall(sendGMCP, "Core.Supports." .. verb .. " " .. list)
     for t in pairs(G.toggles) do pcall(sendGMCP, t) end
+end
+
+local function prime()
+    for _, r in ipairs(PRIME) do pcall(sendGMCP, r) end
 end
 
 -- Set once, then Add repeatedly.
@@ -2830,6 +2852,7 @@ local RETRIES = { 3, 8, 20 }
 function G.negotiate()
     if not U.playing() then return end
     say_all("Set")
+    prime()
     for _, t in ipairs(RETRIES) do
         tempTimer(t, function() if U.playing() then say_all("Add") end end)
     end

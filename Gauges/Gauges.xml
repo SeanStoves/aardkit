@@ -372,7 +372,8 @@ function GA.cmd(arg)
             U.ok("Stock gauges back in their frame.")
         end
 
-    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" then
         aardkit.panel.cmd("gauges " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         if verb ~= "hide" then GA.paint() end
 

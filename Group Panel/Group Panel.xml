@@ -443,7 +443,8 @@ function GR.cmd(arg)
             U.ok("Stock group display back on - it redraws on the next group message.")
         end
 
-    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" then
         aardkit.panel.cmd("grouppanel " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         if verb ~= "hide" then GR.paint() end
 

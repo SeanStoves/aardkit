@@ -288,7 +288,8 @@ function HW.cmd(arg)
             U.warn("This Mudlet has no sendTelnetChannel102 - can't negotiate.")
         end
 
-    elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
+    elseif verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" or verb == "show" or verb == "hide" then
         aardkit.panel.cmd("help " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else

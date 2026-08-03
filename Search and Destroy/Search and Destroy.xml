@@ -780,7 +780,8 @@ function SD.cmd(arg)
         local i = SD.next_target(SD.kind)
         if not i then U.note("Nothing left in " .. SD.kind .. ".") else SD.goto_target(SD.kind, i) end
 
-    elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
+    elseif verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" or verb == "hide" or verb == "show" then
         aardkit.panel.cmd("snd " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     elseif verb == "mob" or verb == "where" then

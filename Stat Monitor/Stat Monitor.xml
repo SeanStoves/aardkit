@@ -449,7 +449,8 @@ function SM.cmd(arg)
         SM.paint()
         panel:toggle()
 
-    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" then
         aardkit.panel.cmd("statmon " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     elseif verb == "on" or verb == "off" then

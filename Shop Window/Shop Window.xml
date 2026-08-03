@@ -586,7 +586,8 @@ function SH.cmd(arg)
         SH.paint()
         U.ok("Shop window cleared.")
 
-    elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
+    elseif verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" or verb == "show" or verb == "hide" then
         aardkit.panel.cmd("shop " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else

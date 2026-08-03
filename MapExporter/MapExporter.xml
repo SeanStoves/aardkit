@@ -745,7 +745,8 @@ function EX.cmd(arg)
             U.ok("Maps now go to " .. outdir_path())
         end
 
-    elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
+    elseif verb == "dock" or verb == "embed"
+            or verb == "frame" or verb == "reset" or verb == "autodock" or verb == "hide" or verb == "show" then
         aardkit.panel.cmd("mapexport " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else
