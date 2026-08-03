@@ -2560,9 +2560,22 @@ end
 G.needs   = G.needs   or {}     -- "Group 1" -&gt; true
 G.toggles = G.toggles or {}     -- "group on" -&gt; true
 
+-- Every package Aardwolf offers, asked for whether or not anything here reads
+-- it. Set REPLACES the server's list, so a Set naming only what WE want is a
+-- reduction for anyone else: install nothing but Gauges and "Char 1" alone would
+-- take the stock module's chat and mapper down with it, and their negotiation
+-- runs once on connect and never comes back. Our own Add can't undo that.
+--
+-- Asking for a package nobody reads costs one message and a table Mudlet fills
+-- in anyway. Clobbering someone else's costs them their module.
+local BASELINE = { "Char 1", "Comm 1", "Group 1", "Room 1" }
+
 local function supports_list()
+    local want = {}
+    for _, p in ipairs(BASELINE) do want[p] = true end
+    for p in pairs(G.needs) do want[p] = true end
     local a = {}
-    for p in pairs(G.needs) do a[#a + 1] = '"' .. p .. '"' end
+    for p in pairs(want) do a[#a + 1] = '"' .. p .. '"' end
     if #a == 0 then return nil end
     table.sort(a)
     return "[ " .. table.concat(a, ", ") .. " ]"

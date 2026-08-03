@@ -680,6 +680,15 @@ local function ctor(kind)
     end }
 end
 
+-- Recorded, because Core.Supports.Set REPLACES the server's list: a Set that
+-- names fewer packages than someone else already asked for is a silent
+-- reduction, and there is nothing on screen to say so.
+GMCP_SENT = {}
+
+function sendGMCP(msg)
+    GMCP_SENT[#GMCP_SENT + 1] = tostring(msg)
+end
+
 GAUGES = {}
 
 Geyser = {
