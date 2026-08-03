@@ -1017,15 +1017,19 @@ local STYLE = {
 -- wins; unset an override and it goes back to following this.
 P.opacity = 255
 
--- Mudlet paints a four-way arrow over the game window for every dockable
--- window, as a drop target. With several panels up that is several of them
--- sitting on top of the output, and Geyser says outright that setDockPosition
--- "works also if autoDock is disabled" - so turning it off costs the drag
--- gesture and nothing else. 'gauges dock bottom' still docks.
+-- Drag a floating dockable window to an edge of the main window and Mudlet
+-- attaches it there. On by default, because dragging a panel into place beats
+-- typing where it goes.
 --
--- Off by default for that reason. 'panel autodock on' brings it back, and one
--- panel can override the default the same way opacity does.
-P.autodock = false
+-- Geyser says setDockPosition "works also if autoDock is disabled", so turning
+-- this off costs the drag gesture and nothing else - 'gauges dock bottom' still
+-- docks either way. One panel can override the default, the way opacity does.
+--
+-- It has nothing to do with the blue four-way arrows over the game window, which
+-- I first blamed it for. Those are the STOCK module's: GUIframe puts a 30x30
+-- resize grip on each enabled side, blue_arrows_30t.png at rest and
+-- blue_arrows.png on hover, and they go when that module does.
+P.autodock = true
 
 local function container_style(clear, alpha)
     return [[
@@ -1698,11 +1702,12 @@ function P.cmd(arg)
         local want = U.trim(rest):lower()
         if want ~= "on" and want ~= "off" then
             U.help("panel autodock", {
-                { "default", P.autodock and "on - Mudlet shows drop targets" or "off - no arrows over the game" },
+                { "default", P.autodock and "on - drag one to an edge and it sticks"
+                             or "off - docking by command only" },
                 { "" },
-                { "Mudlet paints a four-way arrow over the game window as a drop" },
-                { "target for every dockable window. Off, you lose the drag" },
-                { "gesture and nothing else - 'panel &lt;name&gt; dock bottom' still docks." },
+                { "Drag a floating dockable window to an edge of the main window" },
+                { "and Mudlet attaches it there. Off, you lose the gesture and" },
+                { "nothing else - 'panel &lt;name&gt; dock bottom' still docks." },
                 { "" },
                 { "panel autodock on|off",        "the default every panel follows" },
                 { "panel &lt;name&gt; autodock on|off", "override it for one panel" },
@@ -1717,7 +1722,7 @@ function P.cmd(arg)
         for _, p in pairs(P.reg) do
             if p.mode == "dock" then n = n + p:apply_autodock() end
         end
-        U.ok("Panel drop targets " .. want .. (n &gt; 0 and ("  (" .. n .. " window(s) updated)") or ""))
+        U.ok("Drag-to-dock " .. want .. (n &gt; 0 and ("  (" .. n .. " window(s) updated)") or ""))
 
     elseif verb == "raise" or verb == "top" then
         P.raiseall()
@@ -1748,7 +1753,7 @@ function P.cmd(arg)
             { "panel &lt;name&gt; hide",    "hide it" },
             { "panel &lt;name&gt; dock",    "make it a real dockable window" },
             { "panel &lt;name&gt; dock &lt;edge&gt;", "and snap it there: top bottom left right floating" },
-            { "panel autodock on|off",   "Mudlet's drop-target arrows over the game window" },
+            { "panel autodock on|off",   "drag a dockable panel to an edge to attach it" },
             { "panel &lt;name&gt; autodock on|off", "override that for one panel" },
             { "panel &lt;name&gt; embed",   "put it back inside the main window" },
             { "panel &lt;name&gt; clear",   "empty its buffer" },
@@ -1801,7 +1806,7 @@ function P.cmd(arg)
             elseif want == "on" or want == "off" then
                 st(p.name).autodock = (want == "on")
                 save_state(); p:apply_autodock()
-                U.ok(p.name .. " drop targets " .. want .. ".")
+                U.ok(p.name .. " drag-to-dock " .. want .. ".")
             else
                 U.warn("Usage: panel " .. p.name .. " autodock on|off|default")
             end
