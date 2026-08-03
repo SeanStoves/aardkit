@@ -683,6 +683,16 @@ end
 -- Recorded, because Core.Supports.Set REPLACES the server's list: a Set that
 -- names fewer packages than someone else already asked for is a silent
 -- reduction, and there is nothing on screen to say so.
+BORDERS = {}
+
+-- Recorded: "frame bottom" is only above the command line if the border is
+-- actually reserved, and a no-op stub cannot tell that from a container that
+-- simply sits on top of the output.
+function setBorderBottom(n) BORDERS.bottom = n end
+function setBorderTop(n)    BORDERS.top    = n end
+function setBorderLeft(n)   BORDERS.left   = n end
+function setBorderRight(n)  BORDERS.right  = n end
+
 USERWINDOWS = {}
 
 GMCP_SENT = {}

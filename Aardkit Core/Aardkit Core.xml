@@ -1017,6 +1017,16 @@ local STYLE = {
 -- wins; unset an override and it goes back to following this.
 P.opacity = 255
 
+-- Mudlet paints a four-way arrow over the game window for every dockable
+-- window, as a drop target. With several panels up that is several of them
+-- sitting on top of the output, and Geyser says outright that setDockPosition
+-- "works also if autoDock is disabled" - so turning it off costs the drag
+-- gesture and nothing else. 'gauges dock bottom' still docks.
+--
+-- Off by default for that reason. 'panel autodock on' brings it back, and one
+-- panel can override the default the same way opacity does.
+P.autodock = false
+
 local function container_style(clear, alpha)
     return [[
         background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(alpha or P.opacity)) .. [[);
@@ -1079,7 +1089,36 @@ function Panel:_build()
     -- label objects alive and reusing a name orphans them
     self.gen = (self.gen or 0) + 1
 
-    if mode == "dock" then
+    -- "frame": in the main window's own border, which is where the stock module
+    -- puts its bars and the only placement that sits ABOVE the command line.
+    --
+    -- Mudlet's UserWindow docking is a different thing: "dock bottom" attaches a
+    -- separate window under everything, command line included. setBorder*
+    -- shrinks the console instead and leaves a strip that belongs to us, which
+    -- is what their guiLoad does - setBorderBottom(bottomStartHeight + offset).
+    --
+    -- Geyser reads a negative coordinate as an offset from the far edge, so
+    -- y = -h lands the container in the strip we just reserved.
+    if mode == "frame" then
+        local side = st(self.name).framepos or "bottom"
+        local h    = tonumber(st(self.name).framesize) or self.h or 56
+        local cons = { name = self.name .. "_fr" .. self.gen }
+        if side == "bottom" then
+            cons.x, cons.y, cons.width, cons.height = 0, -h, "100%", h
+            pcall(setBorderBottom, h)
+        elseif side == "top" then
+            cons.x, cons.y, cons.width, cons.height = 0, 0, "100%", h
+            pcall(setBorderTop, h)
+        elseif side == "left" then
+            cons.x, cons.y, cons.width, cons.height = 0, 0, h, "100%"
+            pcall(setBorderLeft, h)
+        else
+            cons.x, cons.y, cons.width, cons.height = -h, 0, h, "100%"
+            pcall(setBorderRight, h)
+        end
+        self.holder = Geyser.Container:new(cons)
+
+    elseif mode == "dock" then
         -- Mudlet docks a UserWindow to an edge of the main window, which is
         -- where the stock module nails its own bars. autoDock is on by default
         -- and is what puts the crosshairs up when you drag one over the game
@@ -1093,7 +1132,7 @@ function Panel:_build()
         local cons = {
             name      = self.name .. "_uw" .. self.gen,
             titleText = self.title,
-            autoDock  = true,
+            autoDock  = self:autodock(),
         }
         if pos and pos ~= "floating" then
             cons.docked, cons.dockPosition = true, pos
@@ -1185,8 +1224,42 @@ end
 
 local DOCKPOS = { top = true, bottom = true, left = true, right = true, floating = true }
 
+-- The shared setting unless this panel has said otherwise.
+function Panel:autodock()
+    local own = st(self.name).autodock
+    if own ~= nil then return own end
+    return P.autodock
+end
+
 -- Where a docked panel sits. Changing it live works when the window already
 -- exists; otherwise it takes on the next build, which setmode does anyway.
+-- Live where Mudlet allows it: enableAutoDock/disableAutoDock exist on a
+-- UserWindow, so an already-open window doesn't need rebuilding to lose its
+-- arrows. Returns 1 if it took, so the caller can say how many moved.
+-- Put one panel back the way it started. Its own state goes, and so does the
+-- geometry Adjustable.Container saved for it - a panel dragged off-screen or
+-- docked somewhere unhelpful is otherwise stuck there across reloads, because
+-- both halves have to agree before it comes back.
+function Panel:reset()
+    P.state[self.name] = nil
+    save_state()
+    for gen = 1, (self.gen or 1) + 1 do
+        os.remove(getMudletHomeDir() .. "/AdjustableContainer/" .. self.name .. "_ac" .. gen .. ".lua")
+    end
+    self:_build()
+    self:show()
+    U.ok(self.name .. " reset - back where it started.")
+end
+
+function Panel:apply_autodock()
+    local w = self.holder
+    if self.mode ~= "dock" or type(w) ~= "table" then return 0 end
+    local on = self:autodock()
+    local fn = on and w.enableAutoDock or w.disableAutoDock
+    if type(fn) == "function" and pcall(function() fn(w) end) then return 1 end
+    return 0
+end
+
 function Panel:setdock(pos)
     pos = tostring(pos or ""):lower()
     if not DOCKPOS[pos] then
@@ -1209,9 +1282,33 @@ function Panel:setdock(pos)
     end
 end
 
+local FRAMEPOS = { top = true, bottom = true, left = true, right = true }
+
+-- Into the main window's border, above the command line. Give back whatever
+-- border we took when it leaves, or the console stays short for the session.
+function Panel:setframe(side, size)
+    side = tostring(side or "bottom"):lower()
+    if side == "off" or side == "none" then
+        local had = st(self.name).framepos
+        st(self.name).framepos, st(self.name).framesize = nil, nil
+        if had then pcall(_G["setBorder" .. had:sub(1,1):upper() .. had:sub(2)], 0) end
+        self:setmode("embed")
+        return
+    end
+    if not FRAMEPOS[side] then
+        U.warn("frame side must be top, bottom, left, right - or off")
+        return
+    end
+    st(self.name).framepos  = side
+    st(self.name).framesize = tonumber(size) or st(self.name).framesize or self.h or 56
+    save_state()
+    if self.mode == "frame" then self:_build() else self:setmode("frame") end
+    U.ok(self.name .. " in the " .. side .. " border, above the command line.")
+end
+
 function Panel:setmode(mode)
-    if mode ~= "dock" and mode ~= "embed" then
-        U.warn("panel mode must be dock or embed")
+    if mode ~= "dock" and mode ~= "embed" and mode ~= "frame" then
+        U.warn("panel mode must be dock, embed or frame")
         return
     end
     if mode == self.mode then return end
@@ -1597,6 +1694,31 @@ function P.cmd(arg)
             .. (P.opacity &lt; 255 and " - the game will show through." or " - solid.")
             .. (kept &gt; 0 and ("  (" .. kept .. " with their own setting kept it.)") or ""))
 
+    elseif verb == "autodock" then
+        local want = U.trim(rest):lower()
+        if want ~= "on" and want ~= "off" then
+            U.help("panel autodock", {
+                { "default", P.autodock and "on - Mudlet shows drop targets" or "off - no arrows over the game" },
+                { "" },
+                { "Mudlet paints a four-way arrow over the game window as a drop" },
+                { "target for every dockable window. Off, you lose the drag" },
+                { "gesture and nothing else - 'panel &lt;name&gt; dock bottom' still docks." },
+                { "" },
+                { "panel autodock on|off",        "the default every panel follows" },
+                { "panel &lt;name&gt; autodock on|off", "override it for one panel" },
+                { "panel &lt;name&gt; autodock default", "follow the shared setting again" },
+            })
+            return
+        end
+        P.autodock = (want == "on")
+        st("_autodock").value = P.autodock
+        save_state()
+        local n = 0
+        for _, p in pairs(P.reg) do
+            if p.mode == "dock" then n = n + p:apply_autodock() end
+        end
+        U.ok("Panel drop targets " .. want .. (n &gt; 0 and ("  (" .. n .. " window(s) updated)") or ""))
+
     elseif verb == "raise" or verb == "top" then
         P.raiseall()
         U.ok("Panels raised above the module's windows.")
@@ -1626,8 +1748,13 @@ function P.cmd(arg)
             { "panel &lt;name&gt; hide",    "hide it" },
             { "panel &lt;name&gt; dock",    "make it a real dockable window" },
             { "panel &lt;name&gt; dock &lt;edge&gt;", "and snap it there: top bottom left right floating" },
+            { "panel autodock on|off",   "Mudlet's drop-target arrows over the game window" },
+            { "panel &lt;name&gt; autodock on|off", "override that for one panel" },
             { "panel &lt;name&gt; embed",   "put it back inside the main window" },
             { "panel &lt;name&gt; clear",   "empty its buffer" },
+            { "panel &lt;name&gt; reset",   "put it back where it started, geometry and all" },
+            { "panel &lt;name&gt; frame bottom [h]", "in the main window's border, ABOVE the command line" },
+            { "panel &lt;name&gt; frame off", "out of the border again" },
             { "panel raise",          "bring every panel above the module's GUI" },
             { "panel save",           "write the current layout to disk" },
             { "panel opacity &lt;0-255&gt;", "the default every panel follows; 255 is solid" },
@@ -1651,6 +1778,33 @@ function P.cmd(arg)
         if act == "" or act == "toggle" then p:toggle()
         elseif act == "show"  then p:show()
         elseif act == "hide"  then p:hide()
+        elseif act == "reset" then p:reset()
+        elseif act:match("^frame") then
+            local a1, a2 = act:match("^frame%s+(%S+)%s*(%S*)")
+            p:setframe(a1 or "bottom", a2 ~= "" and a2 or nil)
+        elseif act:match("^autodock") then
+            local want = U.trim(act:gsub("^autodock", ""))
+            if want == "" then
+                U.help("panel " .. p.name .. " autodock", {
+                    { "this panel", st(p.name).autodock ~= nil
+                        and ((st(p.name).autodock and "on" or "off") .. "  (its own)")
+                        or ((P.autodock and "on" or "off") .. "  (following the default)") },
+                    { "default", P.autodock and "on" or "off" },
+                    { "" },
+                    { "panel " .. p.name .. " autodock on|off",   "set just this one" },
+                    { "panel " .. p.name .. " autodock default",  "follow the shared setting again" },
+                })
+            elseif want == "default" or want == "clear" or want == "reset" then
+                st(p.name).autodock = nil
+                save_state(); p:apply_autodock()
+                U.ok(p.name .. " follows the default again.")
+            elseif want == "on" or want == "off" then
+                st(p.name).autodock = (want == "on")
+                save_state(); p:apply_autodock()
+                U.ok(p.name .. " drop targets " .. want .. ".")
+            else
+                U.warn("Usage: panel " .. p.name .. " autodock on|off|default")
+            end
         elseif act == "dock"  then p:setmode("dock")
         elseif act:match("^dock%s+%S+") then p:setdock(act:match("^dock%s+(%S+)"))
         elseif act == "embed" then p:setmode("embed")

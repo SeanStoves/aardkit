@@ -17,6 +17,10 @@ Shared foundation every other module builds on: a GMCP watcher that hands out ch
 | Command | Does |
 |---|---|
 | `panel <name> dock <edge>` | snap it to an edge: top bottom left right floating |
+| `panel <name> frame bottom` | in the main window's border, above the command line |
+| `panel <name> frame off` | out of the border again |
+| `panel <name> reset` | put one panel back where it started |
+| `panel autodock on\|off` | Mudlet's drop-target arrows over the game window |
 | `aardkit` | lists core commands and every registered module |
 | `aardkit plugins` | names of loaded modules |
 | `aardkit stock` | what we switch off in the stock AardwolfMudlet module |
