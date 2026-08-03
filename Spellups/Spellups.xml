@@ -434,7 +434,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>spellups</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Spellups]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Spellups — state engine (stage 1)
     Sean Stoves, 2026-07-31
 
@@ -1330,7 +1337,14 @@ aardkit.register("spellup", "tracks what's on you and why casts fail", SP.cmd)
 			<Script isActive="yes" isFolder="no">
 				<name>spellups/autocast</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Spellups]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Spellups — autocast
     Sean Stoves, 2026-07-31
 
@@ -1497,7 +1511,14 @@ U.every("spellauto", 5, SP.autotick)
 			<Script isActive="yes" isFolder="no">
 				<name>spellups/extras</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Spellups]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Spellups — totems, eye of vigilance, auras, wraith form (stage 3)
     Sean Stoves, 2026-07-31
 

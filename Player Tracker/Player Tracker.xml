@@ -314,7 +314,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>playertracker</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Player Tracker]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Player Tracker — port of Solao_Player_Tracker (MUSHclient)
     Sean Stoves, 2026-07-31
 

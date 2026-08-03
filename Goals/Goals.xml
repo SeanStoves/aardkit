@@ -31,7 +31,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>goals</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Goals]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Goals — what you're saving up for
     Sean Stoves, 2026-07-31
 

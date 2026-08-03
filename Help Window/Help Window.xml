@@ -87,7 +87,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>helpwin</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Help Window]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Help window
     Sean Stoves, 2026-08-02
 

@@ -201,7 +201,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>loottracker/db</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Loot Tracker]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Loot Tracker — schema
     Sean Stoves, 2026-07-31
 
@@ -378,7 +385,14 @@ LT.STAT_TEXT = {
 			<Script isActive="yes" isFolder="no">
 				<name>loottracker</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Loot Tracker]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Loot Tracker — port of Solao_Loot_Tracker (MUSHclient)
     Sean Stoves, 2026-07-31
 
@@ -1743,7 +1757,14 @@ aardkit.register("loot", "item/mob/shop provenance database", LT.cmd)
 			<Script isActive="yes" isFolder="no">
 				<name>loottracker/api</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Loot Tracker]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Loot Tracker — shared pool sync
     Sean Stoves, 2026-07-31
 

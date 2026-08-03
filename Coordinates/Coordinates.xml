@@ -87,7 +87,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>coords</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Coordinates]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Coordinates
     Sean Stoves, 2026-08-01
 

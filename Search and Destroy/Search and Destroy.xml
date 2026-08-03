@@ -448,7 +448,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>snd</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Search &amp; Destroy — mob/area data layer
     Sean Stoves, 2026-07-31
 
@@ -846,7 +853,14 @@ aardkit.register("snd", "mob/area database from Search &amp; Destroy", SD.cmd)
 			<Script isActive="yes" isFolder="no">
 				<name>snd/targets</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Search &amp; Destroy — quest / campaign / gquest targets
     Sean Stoves, 2026-08-01
 
@@ -1267,7 +1281,14 @@ end
 			<Script isActive="yes" isFolder="no">
 				<name>snd/quest</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Quest clocks
     Sean Stoves, 2026-08-01
 
@@ -1486,7 +1507,14 @@ end)
 			<Script isActive="yes" isFolder="no">
 				<name>snd/hunt</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Search &amp; Destroy — auto-hunt
     Sean Stoves, 2026-08-01
 
@@ -1671,7 +1699,14 @@ aardkit_snd_hunt_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
 			<Script isActive="yes" isFolder="no">
 				<name>snd/walk</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Search &amp; Destroy — walking to a target
     Sean Stoves, 2026-08-01
 
@@ -2118,7 +2153,14 @@ aardkit_snd_walk_disc = registerAnonymousEventHandler("sysDisconnectionEvent",
 			<Script isActive="yes" isFolder="no">
 				<name>snd/ui</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Search &amp; Destroy data]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Search &amp; Destroy — panel
     Sean Stoves, 2026-08-01
 

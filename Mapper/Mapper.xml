@@ -87,7 +87,14 @@
 			<Script isActive="yes" isFolder="no">
 				<name>mapper</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Mapper]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Mapper — the MUSHclient mapper's commands, on Mudlet's map
     Sean Stoves, 2026-08-02
 
@@ -2182,7 +2189,14 @@ for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, claim_map) end
 			<Script isActive="yes" isFolder="no">
 				<name>mapper/walk</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Mapper]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Mapper — the mapping engine
     Sean Stoves, 2026-08-02
 
@@ -2795,7 +2809,14 @@ aardkit_mapper_send = registerAnonymousEventHandler("sysDataSendRequest", "aardk
 			<Script isActive="yes" isFolder="no">
 				<name>mapper/style</name>
 				<packageName />
-				<script>--[[
+				<script>if not (aardkit and aardkit.util and aardkit.register) then
+    if cecho then
+        cecho("\n&lt;firebrick&gt;[Mapper]&lt;reset&gt; needs Aardkit Core. Install that first - Toolbox &gt; Module Manager, priority 1.\n")
+    end
+    return
+end
+
+--[[
     Mapper — how the map draws
     Sean Stoves, 2026-08-02
 
