@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 29 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+		<TriggerGroup isActive="yes" isFolder="yes" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+			<name>clanshops</name>
+			<script />
+			<triggerType>0</triggerType>
+			<conditonLineDelta>0</conditonLineDelta>
+			<mStayOpen>0</mStayOpen>
+			<mCommand />
+			<packageName />
+			<mFgColor>#ff0000</mFgColor>
+			<mBgColor>#ffff00</mBgColor>
+			<mSoundFile />
+			<colorTriggerFgColor>#000000</colorTriggerFgColor>
+			<colorTriggerBgColor>#000000</colorTriggerBgColor>
+			<regexCodeList />
+			<regexCodePropertyList />
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>clanshop stock</name>
+				<script>aardkit.clanshops.on_shop(matches[2], matches[3], matches[4])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\s*\d+\s+(\d+)\s+(\d+)\s+---\s+(\S.*?)\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+		</TriggerGroup>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>clanshops</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>clanshops</name>
+				<script>aardkit.clanshops.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^clanshops?(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>clanshops</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>clanshops</name>
+				<packageName />
+				<script>--[[
+    Clan Shops — the clan shop rooms, and what's in them
+    Sean Stoves, 2026-08-02
+
+    The stock module has this as a hover menu called ClanShops: sixty room ids
+    grouped into submenus by area, each entry calling gotoRoom(). That function
+    is called seventeen times in that module and defined nowhere in it - not as
+    a function, not as an assignment, not as aard.gotoRoom - so every entry, and
+    every 'runto' link in its room-find output, calls a nil global. It has been
+    dead for some time and nothing about our mapper caused it.
+
+    The list of rooms is worth keeping. It's a fact about Aardwolf rather than
+    anyone's code, and sixty room numbers are not something to rediscover by
+    walking. So: the same rooms, in a table you can read, with a [go] on each
+    that goes through our own walker.
+
+    Better with Loot Tracker, and useless-but-harmless without it. That module
+    already records shop_stock keyed by roomid - what a shop natively stocks and
+    asks for it - which is exactly the join this needs. With it installed you
+    can search every clan shop for an item without visiting one.
+]]
+
+aardkit = aardkit or {}
+aardkit.clanshops = aardkit.clanshops or {}
+
+local CS = aardkit.clanshops
+local U  = aardkit.util.named("Clan Shops")
+
+---
+-- the rooms
+--
+-- Read out of the stock module's own list, which is where anyone would have
+-- had to get them. Room numbers and clan names are facts about the MUD.
+---
+
+local SHOPS = {
+    { 30525, "bard" },      { 30531, "bard" },      { 30532, "bard" },
+    { 30533, "bard" },      { 49256, "boot" },      { 49392, "boot" },
+    { 50102, "boot" },      { 50103, "boot" },      { 31123, "crusader" },
+    { 49217, "crusader" },  { 47187, "crusader" },  { 31150, "crusader" },
+    { 31158, "crusader" },  { 31128, "crusader" },  { 31156, "crusader" },
+    { 49335, "gaardian" },  { 20029, "gaardian" },  { 20035, "gaardian" },
+    { 14162, "seekers" },   { 14141, "seekers" },   { 14168, "seekers" },
+    { 31594, "tanelorn" },  { 31584, "tanelorn" },  { 31566, "tanelorn" },
+    { 29214, "tao" },       { 29220, "tao" },       { 29221, "tao" },
+    { 29223, "tao" },       { 49373, "tao" },       { 50152, "touchstone" },
+    { 28358, "touchstone" },{ 28361, "touchstone" },{ 28359, "touchstone" },
+    { 50123, "touchstone" },{ 34210, "amazon" },    { 15704, "cabal" },
+    { 28910, "chaos" },     { 27991, "crimson" },   { 30949, "daoine" },
+    { 16803, "doh" },       { 5865,  "dominion" },  { 642,   "dragon" },
+    { 29580, "druid" },     { 831,   "emerald" },   { 2292,  "hook" },
+    { 30415, "imperium" },  { 2339,  "light" },     { 28580, "loqui" },
+    { 15855, "masaki" },    { 19967, "perdition" }, { 15141, "pyre" },
+    { 1961,  "retribution" },{ 502,  "rhabdo" },    { 24182, "romani" },
+    { 32408, "shadokil" },  { 15574, "twinlobe" },  { 879,   "vanir" },
+    { 32342, "watchmen" },  { 49572, "xunti" },
+}
+
+local by_room = {}
+for _, r in ipairs(SHOPS) do by_room[r[1]] = r[2] end
+
+---
+-- stock
+--
+-- Loot Tracker owns this when it's installed. It records shop_stock keyed by
+-- roomid already, for every shop on Aardwolf rather than these sixty, and two
+-- modules writing the same fact is how they drift apart - so when it's here we
+-- read its table and record nothing ourselves.
+--
+-- When it isn't, this keeps its own, from the same 'list' output and the same
+-- trigger pattern it uses. Only for the sixty rooms above: this is a clan shop
+-- command and has no business remembering the whole game.
+---
+
+local STOCK = U.load("clanshops", { stock = {} })
+STOCK.stock = STOCK.stock or {}
+
+local function ours_saves() return not U.have("loot") end
+
+-- Only ever this module's own table, whoever is in charge of reading. The
+-- ownership rule is "we don't write when Loot Tracker is here", and that is
+-- invisible through stock_of, which reads theirs in that case.
+function CS.own_stock(id)
+    return STOCK.stock[tostring(id)] or {}
+end
+
+function CS.on_shop(lvl, price, item)
+    if not ours_saves() then return end          -- theirs is the record
+    item = U.trim(tostring(item or ""))
+    if item == "" then return end
+    local id = U.room()
+    if not (id and by_room[id]) then return end  -- only clan shops
+
+    local shop = STOCK.stock[tostring(id)] or {}
+    for _, e in ipairs(shop) do
+        if e.item == item then
+            e.price, e.level, e.seen = tonumber(price) or 0, tonumber(lvl) or 0, os.time()
+            STOCK.stock[tostring(id)] = shop
+            U.save("clanshops", STOCK)
+            return
+        end
+    end
+    shop[#shop + 1] = { item = item, price = tonumber(price) or 0,
+                        level = tonumber(lvl) or 0, seen = os.time() }
+    STOCK.stock[tostring(id)] = shop
+    U.save("clanshops", STOCK)
+end
+
+-- Every item recorded for a room, from whichever record is in charge.
+-- Public because it's the only way to see which record that is - a test that
+-- goes through 'find' cannot tell "we didn't store it" from "we didn't read it".
+function CS.stock_of(id)
+    if U.have("loot") and aardkit.loot.t and aardkit.loot.t.shop_stock then
+        local T = aardkit.loot.t
+        local ok, rows = pcall(function()
+            return db:fetch(T.shop_stock, db:eq(T.shop_stock.roomid, id))
+        end)
+        if ok and type(rows) == "table" then
+            local out = {}
+            for _, r in ipairs(rows) do
+                out[#out + 1] = { item = tostring(r.item), price = tonumber(r.price) or 0,
+                                  level = tonumber(r.level) or 0 }
+            end
+            return out
+        end
+        return {}
+    end
+    return STOCK.stock[tostring(id)] or {}
+end
+
+local stock_of = CS.stock_of
+
+---
+-- what we can say about a room
+---
+
+local function known(id)
+    return roomExists and roomExists(id) and true or false
+end
+
+local function room_name(id)
+    if not known(id) then return "?" end
+    local ok, n = pcall(getRoomName, id)
+    return (ok and n ~= "" and n) or "?"
+end
+
+local function area_of(id)
+    if not known(id) then return "?" end
+    if aardkit.mapper and aardkit.mapper.areaname then
+        return aardkit.mapper.areaname(id)
+    end
+    return "?"
+end
+
+local function stocked(id)
+    return #stock_of(id)
+end
+
+local function go_link(id)
+    -- Our walker if the Mapper is here; the MUD's own runto if it isn't. Never
+    -- gotoRoom, which is what theirs calls and what nothing defines.
+    if aardkit.mapper and aardkit.mapper.goto_room then
+        return { "&lt;#3ad07a&gt;[go]&lt;r&gt;", function() aardkit.mapper.goto_room(id) end,
+                 "Walk to " .. U.rid(id) }
+    end
+    return { "&lt;#3ad07a&gt;[go]&lt;r&gt;", function() send("runto " .. id, false) end,
+             "runto " .. id .. "  (install the Mapper to walk it properly)" }
+end
+
+---
+-- listing
+---
+
+function CS.list(filter)
+    filter = U.trim(tostring(filter or "")):lower()
+
+    local rows, unmapped = {}, 0
+    for _, s in ipairs(SHOPS) do
+        local id, clan = s[1], s[2]
+        if filter == "" or clan:find(filter, 1, true)
+           or tostring(id) == filter or room_name(id):lower():find(filter, 1, true) then
+            if not known(id) then unmapped = unmapped + 1 end
+            local n = stocked(id)
+            local row = { clan, area_of(id), room_name(id), id, n and tostring(n) or "-" }
+            row.link = go_link(id)
+            rows[#rows + 1] = row
+        end
+    end
+
+    if #rows == 0 then
+        U.warn("No clan shop matching '" .. filter .. "'.  'clanshops' for the lot.")
+        return
+    end
+    table.sort(rows, function(a, b)
+        if a[1] ~= b[1] then return a[1] &lt; b[1] end
+        return a[4] &lt; b[4]
+    end)
+
+    local foot = #rows .. " clan shop(s)."
+    if not U.have("loot") then
+        foot = foot .. "  'items' is blank without Loot Tracker."
+    end
+    if unmapped &gt; 0 then
+        foot = foot .. "  " .. unmapped .. " not in your map yet."
+    end
+
+    U.table({
+        { "clan",      max = 12 },
+        { "area",      max = 22 },
+        { "room",      flex = true },
+        { "rm uid",    align = "r" },
+        { "items",     align = "r" },
+    }, rows, foot)
+end
+
+-- Every clan shop that stocks something matching, which is the thing their
+-- hover menu could never answer: it knew where the shops were and nothing
+-- about what was in them.
+function CS.find(text)
+    text = U.trim(tostring(text or "")):lower()
+    if text == "" then U.warn("Usage: clanshops find &lt;item&gt;"); return end
+
+    local out = {}
+    for _, sh in ipairs(SHOPS) do
+        local id, clan = sh[1], sh[2]
+        for _, e in ipairs(stock_of(id)) do
+            if e.item:lower():find(text, 1, true) then
+                local row = { clan, e.item, e.level, e.price, id }
+                row.link = go_link(id)
+                out[#out + 1] = row
+            end
+        end
+    end
+
+    if #out == 0 then
+        U.note("Nothing matching '" .. text .. "' recorded in a clan shop yet.")
+        if ours_saves() then
+            U.note("Stock is learned by running 'list' in one - " .. CS.seen_count()
+                .. " of " .. #SHOPS .. " visited so far.")
+            U.suggest("loot", "Loot Tracker records every shop on Aardwolf, not just these")
+        else
+            U.note("'loot shop " .. text .. "' searches every shop, not only clan ones.")
+        end
+        return
+    end
+    table.sort(out, function(a, b) return a[4] &lt; b[4] end)
+
+    U.table({
+        { "clan",   max = 12 },
+        { "item",   flex = true },
+        { "level",  align = "r" },
+        { "price",  align = "r" },
+        { "rm uid", align = "r" },
+    }, out, #out .. " match(es), cheapest first.")
+end
+
+-- how many of the sixty we have any stock for
+function CS.seen_count()
+    local n = 0
+    for _, sh in ipairs(SHOPS) do
+        if #stock_of(sh[1]) &gt; 0 then n = n + 1 end
+    end
+    return n
+end
+
+---
+-- commands
+---
+
+function CS.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    if verb == "find" or verb == "item" then
+        CS.find(rest)
+
+    elseif verb == "forget" then
+        if not ours_saves() then
+            U.note("Loot Tracker owns the stock record - 'loot clear shop' is the one that clears it.")
+            return
+        end
+        STOCK.stock = {}
+        U.save("clanshops", STOCK)
+        U.ok("Forgot what this module had learned about clan shop stock.")
+
+    elseif verb == "help" then
+        U.help("Clan Shops", {
+            { "shops",  #SHOPS .. " rooms" },
+            { "stock",  U.have("loot") and "Loot Tracker's, for every shop on Aardwolf"
+                        or ("ours, learned from 'list' - " .. CS.seen_count() .. " of "
+                            .. #SHOPS .. " visited") },
+            { "" },
+            { "clanshops",            "all of them, with a [go] on each" },
+            { "clanshops &lt;clan&gt;",     "one clan - 'clanshops tao'" },
+            { "clanshops find &lt;item&gt;", "which clan shop stocks it" },
+            { "clanshops forget",     "drop the stock this module learned" },
+            { "" },
+            { "The room list is the stock module's own. Its ClanShops menu walks" },
+            { "you there with gotoRoom(), which that module calls seventeen times" },
+            { "and defines nowhere - so those entries have been dead a while." },
+        })
+
+    else
+        CS.list(arg)
+    end
+end
+
+aardkit.register("clanshops", "clan shop rooms, and what's in them", CS.cmd)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>
