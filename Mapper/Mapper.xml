@@ -2120,7 +2120,7 @@ aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", 
 -- path fire in pairs() order, which is to say in whichever order they feel like
 -- that session. So the engine is the entry point and calls on_room() when it's
 -- finished.
-aardkit.gmcp.need("Room 1")
+aardkit.gmcp.need("mapper", "Room 1")
 
 aardkit.gmcp.watch("mapper_room", "room.info", "aardkit.mapper.on_move", true)
 

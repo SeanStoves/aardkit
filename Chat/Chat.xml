@@ -663,7 +663,7 @@ end
 
 aardkit.register("chat", "the channels in tabs, in a window you can move", CH.cmd)
 
-aardkit.gmcp.need("Comm 1")
+aardkit.gmcp.need("chat", "Comm 1")
 
 aardkit.gmcp.watch("chat", "comm.channel", "aardkit.chat.on_channel", true)
 

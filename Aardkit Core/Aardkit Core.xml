@@ -1714,6 +1714,7 @@ function aardkit.cmd(arg)
             { "aardkit",        "this list" },
             { "aardkit plugins", "what's loaded" },
             { "aardkit stock",        "what we switch off in the stock AardwolfMudlet module" },
+            { "aardkit gmcp",    "which GMCP packages we ask for, and which module wants each" },
             { "aardkit probe",   "which Mudlet functions actually exist here" },
             { "aardkit colours", "your ANSI palette against a readable one" },
             { "aardkit gaglog on|off", "keep gagged lines in the session log" },
@@ -1726,6 +1727,29 @@ function aardkit.cmd(arg)
             rows[#rows + 1] = { n, aardkit.plugins[n].desc }
         end
         U.help("aardkit " .. aardkit.version, rows)
+
+    -- Aardwolf sends nothing until asked and Mudlet never asks. Worth being able
+    -- to see, because the failure is a panel that just never fills in.
+    elseif verb == "gmcp" then
+        if U.trim(rest):lower() == "redo" then
+            aardkit.gmcp.negotiate()
+            U.ok("Re-sent the GMCP handshake.")
+            return
+        end
+        local rows = aardkit.gmcp.declared()
+        rows[#rows + 1] = { "" }
+        local live = {}
+        for _, k in ipairs({ "char", "comm", "room", "group" }) do
+            live[#live + 1] = k .. (type(gmcp) == "table" and gmcp[k] and " yes" or " -")
+        end
+        rows[#rows + 1] = { "arriving", table.concat(live, "   ") }
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "aardkit gmcp redo", "ask again now" }
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "Every package Aardwolf offers goes in the list whether or not" }
+        rows[#rows + 1] = { "anything here reads it: Core.Supports.Set REPLACES, so asking" }
+        rows[#rows + 1] = { "for only our own would downgrade whatever else is installed." }
+        U.help("GMCP", rows)
 
     elseif verb == "stock" then
         if aardkit.stock then aardkit.stock.cmd(rest) else U.warn("stock module handling isn't loaded.") end
@@ -2557,14 +2581,17 @@ end
 -- send by default.
 ---
 
-G.needs   = G.needs   or {}     -- "Group 1" -&gt; true
-G.toggles = G.toggles or {}     -- "group on" -&gt; true
+-- pkg -&gt; { module = true }, so 'aardkit gmcp' can say WHO wants each one and a
+-- package nobody claims any more is visible rather than cargo.
+G.needs   = G.needs   or {}
+G.toggles = G.toggles or {}     -- "group on" -&gt; module that asked
 
 -- Every package Aardwolf offers, asked for whether or not anything here reads
--- it. Set REPLACES the server's list, so a Set naming only what WE want is a
--- reduction for anyone else: install nothing but Gauges and "Char 1" alone would
--- take the stock module's chat and mapper down with it, and their negotiation
--- runs once on connect and never comes back. Our own Add can't undo that.
+-- it. Set REPLACES the server's list, so a Set naming only what WE read is a
+-- reduction for whoever else is loaded: install nothing but Gauges and
+-- "Char 1" alone takes the stock module's chat and mapper with it. Their
+-- handshake runs once on connect and never comes back, so our own Add cannot
+-- undo it.
 --
 -- Asking for a package nobody reads costs one message and a table Mudlet fills
 -- in anyway. Clobbering someone else's costs them their module.
@@ -2588,21 +2615,58 @@ local function say_all(verb)
     for t in pairs(G.toggles) do pcall(sendGMCP, t) end
 end
 
+-- Set once, then Add repeatedly.
+--
+-- Add cannot reduce anything, so re-sending it is free, and there are several
+-- ways to end up short: the stock module Sets [Char, Comm, Room] from its own
+-- connect handler and drops Group if it lands after us, a module can load late
+-- and declare a package after the first handshake, and a connect can complete
+-- before the MUD is ready to be told anything. Once is optimism; the schedule
+-- is what makes "re-add everything" true.
+local RETRIES = { 3, 8, 20 }
+
 function G.negotiate()
     if not U.playing() then return end
     say_all("Set")
-    tempTimer(3, function() if U.playing() then say_all("Add") end end)
+    for _, t in ipairs(RETRIES) do
+        tempTimer(t, function() if U.playing() then say_all("Add") end end)
+    end
 end
 
 -- Debounced: every module calls this at load, and one handshake for the lot
 -- beats one per module.
 local pending_neg = false
-function G.need(pkg, toggle)
-    if pkg then G.needs[tostring(pkg)] = true end
-    if toggle then G.toggles[tostring(toggle)] = true end
+
+function G.need(module, pkg, toggle)
+    module = tostring(module or "?")
+    if pkg then
+        G.needs[tostring(pkg)] = G.needs[tostring(pkg)] or {}
+        G.needs[tostring(pkg)][module] = true
+    end
+    if toggle then G.toggles[tostring(toggle)] = module end
     if pending_neg then return end
     pending_neg = true
     tempTimer(1, function() pending_neg = false; G.negotiate() end)
+end
+
+-- what we ask for, and who asked
+function G.declared()
+    local rows = {}
+    local want = {}
+    for _, p in ipairs(BASELINE) do want[p] = "" end
+    for p, who in pairs(G.needs) do
+        local names = {}
+        for m in pairs(who) do names[#names + 1] = m end
+        table.sort(names)
+        want[p] = table.concat(names, " ")
+    end
+    local keys = {}
+    for p in pairs(want) do keys[#keys + 1] = p end
+    table.sort(keys)
+    for _, p in ipairs(keys) do
+        rows[#rows + 1] = { p, want[p] ~= "" and want[p] or "baseline - nothing here reads it" }
+    end
+    return rows
 end
 
 U.every("gmcp", CFG.rate, G.tick)

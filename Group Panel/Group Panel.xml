@@ -458,7 +458,7 @@ aardkit.register("grouppanel", "the party, in a window you can move", GR.cmd)
 -- waiting a tick to show the tank dropping defeats the point.
 -- Aardwolf sends no group data at all until asked - the one package with its
 -- own toggle on top of Core.Supports. Declared here because this is what uses it.
-aardkit.gmcp.need("Group 1", "group on")
+aardkit.gmcp.need("group", "Group 1", "group on")
 
 aardkit.gmcp.watch("group", "group", "aardkit.group.paint", true)
 

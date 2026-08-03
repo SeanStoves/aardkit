@@ -384,7 +384,7 @@ end
 aardkit.register("gauges", "the bars, in a window you can move", GA.cmd)
 
 -- vitals move constantly; status carries tnl, align and the enemy
-aardkit.gmcp.need("Char 1")
+aardkit.gmcp.need("gauges", "Char 1")
 
 aardkit.gmcp.watch("gauges", { "char.vitals", "char.status", "char.maxstats" },
                    "aardkit.gauges.update", true)
