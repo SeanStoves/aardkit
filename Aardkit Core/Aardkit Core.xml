@@ -1091,6 +1091,51 @@ end
 local Panel = {}
 Panel.__index = Panel
 
+-- Mudlet's borders carve the CONSOLE out of the main window, and Geyser
+-- measures against the main window - the two are not the same rectangle.
+-- getBorderLeft/Right/Top/Bottom exist in Mudlet 4.22 but appear nowhere in
+-- mudlet-lua, so guard them: an older build gets the old full-width behaviour
+-- rather than a strip clipped to nothing.
+local function border(side)
+    local fn = _G["getBorder" .. side]
+    if type(fn) ~= "function" then return 0 end
+    local ok, n = pcall(fn)
+    return (ok and tonumber(n)) or 0
+end
+
+local function setborder(side, n)
+    pcall(_G["setBorder" .. side], n)
+end
+
+-- Scrollbars.
+--
+-- Every panel console is built with scrollBar = true and always has been - git
+-- blames the initial import - so these are not new widgets. What changed is
+-- that the stock module's styleLoad() set an application-wide QScrollBar theme
+-- (black groove, #31363b handle) and, being the only setAppStyleSheet in the
+-- profile, it was the sole reason a scrollbar ever looked invisible against a
+-- black console. The module went; Qt's own light chrome came back.
+--
+-- App-wide because no per-panel setting can reach the MAIN console's bar. The
+-- tag namespaces it on Mudlet builds that take one, and is harmlessly ignored
+-- on those that don't.
+local function scrollbar_style()
+    local css = ([[
+        QScrollBar:vertical { background: %s; width: 10px; margin: 0px; border: 0px; }
+        QScrollBar::handle:vertical { background: %s; min-height: 20px; border-radius: 4px; }
+        QScrollBar::handle:vertical:hover { background: %s; }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; border: 0px; }
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: %s; }
+        QScrollBar:horizontal { background: %s; height: 10px; margin: 0px; border: 0px; }
+        QScrollBar::handle:horizontal { background: %s; min-width: 20px; border-radius: 4px; }
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; border: 0px; }
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: %s; }
+    ]]):format(STYLE.bg, STYLE.border, STYLE.title, STYLE.bg, STYLE.bg, STYLE.border, STYLE.bg)
+    pcall(setAppStyleSheet, css, "aardkit")
+end
+
+P.scrollbar_style = scrollbar_style
+
 function Panel:_build()
     local s = st(self.name)
     local mode = s.mode or self.defmode
@@ -1113,18 +1158,30 @@ function Panel:_build()
         local side = st(self.name).framepos or "bottom"
         local h    = tonumber(st(self.name).framesize) or self.h or 56
         local cons = { name = self.name .. "_fr" .. self.gen }
+
+        -- Claim our own side FIRST, so the reads below see this panel's strip
+        -- rather than whatever was there before.
+        setborder(side:sub(1, 1):upper() .. side:sub(2), h)
+
+        -- Then measure against the console box. A bottom strip at x=0
+        -- width="100%" spans the whole WINDOW - it ran underneath the 405px
+        -- right column the stock module left reserved. Geyser takes
+        -- "100%-460" as scale 1.0 with a -460 offset, so the strip ends flush
+        -- with the console's right edge and follows a window resize.
+        local l, r = border("Left"), border("Right")
+        local t, b = border("Top"), border("Bottom")
         if side == "bottom" then
-            cons.x, cons.y, cons.width, cons.height = 0, -h, "100%", h
-            pcall(setBorderBottom, h)
+            cons.x, cons.y = l, -h
+            cons.width, cons.height = "100%-" .. (l + r), h
         elseif side == "top" then
-            cons.x, cons.y, cons.width, cons.height = 0, 0, "100%", h
-            pcall(setBorderTop, h)
+            cons.x, cons.y = l, 0
+            cons.width, cons.height = "100%-" .. (l + r), h
         elseif side == "left" then
-            cons.x, cons.y, cons.width, cons.height = 0, 0, h, "100%"
-            pcall(setBorderLeft, h)
+            cons.x, cons.y = 0, t
+            cons.width, cons.height = h, "100%-" .. (t + b)
         else
-            cons.x, cons.y, cons.width, cons.height = -h, 0, h, "100%"
-            pcall(setBorderRight, h)
+            cons.x, cons.y = -h, t
+            cons.width, cons.height = h, "100%-" .. (t + b)
         end
         self.holder = Geyser.Container:new(cons)
 
@@ -1251,6 +1308,11 @@ end
 -- docked somewhere unhelpful is otherwise stuck there across reloads, because
 -- both halves have to agree before it comes back.
 function Panel:reset()
+    -- same debt as setmode: a reset out of frame mode must release the border
+    if self.mode == "frame" then
+        local had = st(self.name).framepos
+        if had then setborder(had:sub(1, 1):upper() .. had:sub(2), 0) end
+    end
     P.state[self.name] = nil
     save_state()
     for gen = 1, (self.gen or 1) + 1 do
@@ -1323,6 +1385,16 @@ function Panel:setmode(mode)
     end
     if mode == self.mode then return end
 
+    -- Leaving frame mode by any route has to hand the border back. Only
+    -- setframe("off") did, so 'panel gauges embed' left the strip reserved for
+    -- good - and Mudlet writes border sizes to the profile, so "for good" meant
+    -- across restarts. That is how the stock module's 405px right column
+    -- outlived the stock module.
+    if self.mode == "frame" and mode ~= "frame" then
+        local had = st(self.name).framepos
+        if had then setborder(had:sub(1, 1):upper() .. had:sub(2), 0) end
+    end
+
     local oldholder, oldcon = self.holder, self.console
     st(self.name).mode = mode
     self:_build()
@@ -1374,8 +1446,20 @@ function Panel:raise()
         if type(o) ~= "table" or depth &gt; 4 or seen[o] then return end
         seen[o] = true
         up(o)
+        -- Geyser keeps children twice: windowList keyed by name, and windows as
+        -- an ORDERED array. pairs() over the first is hash order, so every
+        -- raise re-rolled the z-order inside the panel - which is how Chat's
+        -- opaque backdrop kept landing on top of its own tabs, hiding a
+        -- different arbitrary subset each time. Geyser's own raiseAll walks the
+        -- ordered array for exactly this reason.
         if type(o.windowList) == "table" then
-            for _, child in pairs(o.windowList) do contents(child, depth + 1) end
+            if type(o.windows) == "table" and #o.windows &gt; 0 then
+                for i = 1, #o.windows do
+                    contents(o.windowList[o.windows[i]], depth + 1)
+                end
+            else
+                for _, child in pairs(o.windowList) do contents(child, depth + 1) end
+            end
         end
     end
     contents(h.Inside, 0)
@@ -1704,6 +1788,48 @@ function P.cmd(arg)
             .. (P.opacity &lt; 255 and " - the game will show through." or " - solid.")
             .. (kept &gt; 0 and ("  (" .. kept .. " with their own setting kept it.)") or ""))
 
+    -- The stock module reserved these and Mudlet writes them to the profile, so
+    -- they outlived the module that set them: 405px of right column with
+    -- nothing left to draw in it.
+    elseif verb == "borders" then
+        local want = U.trim(rest):lower()
+        local sides = { "Left", "Right", "Top", "Bottom" }
+        if want == "clear" or want == "reset" then
+            local kept = {}
+            for _, p in pairs(P.reg) do
+                if p.mode == "frame" and st(p.name).framepos then
+                    kept[st(p.name).framepos:sub(1,1):upper() .. st(p.name).framepos:sub(2)] = p.name
+                end
+            end
+            local freed = {}
+            for _, side in ipairs(sides) do
+                if not kept[side] and border(side) &gt; 0 then
+                    freed[#freed + 1] = side:lower() .. " " .. border(side) .. "px"
+                    setborder(side, 0)
+                end
+            end
+            for _, p in pairs(P.reg) do if p.mode == "frame" then p:_build() end end
+            U.ok(#freed &gt; 0 and ("Reclaimed " .. table.concat(freed, ", ") .. ".")
+                 or "Nothing to reclaim - no border is reserved that a panel isn't using.")
+            return
+        end
+        local rows = {}
+        for _, side in ipairs(sides) do
+            local owner
+            for _, p in pairs(P.reg) do
+                if p.mode == "frame" and st(p.name).framepos == side:lower() then owner = p.name end
+            end
+            rows[#rows + 1] = { side:lower(), border(side) .. "px"
+                .. (owner and ("   " .. owner) or (border(side) &gt; 0 and "   nobody - left over" or "")) }
+        end
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "panel borders clear", "give back every border no panel is using" }
+        rows[#rows + 1] = { "" }
+        rows[#rows + 1] = { "Mudlet reserves these out of the console and saves them with" }
+        rows[#rows + 1] = { "the profile, so one set by a module you have since removed" }
+        rows[#rows + 1] = { "stays reserved until something hands it back." }
+        U.help("Main window borders", rows)
+
     elseif verb == "autodock" then
         local want = U.trim(rest):lower()
         if want ~= "on" and want ~= "off" then
@@ -1760,6 +1886,8 @@ function P.cmd(arg)
             { "panel &lt;name&gt; dock",    "make it a real dockable window" },
             { "panel &lt;name&gt; dock &lt;edge&gt;", "and snap it there: top bottom left right floating" },
             { "panel autodock on|off",   "drag a dockable panel to an edge to attach it" },
+            { "panel borders",           "what the main window has reserved, and who is using it" },
+            { "panel borders clear",     "hand back any border no panel is using" },
             { "panel &lt;name&gt; autodock on|off", "override that for one panel" },
             { "panel &lt;name&gt; embed",   "put it back inside the main window" },
             { "panel &lt;name&gt; clear",   "empty its buffer" },
@@ -1858,6 +1986,7 @@ end
 ---
 
 load_state()
+scrollbar_style()
 
 -- Mudlet saves UserWindow geometry itself; this covers the embedded ones
 -- and our mode/visibility bookkeeping.

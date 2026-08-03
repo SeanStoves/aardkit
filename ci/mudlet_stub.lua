@@ -431,7 +431,15 @@ getTime = function() return "20260802-1300" end
 -- Mudlet splits input on this before any alias runs; readable, not writable.
 getCommandSeparator = function() return ";" end
 setLabelWheelCallback = note("setLabelWheelCallback")
-raiseWindow = note("raiseWindow")
+-- The ORDER, not just the count. note() only tallies calls, and z-order is
+-- entirely about sequence: raising a panel's children in hash order re-rolls
+-- their stacking, which is how an opaque backdrop kept surfacing above the tabs
+-- it was meant to sit behind.
+RAISED = {}
+raiseWindow = function(name)
+    calls.raiseWindow = (calls.raiseWindow or 0) + 1
+    RAISED[#RAISED + 1] = tostring(name)
+end
 lowerWindow = note("lowerWindow")
 setMapZoom = note("setMapZoom")
 getMapZoom = function() return 3 end
@@ -673,11 +681,17 @@ local function sized(cons, fallbackw, fallbackh)
     return w, h
 end
 
+CONTAINERS = {}
+
 local function ctor(kind)
     return { new = function(_, cons, parent)
         local cw, ch = sized(cons, 800, 600)
         local w = widget({ name = (cons and cons.name) or kind, width = cw, height = ch })
         w.text = widget({})
+        -- the CONSTRUCTOR args, because x/width are the whole of the frame fix
+        -- and a widget that reports its own rounded size cannot show them
+        CONTAINERS[#CONTAINERS + 1] = cons or {}
+        CONTAINERS.last = cons or {}
         return w
     end }
 end
@@ -694,6 +708,17 @@ function setBorderBottom(n) BORDERS.bottom = n end
 function setBorderTop(n)    BORDERS.top    = n end
 function setBorderLeft(n)   BORDERS.left   = n end
 function setBorderRight(n)  BORDERS.right  = n end
+
+-- Readable, because measuring the frame strip against them is the whole fix.
+-- Mudlet 4.22 registers these in C++; they appear nowhere in mudlet-lua, which
+-- is why grepping the Lua for them finds nothing.
+function getBorderBottom() return BORDERS.bottom or 0 end
+function getBorderTop()    return BORDERS.top    or 0 end
+function getBorderLeft()   return BORDERS.left   or 0 end
+function getBorderRight()  return BORDERS.right  or 0 end
+
+APPSTYLE = nil
+function setAppStyleSheet(css, tag) APPSTYLE = tostring(css) end
 
 LOGGED = {}
 
