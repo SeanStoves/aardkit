@@ -1634,6 +1634,44 @@ local function onoff(v, cur)
     return not cur
 end
 
+-- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
+-- has to land after that or there's nothing in the frame to remove yet. It
+-- retries because their timing is theirs, not ours.
+local unframed, stood_down = false, false
+
+-- Their own switch, which is better than ours.
+--
+-- Their config script has `aard.map.enable`, guiLoad does
+-- `if (aard.map.enable) then aard:init_map() end`, init_map sets
+-- `aard.map.init = true`, and onRoom's second line is
+-- `if not (aard.map.init) then return end`. So the flag is the supported way to
+-- stop their mapper, and it beats disabling the script by name on every count:
+-- it's what their author put there for this, it survives them renaming a script
+-- out from under us, and it can't half-fail the way a name lookup can.
+--
+-- It's also more precise. The guard sits BELOW the line that keeps
+-- aard.map.current_room up to date, so their other pieces that read that go on
+-- working - only the writing stops, which is the only part we're replacing.
+--
+-- `enable` is for their next load, `init` is for right now. Both, so it takes
+-- effect immediately and stays taken.
+local function their_map(on)
+    if type(aard) ~= "table" or type(aard.map) ~= "table" then return false end
+    aard.map.enable = on and true or false
+    if on then
+        -- init_map builds the state tables parseGmcpRoom then reads. Setting
+        -- init true without them would have their mapper raise on the next room
+        -- rather than map it.
+        if type(aard.init_map) == "function" then pcall(aard.init_map, aard)
+        else aard.map.init = false end
+    else
+        aard.map.init = false
+    end
+    return true
+end
+
+M.their_map = their_map
+
 function M.cmd(arg)
     local verb, rest = U.split_verb(arg)
     -- 'x opacity 200' where somebody looks for it, rather than only
@@ -2082,49 +2120,14 @@ aardkit.register("mapper", "the MUSHclient mapper's commands, on Mudlet's map", 
 -- path fire in pairs() order, which is to say in whichever order they feel like
 -- that session. So the engine is the entry point and calls on_room() when it's
 -- finished.
+aardkit.gmcp.need("Room 1")
+
 aardkit.gmcp.watch("mapper_room", "room.info", "aardkit.mapper.on_move", true)
 
 U.killhandler(aardkit_mapper_click)
 aardkit_mapper_click = registerAnonymousEventHandler("sysMapWindowMousePressEvent",
                                                      "aardkit.mapper.on_map_click")
 
--- The stock module builds its map on sysLoadEvent behind a 0.1s timer, so this
--- has to land after that or there's nothing in the frame to remove yet. It
--- retries because their timing is theirs, not ours.
-local unframed, stood_down = false, false
-
--- Their own switch, which is better than ours.
---
--- Their config script has `aard.map.enable`, guiLoad does
--- `if (aard.map.enable) then aard:init_map() end`, init_map sets
--- `aard.map.init = true`, and onRoom's second line is
--- `if not (aard.map.init) then return end`. So the flag is the supported way to
--- stop their mapper, and it beats disabling the script by name on every count:
--- it's what their author put there for this, it survives them renaming a script
--- out from under us, and it can't half-fail the way a name lookup can.
---
--- It's also more precise. The guard sits BELOW the line that keeps
--- aard.map.current_room up to date, so their other pieces that read that go on
--- working - only the writing stops, which is the only part we're replacing.
---
--- `enable` is for their next load, `init` is for right now. Both, so it takes
--- effect immediately and stays taken.
-local function their_map(on)
-    if type(aard) ~= "table" or type(aard.map) ~= "table" then return false end
-    aard.map.enable = on and true or false
-    if on then
-        -- init_map builds the state tables parseGmcpRoom then reads. Setting
-        -- init true without them would have their mapper raise on the next room
-        -- rather than map it.
-        if type(aard.init_map) == "function" then pcall(aard.init_map, aard)
-        else aard.map.init = false end
-    else
-        aard.map.init = false
-    end
-    return true
-end
-
-M.their_map = their_map
 
 local function stand_down()
     if stood_down or not CFG.standalone then return end

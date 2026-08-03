@@ -503,6 +503,21 @@ end
 -- commands
 ---
 
+local stood_down, unframed = false, false
+
+local function stand_down()
+    if not CFG.standalone or not aard then return end
+    if not stood_down then
+        for _, t in ipairs(THEIRS) do aardkit.stock.cmd("off " .. t[1]) end
+        stood_down = true
+    end
+    if not unframed and CH.unframe_theirs() then
+        unframed = true
+        U.note("Stock chat tabs taken out of the frame - two sets of tabs is worse"
+            .. " than either. 'chat standalone off' hands them back.")
+    end
+end
+
 function CH.cmd(arg)
     local verb, rest = U.split_verb(arg)
     -- 'x opacity 200' where somebody looks for it, rather than only
@@ -645,22 +660,10 @@ function CH.reframe_theirs()
     return back
 end
 
-local stood_down, unframed = false, false
-
-local function stand_down()
-    if not CFG.standalone or not aard then return end
-    if not stood_down then
-        for _, t in ipairs(THEIRS) do aardkit.stock.cmd("off " .. t[1]) end
-        stood_down = true
-    end
-    if not unframed and CH.unframe_theirs() then
-        unframed = true
-        U.note("Stock chat tabs taken out of the frame - two sets of tabs is worse"
-            .. " than either. 'chat standalone off' hands them back.")
-    end
-end
 
 aardkit.register("chat", "the channels in tabs, in a window you can move", CH.cmd)
+
+aardkit.gmcp.need("Comm 1")
 
 aardkit.gmcp.watch("chat", "comm.channel", "aardkit.chat.on_channel", true)
 

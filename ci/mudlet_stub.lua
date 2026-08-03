@@ -649,16 +649,32 @@ yajl = {
 -- Geyser
 ---
 
+-- Containers carry a real SIZE. Without one, get_width() falls through the
+-- metatable, returns the widget table, and U.px() reads that as 0 - so every
+-- layout() in this codebase starts with `if w < 40 then return end` and does
+-- nothing at all under test. Two modules' worth of geometry was never once
+-- exercised, and the first test written against it failed for that reason
+-- rather than the one it was checking.
 local function widget(extra)
     local w = {}
     setmetatable(w, { __index = function() return function() return w end end })
     for k, v in pairs(extra or {}) do w[k] = v end
+    w.get_width  = function(self) return tonumber((tostring(self.width  or 0):gsub("px", ""))) or 0 end
+    w.get_height = function(self) return tonumber((tostring(self.height or 0):gsub("px", ""))) or 0 end
     return w
+end
+
+-- what a panel gets when it asks a container how big it is
+local function sized(cons, fallbackw, fallbackh)
+    local w = tonumber((tostring((cons and cons.width)  or ""):gsub("px", ""))) or fallbackw
+    local h = tonumber((tostring((cons and cons.height) or ""):gsub("px", ""))) or fallbackh
+    return w, h
 end
 
 local function ctor(kind)
     return { new = function(_, cons, parent)
-        local w = widget({ name = (cons and cons.name) or kind })
+        local cw, ch = sized(cons, 800, 600)
+        local w = widget({ name = (cons and cons.name) or kind, width = cw, height = ch })
         w.text = widget({})
         return w
     end }
@@ -671,16 +687,27 @@ Geyser = {
     -- A Gauge carries .back and .front sub-widgets that get styled separately,
     -- and setValue is RECORDED: a bar showing the wrong number is worse than no
     -- bar, and that is unanswerable if the call goes nowhere.
+    -- show/hide are RECORDED too. The widget metatable answers every unknown
+    -- method with a no-op, so `check("the row is hidden", ...)` against a plain
+    -- widget passes whether or not anything hid it - the permissive-stub trap
+    -- this file has fallen into seven times. A row that stays on screen after
+    -- its member leaves the group is the bug; it needs to be observable.
     Gauge = { new = function(_, cons, parent)
         local nm = (cons and cons.name) or "Gauge"
         local w = widget({ name = nm })
         w.back, w.front, w.text = widget({}), widget({}), widget({})
         w.back.setStyleSheet  = function(self, c) self.css = c end
         w.front.setStyleSheet = function(self, c) self.css = c end
+        -- built in place, so setValue MUTATES rather than replacing: replacing
+        -- would drop .w and .shown on the first update
+        GAUGES[nm] = { w = w, shown = true }
         w.setValue = function(self, cur, max, text)
-            GAUGES[nm] = { cur = cur, max = max, text = tostring(text or "") }
+            local e = GAUGES[nm]
+            e.cur, e.max, e.text = cur, max, tostring(text or "")
             return self
         end
+        w.hide = function(self) GAUGES[nm].shown = false; return self end
+        w.show = function(self) GAUGES[nm].shown = true;  return self end
         return w
     end },
     Label = ctor("Label"),
@@ -695,7 +722,10 @@ Geyser = {
 
 Adjustable = {
     Container = {
-        new = function(_, cons) return widget({ name = cons and cons.name or "ac" }) end,
+        new = function(_, cons)
+            local cw, ch = sized(cons, 800, 600)
+            return widget({ name = cons and cons.name or "ac", width = cw, height = ch })
+        end,
         saveAll = note("saveAll"),
         loadAll = note("loadAll"),
     },

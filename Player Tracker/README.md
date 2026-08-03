@@ -2,6 +2,8 @@
 
 Keeps a record of everyone your `who` sweeps see — clan, level/race/class, title and last-seen — searchable by name, title or clan.
 
+It also reads a 'finger' block when one scrolls past. It never sends one: finger is slow and answers about a single player, which is the reason this sweeps 'who' instead. What it takes is the part who cannot give — the real level, the spelled-out race and class, the tier, the remort chain and the clan by name. Email, web address and 'is from' are deliberately not kept.
+
 ## Install
 
 1. Download `Player Tracker.xml`.

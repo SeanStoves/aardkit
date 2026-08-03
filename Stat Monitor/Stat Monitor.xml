@@ -280,9 +280,11 @@ local function paint_mush()
     end
 
     local buf, n = {}, 0
-    local group = rows[1].group
+    -- grp, not group: theirs is a global table of group-panel containers, and
+    -- a local of that name here is how you end up reading your own by mistake
+    local grp = rows[1].group
     for _, r in ipairs(rows) do
-        if r.group ~= group then n = n + 1; buf[n] = "\n"; group = r.group end
+        if r.group ~= grp then n = n + 1; buf[n] = "\n"; grp = r.group end
         n = n + 1
         buf[n] = string.format(
             "&lt;%s&gt;%-" .. lw .. "s&lt;r&gt; &lt;%s&gt;:&lt;r&gt; &lt;%s&gt;[&lt;r&gt;&lt;%s&gt;%" .. vw .. "s&lt;r&gt;&lt;%s&gt;]&lt;r&gt;\n",

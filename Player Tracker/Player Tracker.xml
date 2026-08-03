@@ -19,6 +19,46 @@
 			<regexCodeList />
 			<regexCodePropertyList />
 			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>who header</name>
+				<script>aardkit.pt.who_start()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\s*Aardwolf Players Online\s*$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>who swho line</name>
+				<script>aardkit.pt.who_start()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Use 'swho' to see sorted lists</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
 				<name>who row</name>
 				<script>aardkit.pt.on_who(line)</script>
 				<triggerType>0</triggerType>
@@ -93,6 +133,146 @@
 				<colorTriggerBgColor>#000000</colorTriggerBgColor>
 				<regexCodeList>
 					<string>^CLAN: (\w+) has had enough of learning</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>finger header</name>
+				<script>aardkit.pt.finger_start(matches[2], matches[3])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^-+ Player : (\w+) \((\w+)\)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>finger level</name>
+				<script>aardkit.pt.finger_level(matches[2], matches[3], matches[4])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Level (\d+) (.+) \(Tier ([\d+]+)\)\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>finger remort</name>
+				<script>aardkit.pt.finger_remort(matches[2])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^Remort: (.+)$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>finger is</name>
+				<script>aardkit.pt.finger_is(line)</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\w+ is an? .+\.$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>finger end</name>
+				<script>aardkit.pt.finger_done()</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^-{50,}$</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>whois header</name>
+				<script>aardkit.pt.whois_start(matches[2], matches[3], matches[4], matches[5], matches[6])</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^\[\s*(\d+)\s+T(\d+)\s+(\S+)\s+(\S+)\]\s+(\w+)</string>
+				</regexCodeList>
+				<regexCodePropertyList>
+					<integer>1</integer>
+				</regexCodePropertyList>
+			</Trigger>
+			<Trigger isActive="yes" isFolder="no" isTempTrigger="no" isMultiline="no" isPerlSlashGOption="no" isColorizerTrigger="no" isFilterTrigger="no" isSoundTrigger="no" isColorTrigger="no" isColorTriggerFg="no" isColorTriggerBg="no">
+				<name>whois stat</name>
+				<script>aardkit.pt.whois_stat(line)</script>
+				<triggerType>0</triggerType>
+				<conditonLineDelta>0</conditonLineDelta>
+				<mStayOpen>0</mStayOpen>
+				<mCommand />
+				<packageName />
+				<mFgColor>#ff0000</mFgColor>
+				<mBgColor>#ffff00</mBgColor>
+				<mSoundFile />
+				<colorTriggerFgColor>#000000</colorTriggerFgColor>
+				<colorTriggerBgColor>#000000</colorTriggerBgColor>
+				<regexCodeList>
+					<string>^[A-Za-z][A-Za-z ]+:\s*\[</string>
 				</regexCodeList>
 				<regexCodePropertyList>
 					<integer>1</integer>
@@ -193,6 +373,15 @@ local DECOR = {
     { "aardian|", "gaardian" }, { "Loqui|", "loqui" }, { "/Pyre", "pyre" }, { "IMPERIUM", "imperium" },
     { "ibution-", "retribution" }, { "[Loner]", "loner" }, { "|Wolf|", "wolf" }, { "}Tao{", "tao" },
     { "/|\\", "druid" }, { "Rhabdo/", "rhabdo" },
+    -- Read off 293,554 real who rows: these four were being missed entirely.
+    -- Amazon and Crusader put the clan name in the tag, so there's nothing to
+    -- guess; Bard and Dragon are the two whose decoration carries no bracket.
+    { "&lt;*]AMAZON[*&gt;", "amazon" }, { "=Crusader=", "crusader" },
+    { "o/~ Bard ~\\o", "bard" },
+    -- No Dragon entry on purpose: 'clist' has 27 clans and Dragon is not one of
+    -- them, so nobody can be wearing it. It survives only inside other people's
+    -- titles - "Erikson was kidnapped from -=*)Dragon(*=- by [Emerald]" - which
+    -- is exactly the row that used to file him under it.
 }
 
 local CLAN = {
@@ -215,15 +404,27 @@ end
 -- parse one who row
 ---
 
-local FLAGS = { "%*AFK%*", "%(OPK%)", "%(HARDCORE%)", "%(Linkdead%)" }
+-- Counted, not guessed: (OPK) 62,239 rows, *AFK* 23,706, (Linkdead) 9,424,
+-- (HARDCORE) 6,781, then a long tail. Anything not peeled here becomes the
+-- player's name, which is how (traitor) and *[afk]* ended up in the database.
+local FLAGS = {
+    "%*AFK%*", "%(OPK%)", "%(HARDCORE%)", "%(Linkdead%)",
+    "%*%[AFK%]%*", "%(TRAITOR%)", "%(RAIDER%)", "%(WANTED%)",
+    "%(Note%)", "%(Answer%)", "%(Editor%)", "%(DUEL%)", "%-Idle%-",
+}
 
+-- The whotitle field is exactly 15 characters wide and may contain a ']' of its
+-- own - "[ (&gt;^-^)&gt;o=={x] ] Dazs ..." is a real row, and the old non-greedy
+-- "^%[(.-)%]" stopped at the inner one and made "]" the player's name. So the
+-- field is taken by position, not by searching for its terminator.
 local function parse(line)
-    local info, body = line:match("^%[(.-)%]%s*(.*)$")
-    if not info then return nil end
-    info, body = U.trim(info), U.trim(body)
+    if #line &lt; 18 or line:sub(1, 1) ~= "[" or line:sub(17, 17) ~= "]" then return nil end
+    local info = U.trim(line:sub(2, 16))
+    local body = U.trim(line:sub(18))
+    if body == "" then return nil end
 
     -- peel leading [Rank]/[Position] brackets and who flags, in any order, until
-    -- the name is at the front. Clan tags like [Ba'al] sit at the tail, so safe.
+    -- the name is at the front. Clan tags sit at the tail, so this is safe.
     local ranks = ""
     local changed = true
     while changed do
@@ -239,22 +440,40 @@ local function parse(line)
         end
     end
 
-    -- one pass over DECOR gets both the clan tag and where to cut the title --
-    -- used to be two separate scans (one against `line` for the tag, one
-    -- against `body` for the cut point), 44 find() calls per who-row for the
-    -- same marker
+    -- RIGHTMOST decoration wins, because the clan tag trails the title and a
+    -- title can name another clan. "Erikson was kidnapped from -=*)Dragon(*=-
+    -- by [Emerald]" is Emerald, and taking the earliest match filed him under
+    -- Dragon. It was doing that to live records: benitora read imperium and is
+    -- Bard, cera read tao and is Amazon.
     local title, clan, cut = body, "", nil
     for _, d in ipairs(DECOR) do
-        local p = body:find(d[1], 1, true)
-        if p and (not cut or p &lt; cut) then
+        local p = nil
+        local from = 1
+        while true do
+            local q = body:find(d[1], from, true)
+            if not q then break end
+            p, from = q, q + 1
+        end
+        if p and (not cut or p &gt; cut) then
             cut, clan = p, d[2]
         end
     end
     if cut then title = U.trim(body:sub(1, cut - 1)) end
 
-    local name = title:match("^(%S+)")
+    -- First word that reads like a name. A few clans put their decoration in
+    -- front of the player rather than after, which left nothing before the cut.
+    local name = title:match("^(%a+)%f[%A]")
+    if not name then name = body:gsub("^%S+%s*", "", 1):match("^(%a+)%f[%A]") end
     if not name then return nil end
-    return { name = name, title = title, ranks = ranks, clan = clan, info = info }
+
+    -- The bracket is the whotitle column, NOT a level - 37% of rows carry
+    -- something like "*Daily Blessing*" or ":) :( ): (:". It reads
+    -- "&lt;lvl&gt; &lt;race&gt; &lt;class&gt;" the other 63% of the time, so split that when it
+    -- is there and leave the rest alone. It was being displayed as "Level:"
+    -- either way, which is where "Level : SUPERHERO" came from.
+    local lvl, race, cls = info:match("^(%d+)%s+(%S+)%s+(%S+)$")
+    return { name = name, title = title, ranks = ranks, clan = clan, info = info,
+             level = tonumber(lvl) or 0, race = race or "", class = cls or "" }
 end
 
 ---
@@ -279,13 +498,25 @@ end
 -- capture
 ---
 
+-- Only rows BETWEEN the header and 'Players found:' are who rows. Matching the
+-- shape alone let the prompt in: a 16-character whotitle makes
+-- "[*Daily Blessing*] [296/296hp 264/264mn 754/765mv 0qt 91tnl]" look exactly
+-- like one, and 24,158 of those in the logs became a player called '&gt;'.
+-- One record, by name. Public because asserting on printed output is how you
+-- write a test that passes with the fix deleted - this file has done that.
+function PT.get(name)
+    return CFG.players[tostring(name or ""):lower()]
+end
+
+function PT.who_start()
+    capturing = true
+    CFG.last_who = os.time()   -- sweep boundary: stamp before any row updates seen
+end
+
 function PT.on_who(line)
+    if not capturing then return end
     local p = parse(line)
     if not p then return end
-    if not capturing then
-        capturing = true
-        CFG.last_who = os.time()   -- sweep boundary: stamp before any row updates seen
-    end
 
     local key = p.name:lower()
     local r = CFG.players[key] or {}
@@ -296,6 +527,9 @@ function PT.on_who(line)
     -- nil - unclanned players would have no clan key at all
     r.clan = (p.clan ~= "" and p.clan) or r.clan or ""
     r.info = p.info
+    -- level/race/class only when the whotitle actually held them; a custom
+    -- title must not blank out what an earlier sweep learned
+    if p.level &gt; 0 then r.level, r.race, r.class = p.level, p.race, p.class end
     r.seen = os.time()
     r.on   = true
     CFG.players[key] = r
@@ -328,6 +562,7 @@ function PT.clan_login(name)
     r.on, r.seen = true, os.time()
     CFG.players[key] = r
     PT.paint()
+    save()
 end
 
 function PT.clan_logout(name)
@@ -335,6 +570,9 @@ function PT.clan_logout(name)
     if r then
         r.on = false
         PT.paint()
+        -- saved, not just painted. Without this a logout was lost on restart and
+        -- the player came back remembered as online until the next who sweep.
+        save()
     end
 end
 
@@ -466,7 +704,24 @@ function PT.info(name)
     end
     local cl = r.clan or ""
     U.out("\n  &lt;#8a93a8&gt;Clan  : &lt;#c8d0dc&gt;" .. (cl ~= "" and (clan_full(cl) .. " (" .. cl .. ")") or "none") .. "&lt;r&gt;")
-    U.out("\n  &lt;#8a93a8&gt;Level : &lt;#c8d0dc&gt;" .. (r.info or "?") .. "&lt;r&gt;")
+    if (r.level or 0) &gt; 0 then
+        U.out("\n  &lt;#8a93a8&gt;Level : &lt;#c8d0dc&gt;" .. r.level
+            .. "  &lt;#8a93a8&gt;" .. (r.race or "") .. " " .. (r.class or "") .. "&lt;r&gt;")
+    end
+    if (r.info or "") ~= "" then
+        U.out("\n  &lt;#8a93a8&gt;Who   : &lt;#c8d0dc&gt;" .. r.info .. "&lt;r&gt;")
+    end
+    -- whatever a finger added, which who can't reach
+    if (r.frace or "") ~= "" or (r.tier or "") ~= "" then
+        U.out("\n  &lt;#8a93a8&gt;Finger: &lt;#c8d0dc&gt;" .. (r.frace or "") .. " " .. (r.fclass or "")
+            .. ((r.tier or "") ~= "" and ("  &lt;#8a93a8&gt;tier &lt;#c8d0dc&gt;" .. r.tier) or "") .. "&lt;r&gt;")
+    end
+    if (r.remort or "") ~= "" then
+        U.out("\n  &lt;#8a93a8&gt;Remort: &lt;#c8d0dc&gt;" .. r.remort .. "&lt;r&gt;")
+    end
+    if (r.clanfull or "") ~= "" then
+        U.out("\n  &lt;#8a93a8&gt;Clan  : &lt;#c8d0dc&gt;" .. r.clanfull .. "&lt;r&gt;")
+    end
     U.out("\n  &lt;#8a93a8&gt;Status: " .. (is_online(r) and "&lt;#3ad07a&gt;online" or "&lt;#8a93a8&gt;offline")
         .. "&lt;r&gt;  &lt;#8a93a8&gt;(seen " .. ago(r.seen) .. " ago)&lt;r&gt;\n")
 end
@@ -591,6 +846,186 @@ function PT.cmd(arg)
 end
 
 PT.paint()
+---
+-- finger
+--
+-- 'finger' is slow and answers about one player, which is the whole reason this
+-- module sweeps 'who' instead. So nothing here SENDS one: it reads the block
+-- when you run it yourself, and takes the parts 'who' can't give.
+--
+-- What who gives is a 15-character column: an abbreviated race and class, and
+-- 37% of the time a custom title instead of a level. finger gives the real
+-- level, the spelled-out race and class, the tier, the remort chain and the
+-- clan by name - and the clan by name is the one that settles the players whose
+-- decoration we don't recognise.
+--
+-- Deliberately NOT stored: email, web address and "is from". They are on screen
+-- because you asked for them, they are personal, and a player database is not
+-- the place for other people's contact details.
+---
+
+-- Clan names as finger writes them, longest first so "The Children of
+-- Ba'alzamon" is tested before anything that could sit inside it. Matched as a
+-- substring of the whole line rather than split on " of ", because the RANK
+-- contains " of " too - "X is a Trolloc of The Children of Ba'alzamon."
+-- The MUD's own table, straight off 'clist': full name -&gt; short name, all 27
+-- live clans. Longest first, so a name that contains another is tested first.
+--
+-- Matched as a substring of the whole line rather than split on " of ", because
+-- the RANK contains " of " too - "X is a Trolloc of The Children of Ba'alzamon."
+local CLANFULL = {
+    { "The Fellowship of the Twin Lobes", "twinlobe" },
+    { "The Midgaardian Publishing Group", "gaardian" },
+    { "Crusaders of the Nameless One", "crusader" },
+    { "Dark Templars of Rhabdo Rana", "rhabdo" },
+    { "The Children of Ba'alzamon", "baal" },
+    { "The Great Circle of Druids", "druid" },
+    { "The Outcast Clan of Shame", "outcast" },
+    { "The Watchmen of Aardwolf", "watchmen" },
+    { "The Tribes of the Amazon", "amazon" },
+    { "The Wolf Administration", "wolf" },
+    { "The Lone Adventurers", "loner" },
+    { "Knights of Perdition", "perdition" },
+    { "House of Touchstone", "touchstone" },
+    { "The Emerald Knights", "emerald" },
+    { "The Creation of Tao", "tao" },
+    { "The Order of Light", "light" },
+    { "The Crimson Horde", "crimson" },
+    { "Order of the Bard", "bard" },
+    { "The Xunti Cult", "xunti" },
+    { "The Soul Pyre", "pyre" },
+    { "The Hook Clan", "hook" },
+    { "Clan Imperium", "imperium" },
+    { "Boot Lyceum", "boot" },
+    { "Masaki Clan", "masaki" },
+    { "The Seekers", "seekers" },
+    { "Retribution", "retribution" },
+    { "Loqui", "loqui" },
+}
+
+local finger = nil     -- name being read, or nil when not inside a block
+
+function PT.finger_start(name, state)
+    finger = { name = name, state = tostring(state or ""):lower() }
+end
+
+function PT.finger_done()
+    if not finger then return end
+    local f = finger
+    finger = nil
+    local key = f.name:lower()
+    local r = CFG.players[key] or { name = f.name }
+    r.name = r.name or f.name
+    if f.level then r.level = f.level end
+    if f.race  then r.frace = f.race end
+    if f.class then r.fclass = f.class end
+    if f.tier  then r.tier = f.tier end
+    if f.remort then r.remort = f.remort end
+    if f.stats and next(f.stats) then
+        r.stats = r.stats or {}
+        for k, v in pairs(f.stats) do r.stats[k] = v end
+    end
+    -- Not everyone is in a clan, and finger is the only source that can say so.
+    -- who infers a clan from title decoration, so it can only ever ADD one - a
+    -- player who leaves keeps the old tag forever. A finger block with no
+    -- membership line at all is positive evidence of none, so it clears.
+    --
+    -- "No tag" and "no line" are not the same thing: a clan we haven't mapped
+    -- yet gives a line but no tag, and must not wipe the tag who worked out.
+    -- That case lands in the first branch, because an unmapped line still fills
+    -- clanfull - which is why the flag this used to carry decided nothing and
+    -- came back out.
+    if f.clanfull then
+        r.clanfull = f.clanfull
+        if f.clan ~= "" then r.clan = f.clan end
+    else
+        -- no membership line in the block at all
+        r.clan, r.clanfull = "", nil
+    end
+    r.clan = r.clan or ""
+    r.fingered = os.time()
+    if f.state == "online" then r.on, r.seen = true, os.time()
+    elseif f.state == "offline" then r.on = false end
+    CFG.players[key] = r
+    PT.paint()
+    save()
+end
+
+-- "Level 175 Male Dark elf Sorcerer (Tier 9+32)."
+-- Race can be two words, tier can carry a superhero count, and a rank tag can
+-- sit AFTER the class - "Tigran Ninja [Advisor]" is a real one.
+function PT.finger_level(lvl, rest, tier)
+    if not finger then return end
+    finger.level = tonumber(lvl) or 0
+    finger.tier  = U.trim(tostring(tier or ""))
+    rest = U.trim(tostring(rest or ""):gsub("%s*%[[^%]]*%]", ""))
+    local words = {}
+    for w in rest:gmatch("%S+") do words[#words + 1] = w end
+    if #words &gt;= 3 then
+        finger.class = words[#words]
+        finger.race  = table.concat(words, " ", 2, #words - 1)
+    end
+end
+
+-- whois: a third source, and the only one carrying career totals.
+--
+--   [181 T0 Sprite War] Solao Bajiuik [C] (Male Blacksmith)
+--
+-- Level, tier, race and class in one 17-character field - wider than who's 15,
+-- so the who-row trigger cannot see it. The clan line is worded exactly as
+-- finger words it, so PT.finger_is already handles it once a block is open.
+function PT.whois_start(lvl, tier, race, cls, name)
+    finger = { name = name, state = "" }
+    finger.level = tonumber(lvl) or 0
+    finger.tier  = tostring(tier or "")
+    finger.race  = race
+    finger.class = cls
+end
+
+-- "Quests Complete : [ 179]  Quests Failed: [ 9]  Gquests Won: [ 0]"
+--
+-- Scraped generically rather than with a pattern per statistic. The block is
+-- not fixed: Solao's carries Trivia Points and Quest Points where Erikson's
+-- carries PK Victories, and the columns move with the widest number. Fifteen
+-- brittle patterns would go stale the first time Aardwolf adds a line; this
+-- keeps whatever is there under the name the MUD gave it.
+function PT.whois_stat(line)
+    if not finger then return end
+    finger.stats = finger.stats or {}
+    for label, val in line:gmatch("(%a[%a%s]-)%s*:%s*%[%s*([^%]]-)%s*%]") do
+        -- a fresh local: the loop variable is const in 5.4, which the dev
+        -- harness runs on even though Mudlet's LuaJIT would allow the assignment
+        local k = U.trim(label)
+        if k ~= "" then finger.stats[k] = tonumber(val) or val end
+    end
+end
+
+function PT.finger_remort(list)
+    if not finger then return end
+    finger.remort = U.trim(tostring(list or ""))
+end
+
+-- Every "&lt;name&gt; is ..." line in the block. Only the clan one is kept.
+function PT.finger_is(line)
+    if not finger then return end
+    for _, c in ipairs(CLANFULL) do
+        if line:find(c[1], 1, true) then
+            finger.clanfull, finger.clan = c[1], c[2]
+            return
+        end
+    end
+    -- Unknown clan: keep the words rather than drop them. "is a Savant of
+    -- &lt;something&gt;" is still worth having, and it's how the table above grows.
+    local tail = line:match("%sis an?%s+.-%sof%s+(.+)%.$")
+    if tail and #tail &lt; 60 then
+        -- clanfull only, never the tag: this string is unverified, and letting
+        -- it set a tag would let any "X is a friend of Y." line overwrite a
+        -- clan who had already got right
+        finger.clanfull, finger.clan = U.trim(tail), ""
+    end
+end
+
+
 aardkit.register("pt", "who-sweep player database", PT.cmd)
 </script>
 				<eventHandlerList />

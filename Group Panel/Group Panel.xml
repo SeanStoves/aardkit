@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE MudletPackage>
+<!-- aardkit-priority: 31 -->
+<MudletPackage version="1.001">
+	<TriggerPackage>
+	</TriggerPackage>
+	<TimerPackage />
+	<AliasPackage>
+		<AliasGroup isActive="yes" isFolder="yes">
+			<name>group</name>
+			<script />
+			<command />
+			<packageName />
+			<regex />
+			<Alias isActive="yes" isFolder="no">
+				<name>grouppanel</name>
+				<script>aardkit.group.cmd(matches[2] or "")</script>
+				<command />
+				<packageName />
+				<regex>^grouppanel(?:\s+(.*))?$</regex>
+			</Alias>
+		</AliasGroup>
+	</AliasPackage>
+	<ActionPackage />
+	<ScriptPackage>
+		<ScriptGroup isActive="yes" isFolder="yes">
+			<name>group</name>
+			<packageName />
+			<script />
+			<eventHandlerList />
+			<Script isActive="yes" isFolder="no">
+				<name>group</name>
+				<packageName />
+				<script>--[[
+    Group Panel — the party, in a window you can move
+    Sean Stoves, 2026-08-02
+
+    One row per member, straight off gmcp.group: a health bar with the member
+    written across it, mana and moves as thin bars under it, and alignment as a
+    strip along the bottom.
+
+        [ *201 Solao      3 1204 ]   &lt;- level, name, quests today, tnl
+        [ ====================== ]   &lt;- mana
+        [ ====================== ]   &lt;- moves
+        [ ---------------------- ]   &lt;- align, coloured by which way it leans
+
+    The layout and the field order are the stock module's. What's different:
+
+    Theirs is nailed under the minimap, and each member's container is parented
+    to the one above it - a chain fifty deep, so row 9 is a great-great-grandchild
+    of row 1. This is a panel like every other one here: drag it, resize it, dock
+    it, and the rows resize to fit whatever height you give it.
+
+    Theirs builds an alignment bar for every member and calls hide() on it twice,
+    once at creation and once per update, so nobody has ever seen it. The data
+    was always in GMCP. Here it's the strip along the bottom, and the colour is
+    the point: green leaning good, red leaning evil, grey near neutral.
+
+    Theirs also has `if not (gmcp.char.maxstats) then return end` in the middle
+    of the member loop. That's a return from the whole function rather than the
+    iteration, so before your own maxstats arrive - the first seconds after
+    connect - every member after you in the list stops being drawn.
+
+    Not carried across: their damage-share bar. It needs a combat trigger reading
+    the bracketed damage numbers, which are off unless you've turned them on, and
+    it seeds every member with a free point of damage so the percentages are
+    fiction until the first real hit lands. Same call as the potion count in
+    Gauges - a number that's usually wrong is worse than no number.
+
+    'group' is the MUD's command and stays the MUD's. This one is 'grouppanel'.
+]]
+
+aardkit = aardkit or {}
+aardkit.group = aardkit.group or {}
+
+local GR = aardkit.group
+local U  = aardkit.util.named("Group Panel")
+local G  = aardkit.gmcp
+
+local CFG = U.load("group", {
+    on    = true,
+    align = true,
+    -- ON. Installing this takes the group display over, through their own
+    -- aard.config["group"] switch rather than by disabling a script by name.
+    -- A switch, not a one-way door - 'grouppanel standalone off' hands it back.
+    standalone = true,
+})
+
+local function save() U.save("group", CFG) end
+
+---
+-- their colours, same as the Gauges module reads them out of their config
+---
+
+local COL = {
+    health  = { "#1aa41a", "#005500" },
+    mana    = { "#4570fc", "#1133cc" },
+    moves   = { "#b0b051", "#555511" },
+    good    = { "#d98839", "#814100" },
+    neutral = { "#888888", "#444444" },
+    evil    = { "#8c2929", "#410000" },
+}
+
+local BACK   = "#101418"
+local LEADER = "#e0ffff"
+
+-- their proportions: a fat bar for health, thin ones for the rest
+local ROW_MAX, ROW_MIN = 26, 14
+
+-- Declared above every function that reads them. A local read from a function
+-- written earlier in the file is a nil global - this project did that nine
+-- times before there was a gate for it, and three of those shipped.
+local rows     = {}     -- member index -&gt; { hp = gauge, mn = ..., mv = ..., al = ... }
+local unframed = false
+
+local function front(c1, c2)
+    return "background-color: QLinearGradient(x1:0, y1:0, x2:0, y2:1,"
+        .. " stop:0 " .. c1 .. ", stop:1 " .. c2 .. ");"
+end
+
+-- Gauge text is HTML, so real spaces collapse and columns drift apart.
+local function pad(s, n, right)
+    s = tostring(s or "")
+    if #s &gt; n then s = s:sub(1, n) end
+    local fill = string.rep("&amp;nbsp;", n - #s)
+    return right and (fill .. s) or (s .. fill)
+end
+
+---
+-- what GMCP gives us
+--
+-- Field names are theirs, out of their onGroup - name, and info.{lvl,tnl,qt,
+-- hp,mhp,mn,mmn,mv,mmv,align,here}. Every read is nil-safe: a member who has
+-- just joined can arrive with info missing entirely.
+---
+
+function GR.members()
+    local g = G.val("group")
+    if type(g) ~= "table" or type(g.members) ~= "table" then return {}, nil end
+    return g.members, g.leader
+end
+
+---
+-- the panel
+---
+
+local panel = aardkit.panel.new({
+    -- "grouppanel", not "group": their containers are group1..group50 and
+    -- their table of them is a global called group. Nothing of ours needs to
+    -- sit that close to it.
+    name        = "grouppanel",
+    title       = "Group",
+    x           = "1050px",
+    y           = "40px",
+    width       = 320,
+    height      = 160,
+    consoleless = true,
+    onbuild     = function()
+        rows = {}
+        if aardkit.group and aardkit.group.paint then aardkit.group.paint() end
+    end,
+    onresize    = function()
+        if aardkit.group and aardkit.group.paint then aardkit.group.paint() end
+    end,
+})
+
+GR.panel = panel
+
+local function make_row(i)
+    local gen = panel.gen or 1
+    local function gauge(part)
+        local ok, b = pcall(function()
+            return Geyser.Gauge:new({
+                name = "aardkit_group_" .. part .. "_" .. i .. "_" .. gen,
+                x = 0, y = 0, width = 10, height = 10,
+            }, panel.container)
+        end)
+        return ok and b or nil
+    end
+
+    local r = { hp = gauge("hp"), mn = gauge("mn"), mv = gauge("mv"), al = gauge("al") }
+    if not r.hp then return nil end
+
+    for key, part in pairs({ hp = "health", mn = "mana", mv = "moves", al = "neutral" }) do
+        local b = r[key]
+        if b then
+            pcall(function() b.back:setStyleSheet("background-color: " .. BACK .. ";") end)
+            local c = COL[part]
+            pcall(function() b.front:setStyleSheet(front(c[1], c[2])) end)
+        end
+    end
+    return r
+end
+
+-- Rows shrink to fit the height you gave the panel rather than spilling out of
+-- the bottom of it, which is the whole reason this is a panel and not a strip
+-- welded under the minimap.
+function GR.layout(count)
+    if not panel.container then return end
+    local w = U.px(panel.container.get_width and panel.container:get_width()
+                   or panel.container.width)
+    local h = U.px(panel.container.get_height and panel.container:get_height()
+                   or panel.container.height)
+    if w &lt; 40 or h &lt; 20 or count &lt; 1 then return end
+
+    local rh = math.floor(h / count)
+    if rh &gt; ROW_MAX then rh = ROW_MAX end
+    if rh &lt; ROW_MIN then rh = ROW_MIN end
+
+    -- health takes what's left after the thin ones, so a squeezed row loses the
+    -- big bar's height rather than dropping the small bars off the bottom
+    local thin  = math.max(2, math.floor((rh - 2) / 6))
+    local align = CFG.align and thin or 0
+    local fat   = rh - (thin * 2) - align - 2
+
+    -- One owner for what is on screen, and it is this loop. A second pass in
+    -- update() hid departed rows as well, which meant a control aimed at either
+    -- one passed on the strength of the other - the coverage read as real and
+    -- wasn't. Widgets are kept rather than destroyed so the next join is instant.
+    for i, r in pairs(rows) do
+        local y = (i - 1) * rh
+        if i &gt; count or fat &lt; 4 then
+            for _, b in pairs(r) do pcall(function() b:hide() end) end
+        else
+            local function place(b, top, height)
+                if not b then return end
+                pcall(function() b:show() end)
+                pcall(function() b:move(0, top) end)
+                pcall(function() b:resize(w, height) end)
+            end
+            place(r.hp, y, fat)
+            place(r.mn, y + fat, thin)
+            place(r.mv, y + fat + thin, thin)
+            if CFG.align then place(r.al, y + fat + thin * 2, align)
+            elseif r.al then pcall(function() r.al:hide() end) end
+        end
+    end
+end
+
+function GR.paint()
+    if not panel.container then return end
+    local members = GR.members()
+    local count   = #members
+
+    for i = 1, count do
+        if not rows[i] then rows[i] = make_row(i) end
+    end
+    GR.layout(count)
+    GR.update()
+end
+
+---
+-- filling them in
+---
+
+-- Group alignment runs to 2500, not the 1000 a character's own align uses -
+-- the wiki's own example payload has "align": 2500, and their group bar scales
+-- to 2500 with its bands at +/-875. I had it on a 1000 scale with +/-350 bands,
+-- which pegged anything over 1000 at full and coloured the middle wrongly.
+local ALIGN_MAX = 2500
+
+local function band(al)
+    if al &gt;= 875  then return "good"    end
+    if al &lt;= -875 then return "evil"    end
+    return "neutral"
+end
+
+function GR.update()
+    if not CFG.on or not panel.container then return end
+
+    local members, leader = GR.members()
+    local count = #members
+    if count == 0 then
+        for _, r in pairs(rows) do
+            for _, b in pairs(r) do pcall(function() b:hide() end) end
+        end
+        return
+    end
+
+    -- a member joining or leaving changes how many rows we need
+    local have = 0
+    for i in pairs(rows) do if i &gt; have then have = i end end
+    if have &lt; count then GR.paint(); return end
+
+    for i = 1, count do
+        local m = members[i] or {}
+        local r = rows[i]
+        local info = type(m.info) == "table" and m.info or {}
+        if r and r.hp then
+            local name = tostring(m.name or "?")
+            local hp,  mhp  = tonumber(info.hp)  or 0, math.max(1, tonumber(info.mhp)  or 1)
+            local mn,  mmn  = tonumber(info.mn)  or 0, math.max(1, tonumber(info.mmn)  or 1)
+            local mv,  mmv  = tonumber(info.mv)  or 0, math.max(1, tonumber(info.mmv)  or 1)
+
+            -- 'here' is 0 when they're somewhere else, which is the one thing
+            -- you want to see at a glance when the tank stops taking damage
+            local mark  = (tonumber(info.here) == 0) and "*" or "&amp;nbsp;"
+            local shown = (name == leader)
+                and ('&lt;font color="' .. LEADER .. '"&gt;' .. pad(name, 12) .. "&lt;/font&gt;")
+                or  pad(name, 12)
+
+            local text = "&lt;b&gt;" .. mark .. pad(info.lvl or "?", 3, true) .. "&amp;nbsp;" .. shown
+                .. "&amp;nbsp;" .. pad(info.qt or "", 2, true)
+                .. "&amp;nbsp;" .. pad(info.tnl or "", 5, true) .. "&lt;/b&gt;"
+
+            pcall(function() r.hp:setValue(math.min(hp, mhp), mhp, text) end)
+            if r.mn then pcall(function() r.mn:setValue(math.min(mn, mmn), mmn) end) end
+            if r.mv then pcall(function() r.mv:setValue(math.min(mv, mmv), mmv) end) end
+
+            if r.al and CFG.align then
+                local al = tonumber(info.align) or 0
+                local c  = COL[band(al)]
+                pcall(function() r.al.front:setStyleSheet(front(c[1], c[2])) end)
+                pcall(function() r.al:setValue(math.abs(al), ALIGN_MAX) end)
+            end
+        end
+    end
+end
+
+---
+-- standing theirs down
+--
+-- Their own switch, the same call the mapper makes: aard.config["group"] is
+-- read at the top of their onGroup - 0 does nothing, 1 draws the panel - so
+-- setting it to 0 is what their author put there for this. Better than
+-- disabling onGroup by name, which would survive exactly until they rename it.
+--
+-- Setting it to 0 doesn't retract what's already on screen, because their
+-- onGroup returns before reaching its own hide loop, so we hide their rows
+-- ourselves. Going back the other way needs no such help: their next group
+-- message re-shows every container it owns.
+--
+-- One thing goes quiet with it. Their onGroup is also where aard.group[name]
+-- gets seeded, which is what their damage and party-heal triggers count into.
+-- Those triggers check the table before touching it, so nothing breaks - the
+-- counters just stop, and nothing but their panel ever read them.
+---
+
+function GR.their_group(on)
+    if type(aard) ~= "table" or type(aard.config) ~= "table" then return false end
+    aard.config["group"] = on and 1 or 0
+    if not on then
+        local grp = _G.group
+        if type(grp) == "table" then
+            for i = 1, 50 do
+                local w = grp[i]
+                if type(w) ~= "table" then break end
+                pcall(function() w:hide() end)
+            end
+        end
+        local info = _G.gInfo
+        if type(info) == "table" then pcall(function() info:hide() end) end
+    end
+    return true
+end
+
+local function stand_down()
+    if not CFG.standalone or not aard then return end
+    if unframed then return end
+    if GR.their_group(false) then
+        unframed = true
+        U.note("Stock group display stood down via their own aard.config group switch"
+            .. " - 'grouppanel standalone off' hands it back.")
+    end
+end
+
+---
+-- commands
+---
+
+function GR.cmd(arg)
+    local verb, rest = U.split_verb(arg)
+    rest = U.trim(rest)
+
+    if aardkit.panel.verb("grouppanel", verb, rest) then return end
+
+    if verb == "" or verb == "help" then
+        local members, leader = GR.members()
+        local g = G.val("group") or {}
+        U.help("Group Panel", {
+            { "state",   CFG.on and "on" or "off" },
+            { "group",   #members &gt; 0 and (#members .. " member(s), led by " .. tostring(leader or "?"))
+                         or "not in one" },
+            -- the rest of what the group message carries, which nothing read
+            { "name",    tostring(g.groupname or "-") .. "  (" .. tostring(g.status or "?") .. ")" },
+            { "since",   tostring(g.created or "-") },
+            { "kills",   tostring(g.kills or 0) .. "   exp " .. tostring(g.exp or 0) },
+            { "align",   CFG.align and "shown" or "hidden" },
+            { "" },
+            { "grouppanel on|off",       "stop updating it" },
+            { "grouppanel align on|off", "the alignment strip under each member" },
+            { "grouppanel show|hide|dock|embed", "where the window lives" },
+            { "grouppanel standalone on|off",    "stop the stock module's own group display" },
+            { "grouppanel opacity &lt;0-255&gt;",      "how solid this window is; 'default' follows the shared setting" },
+            { "" },
+            { "'group' is the MUD's own command and stays that way - this one" },
+            { "answers to 'grouppanel'." },
+            { "" },
+            { "Their damage-share bar is not carried across: it needs the" },
+            { "bracketed damage numbers turned on, and it gives everyone a free" },
+            { "point of damage so the percentages read wrong until the first" },
+            { "real hit lands." },
+        })
+
+    elseif verb == "on" or verb == "off" then
+        CFG.on = (verb == "on"); save()
+        U.ok("Group panel " .. verb .. ".")
+        if CFG.on then GR.paint() end
+
+    elseif verb == "align" then
+        CFG.align = (rest:lower() ~= "off"); save()
+        GR.paint()
+        U.ok("Alignment strip " .. (CFG.align and "on" or "off") .. ".")
+
+    elseif verb == "standalone" then
+        local v = rest:lower()
+        if v ~= "on" and v ~= "off" then
+            U.help("Standalone group panel", {
+                { "state", CFG.standalone and "on - ours has the group"
+                           or "off - theirs is drawing it too" },
+                { "installed", aard and "the stock module is here" or "none, nothing to do" },
+                { "" },
+                { "onGroup  (their script)", "stood down via aard.config group = 0" },
+                { "", "-&gt; this panel, which you can move" },
+                { "" },
+                { "Their switch, not ours: their onGroup reads that value on its" },
+                { "first line. It also stops their damage and party-heal counters," },
+                { "which are seeded in the same place and read by nothing else." },
+                { "" },
+                { "grouppanel standalone on|off", "switch it" },
+            })
+            return
+        end
+        CFG.standalone = (v == "on"); save()
+        if not aard then U.note("The stock module isn't installed - ours already has the group."); return end
+        if v == "on" then
+            unframed = false
+            stand_down()
+            U.ok("Stock group display down - ours has the group.")
+        else
+            GR.their_group(true)
+            unframed = false
+            U.ok("Stock group display back on - it redraws on the next group message.")
+        end
+
+    elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
+        aardkit.panel.cmd("grouppanel " .. verb)
+        if verb ~= "hide" then GR.paint() end
+
+    else
+        U.warn("grouppanel on|off | align on|off | show|hide|dock|embed   ('grouppanel help')")
+    end
+end
+
+aardkit.register("grouppanel", "the party, in a window you can move", GR.cmd)
+
+-- Every group message: a member's hp changing is exactly what this is for, and
+-- waiting a tick to show the tank dropping defeats the point.
+-- Aardwolf sends no group data at all until asked - the one package with its
+-- own toggle on top of Core.Supports. Declared here because this is what uses it.
+aardkit.gmcp.need("Group 1", "group on")
+
+aardkit.gmcp.watch("group", "group", "aardkit.group.paint", true)
+
+GR.paint()
+
+-- guiLoad builds their group widgets on connect rather than at script load, so
+-- the load-time attempts pass before there is anything to stand down.
+for _, t in ipairs({ 1, 4, 9, 16, 25 }) do tempTimer(t, stand_down) end
+
+U.killhandler(aardkit_group_connect)
+aardkit_group_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
+    for _, t in ipairs({ 2, 6, 12, 20 }) do tempTimer(t, stand_down) end
+end)
+</script>
+				<eventHandlerList />
+			</Script>
+		</ScriptGroup>
+	</ScriptPackage>
+	<KeyPackage />
+	<VariablePackage />
+</MudletPackage>

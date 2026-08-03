@@ -442,16 +442,17 @@ local function set_csv(t)
     return table.concat(a, ",")
 end
 
-for k in pairs(CFG.learned or {}) do my_bags[k] = true end
-
-local exclude     = csv_set(CFG.bags)
-local bonus_flags = csv_set(CFG.flags)
-
 -- shortdesc:lower -&gt; true, learned from invdata (rename-proof). Seeded from
 -- the saved copy so it survives a restart - it used to be memory-only, so
 -- every launch started with an empty list until you happened to type 'inv'.
 local my_bags    = {}
 local inv_serial = {}   -- shortdesc:lower -&gt; serial
+
+for k in pairs(CFG.learned or {}) do my_bags[k] = true end
+
+local exclude     = csv_set(CFG.bags)
+local bonus_flags = csv_set(CFG.flags)
+
 
 ---
 -- colour helpers

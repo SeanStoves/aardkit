@@ -2423,15 +2423,31 @@ end
 
 -- Aardwolf sends numbers as strings about half the time, so a signature has to
 -- compare their text rather than their type.
-local function sig_of(path)
-    local t = G.val(path)
-    if type(t) ~= "table" then return tostring(t) end
+--
+-- And it has to go all the way down. This stopped at one level, which was true
+-- of char.* and stopped being true at group: an ARRAY of members, each with its
+-- own vitals nested under info. A one-level walk signs that as
+-- "members=table: 0x7f9c...", so whether a watcher ever fires comes down to
+-- whether Mudlet happens to replace that table or write into the old one -
+-- and the failure is the quiet kind, a panel that just stops updating.
+--
+-- Depth-capped, because a signature that can recurse forever is worse than one
+-- that misses something. Five clears group.members[n].info.hp with room over.
+local function sign(v, depth)
+    if type(v) ~= "table" then return tostring(v) end
+    if depth &lt;= 0 then return "..." end
     local keys, n = {}, 0
-    for k in pairs(t) do n = n + 1; keys[n] = k end
-    table.sort(keys)
+    for k in pairs(v) do n = n + 1; keys[n] = k end
+    -- A table can hold number and string keys at once, and comparing those two
+    -- directly raises - out here in a timer, where nothing is catching it.
+    table.sort(keys, function(a, b) return tostring(a) &lt; tostring(b) end)
     local out = {}
-    for i, k in ipairs(keys) do out[i] = k .. "=" .. tostring(t[k]) end
-    return table.concat(out, ",")
+    for i, k in ipairs(keys) do out[i] = tostring(k) .. "=" .. sign(v[k], depth - 1) end
+    return "{" .. table.concat(out, ",") .. "}"
+end
+
+local function sig_of(path)
+    return sign(G.val(path), 5)
 end
 
 ---
@@ -2512,6 +2528,70 @@ function G.tick()
     end
 end
 
+---
+-- negotiation
+--
+-- Aardwolf sends nothing until it is asked, and Mudlet never asks - its
+-- GMCP.lua is a usage tracker, not a handshake. Every reader in this suite
+-- worked only because the STOCK module negotiates on connect, which is a poor
+-- thing to depend on when the stated goal is being able to drop it. Nothing
+-- here sent a single Core.Supports until now.
+--
+-- Modules declare what they use, rather than one list here going stale:
+--
+--     aardkit.gmcp.need("Group 1", "group on")
+--
+-- Two rules learned from their handshake and the wiki:
+--
+--   Set REPLACES the server's list. Two modules each Setting their own package
+--   leaves only whichever went last, so the declarations are pooled and sent as
+--   one Set of the union.
+--
+--   And theirs Sets [Char, Comm, Room] - no Group - from its own connect
+--   handler, so whoever lands second wins and ours could be wiped. Add cannot
+--   clobber, so the same union goes again as an Add a few seconds later and the
+--   result no longer depends on who ran first.
+--
+-- 'group on' is the documented toggle and is independent of Supports, so it
+-- goes both times too - belt and braces on the one package Aardwolf will not
+-- send by default.
+---
+
+G.needs   = G.needs   or {}     -- "Group 1" -&gt; true
+G.toggles = G.toggles or {}     -- "group on" -&gt; true
+
+local function supports_list()
+    local a = {}
+    for p in pairs(G.needs) do a[#a + 1] = '"' .. p .. '"' end
+    if #a == 0 then return nil end
+    table.sort(a)
+    return "[ " .. table.concat(a, ", ") .. " ]"
+end
+
+local function say_all(verb)
+    local list = supports_list()
+    if not list then return end
+    pcall(sendGMCP, "Core.Supports." .. verb .. " " .. list)
+    for t in pairs(G.toggles) do pcall(sendGMCP, t) end
+end
+
+function G.negotiate()
+    if not U.playing() then return end
+    say_all("Set")
+    tempTimer(3, function() if U.playing() then say_all("Add") end end)
+end
+
+-- Debounced: every module calls this at load, and one handshake for the lot
+-- beats one per module.
+local pending_neg = false
+function G.need(pkg, toggle)
+    if pkg then G.needs[tostring(pkg)] = true end
+    if toggle then G.toggles[tostring(toggle)] = true end
+    if pending_neg then return end
+    pending_neg = true
+    tempTimer(1, function() pending_neg = false; G.negotiate() end)
+end
+
 U.every("gmcp", CFG.rate, G.tick)
 
 -- A reconnect brings a fresh char.*; forget what we last saw so every watcher
@@ -2520,6 +2600,9 @@ U.killhandler(aardkit_gmcp_connect)
 aardkit_gmcp_connect = registerAnonymousEventHandler("sysConnectionEvent", function()
     for _, w in pairs(G.watchers) do w.sig = nil end
     dirty = true
+    -- The handshake is per-connection, not per-load. Late enough that the MUD
+    -- has finished its own greeting.
+    tempTimer(2, G.negotiate)
 end)
 </script>
 				<eventHandlerList />
