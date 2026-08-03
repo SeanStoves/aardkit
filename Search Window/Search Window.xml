@@ -215,10 +215,10 @@ end
 ---
 
 function SW.cmd(arg)
-    local verb = U.split_verb(arg)
+    local verb, rest = U.split_verb(arg)
     -- 'x opacity 200' where somebody looks for it, rather than only
     -- 'panel x opacity 200'. One line; core does the work.
-    if aardkit.panel.verb("search", verb, select(2, U.split_verb(arg))) then return end
+    if aardkit.panel.verb("search", verb, rest) then return end
 
 
     if verb == "toggle" then
@@ -246,7 +246,7 @@ function SW.cmd(arg)
         U.ok("Search window cleared.")
 
     elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
-        aardkit.panel.cmd("search " .. verb)
+        aardkit.panel.cmd("search " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else
         U.help("Search window", {

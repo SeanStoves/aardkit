@@ -622,7 +622,7 @@ function CH.cmd(arg)
         U.warn("No tab called '" .. which .. "'.  " .. table.concat(TABS, " "))
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        aardkit.panel.cmd("chat " .. verb)
+        aardkit.panel.cmd("chat " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         CH.paint()
 
     else

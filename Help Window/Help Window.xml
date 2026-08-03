@@ -289,7 +289,7 @@ function HW.cmd(arg)
         end
 
     elseif verb == "dock" or verb == "embed" or verb == "show" or verb == "hide" then
-        aardkit.panel.cmd("help " .. verb)
+        aardkit.panel.cmd("help " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else
         U.help("Help window", {

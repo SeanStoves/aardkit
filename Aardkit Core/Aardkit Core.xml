@@ -1080,10 +1080,25 @@ function Panel:_build()
     self.gen = (self.gen or 0) + 1
 
     if mode == "dock" then
-        self.holder = Geyser.UserWindow:new({
+        -- Mudlet docks a UserWindow to an edge of the main window, which is
+        -- where the stock module nails its own bars. autoDock is on by default
+        -- and is what puts the crosshairs up when you drag one over the game
+        -- window - so a floating panel can be dropped onto an edge by hand and
+        -- Mudlet remembers it.
+        --
+        -- docked=true is only passed when an edge was actually asked for:
+        -- Geyser forces dockPosition to "floating" when docked is false, and
+        -- that is the behaviour every panel had before this.
+        local pos = st(self.name).dockpos
+        local cons = {
             name      = self.name .. "_uw" .. self.gen,
             titleText = self.title,
-        })
+            autoDock  = true,
+        }
+        if pos and pos ~= "floating" then
+            cons.docked, cons.dockPosition = true, pos
+        end
+        self.holder = Geyser.UserWindow:new(cons)
     else
         self.holder = Adjustable.Container:new({
             name        = self.name .. "_ac" .. self.gen,
@@ -1166,6 +1181,32 @@ end
 
 function Panel:toggle()
     if self:visible() then self:hide() else self:show() end
+end
+
+local DOCKPOS = { top = true, bottom = true, left = true, right = true, floating = true }
+
+-- Where a docked panel sits. Changing it live works when the window already
+-- exists; otherwise it takes on the next build, which setmode does anyway.
+function Panel:setdock(pos)
+    pos = tostring(pos or ""):lower()
+    if not DOCKPOS[pos] then
+        U.warn("dock position must be one of: " .. table.concat({ "top", "bottom", "left", "right", "floating" }, " "))
+        return
+    end
+    st(self.name).dockpos = pos
+    save_state()
+    if self.mode ~= "dock" then
+        self:setmode("dock")
+        return
+    end
+    local w = self.holder
+    if type(w) == "table" and type(w.setDockPosition) == "function"
+       and pcall(function() w:setDockPosition(pos) end) then
+        U.ok(self.name .. " docked " .. pos .. ".")
+    else
+        self:_build()
+        U.ok(self.name .. " docked " .. pos .. ".")
+    end
 end
 
 function Panel:setmode(mode)
@@ -1584,6 +1625,7 @@ function P.cmd(arg)
             { "panel &lt;name&gt; show",    "show it" },
             { "panel &lt;name&gt; hide",    "hide it" },
             { "panel &lt;name&gt; dock",    "make it a real dockable window" },
+            { "panel &lt;name&gt; dock &lt;edge&gt;", "and snap it there: top bottom left right floating" },
             { "panel &lt;name&gt; embed",   "put it back inside the main window" },
             { "panel &lt;name&gt; clear",   "empty its buffer" },
             { "panel raise",          "bring every panel above the module's GUI" },
@@ -1610,6 +1652,7 @@ function P.cmd(arg)
         elseif act == "show"  then p:show()
         elseif act == "hide"  then p:hide()
         elseif act == "dock"  then p:setmode("dock")
+        elseif act:match("^dock%s+%S+") then p:setdock(act:match("^dock%s+(%S+)"))
         elseif act == "embed" then p:setmode("embed")
         elseif act == "clear" then p:clear()
         elseif act:match("^opacity") then

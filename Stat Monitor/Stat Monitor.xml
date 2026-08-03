@@ -450,7 +450,7 @@ function SM.cmd(arg)
         panel:toggle()
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        aardkit.panel.cmd("statmon " .. verb)
+        aardkit.panel.cmd("statmon " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     elseif verb == "on" or verb == "off" then
         local f = known(rest)

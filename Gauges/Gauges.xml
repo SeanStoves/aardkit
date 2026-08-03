@@ -239,17 +239,24 @@ function GA.update()
         else set("tnl", 1, 1, "TNL: " .. tnl) end
     end
 
-    -- Alignment is a range from -1000 to 1000, not a quantity, so the bar shows
-    -- how far from neutral you are and the COLOUR says which way.
+    -- Alignment is a range, not a quantity, so the bar shows how far from
+    -- neutral you are and the COLOUR says which way.
+    --
+    -- The range is +/-2500, not +/-1000. On a 1000 scale an aligned character
+    -- sets the gauge to 250%, and Geyser draws the front wider than the back -
+    -- the bar runs straight out of the panel and across the screen. The MUD's
+    -- own stat readout says 2500, the group message carries 2500, and their
+    -- group bar scales to 2500 with its bands at +/-875.
+    local ALIGN_MAX = 2500
     local al = G.num("char.status.align")
     if al then
-        local band = (al &gt;= 350 and "good") or (al &lt;= -350 and "evil") or "neutral"
+        local band = (al &gt;= 875 and "good") or (al &lt;= -875 and "evil") or "neutral"
         local b = bars.align
         if b then
             local col = COL[band]
             pcall(function() b.front:setStyleSheet(front(col[1], col[2])) end)
         end
-        set("align", math.abs(al), 1000, "Align: " .. al)
+        set("align", math.min(math.abs(al), ALIGN_MAX), ALIGN_MAX, "Align: " .. al)
     end
 
     -- Whatever is hitting you, and how much of it is left.
@@ -366,7 +373,7 @@ function GA.cmd(arg)
         end
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        aardkit.panel.cmd("gauges " .. verb)
+        aardkit.panel.cmd("gauges " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         if verb ~= "hide" then GA.paint() end
 
     elseif COL[verb] or verb == "align" or verb == "enemy" then

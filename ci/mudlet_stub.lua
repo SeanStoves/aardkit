@@ -683,6 +683,8 @@ end
 -- Recorded, because Core.Supports.Set REPLACES the server's list: a Set that
 -- names fewer packages than someone else already asked for is a silent
 -- reduction, and there is nothing on screen to say so.
+USERWINDOWS = {}
+
 GMCP_SENT = {}
 
 function sendGMCP(msg)
@@ -721,7 +723,15 @@ Geyser = {
     end },
     Label = ctor("Label"),
     MiniConsole = ctor("MiniConsole"),
-    UserWindow = ctor("UserWindow"),
+    UserWindow = { new = function(_, cons)
+        local cw, ch = sized(cons, 800, 600)
+        local w = widget({ name = (cons and cons.name) or "UserWindow", width = cw, height = ch })
+        w.text = widget({})
+        w.setDockPosition = function(self, pos) USERWINDOWS.last_setdock = pos; return self end
+        USERWINDOWS[#USERWINDOWS + 1] = cons or {}
+        USERWINDOWS.last = cons or {}
+        return w
+    end },
     Container = ctor("Container"),
     -- Real Mudlet ships GeyserScrollBox.lua, so code may reach for it. It is
     -- still guarded at the call site, because older builds don't have it.

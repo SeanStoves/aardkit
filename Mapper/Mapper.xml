@@ -1829,7 +1829,7 @@ function M.cmd(arg)
         end
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        aardkit.panel.cmd("mapper " .. verb)
+        aardkit.panel.cmd("mapper " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         -- after the move, not before: dock and embed rebuild the container and
         -- a mapper parented to the old one goes with it
         if verb ~= "hide" then M.repaint_map() end

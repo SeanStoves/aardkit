@@ -444,7 +444,7 @@ function GR.cmd(arg)
         end
 
     elseif verb == "show" or verb == "hide" or verb == "dock" or verb == "embed" then
-        aardkit.panel.cmd("grouppanel " .. verb)
+        aardkit.panel.cmd("grouppanel " .. verb .. (rest ~= "" and (" " .. rest) or ""))
         if verb ~= "hide" then GR.paint() end
 
     else

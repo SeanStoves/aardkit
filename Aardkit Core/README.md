@@ -16,6 +16,7 @@ Shared foundation every other module builds on: a GMCP watcher that hands out ch
 
 | Command | Does |
 |---|---|
+| `panel <name> dock <edge>` | snap it to an edge: top bottom left right floating |
 | `aardkit` | lists core commands and every registered module |
 | `aardkit plugins` | names of loaded modules |
 | `aardkit stock` | what we switch off in the stock AardwolfMudlet module |

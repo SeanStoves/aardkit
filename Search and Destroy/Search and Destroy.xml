@@ -781,7 +781,7 @@ function SD.cmd(arg)
         if not i then U.note("Nothing left in " .. SD.kind .. ".") else SD.goto_target(SD.kind, i) end
 
     elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
-        aardkit.panel.cmd("snd " .. verb)
+        aardkit.panel.cmd("snd " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     elseif verb == "mob" or verb == "where" then
         SD.where(rest)

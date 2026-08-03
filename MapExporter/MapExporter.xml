@@ -746,7 +746,7 @@ function EX.cmd(arg)
         end
 
     elseif verb == "dock" or verb == "embed" or verb == "hide" or verb == "show" then
-        aardkit.panel.cmd("mapexport " .. verb)
+        aardkit.panel.cmd("mapexport " .. verb .. (rest ~= "" and (" " .. rest) or ""))
 
     else
         U.help("Map Exporter", {
