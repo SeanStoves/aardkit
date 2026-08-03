@@ -370,7 +370,13 @@ function U.gag()
         local line = getCurrentLine()
         if line and line ~= "" then
             local text = (GCFG.mark or "") .. line
-            if not pcall(appendLog, "main", text) then pcall(appendLog, text) end
+            -- appendLog takes the TEXT, not a window name. It was being called
+            -- as appendLog("main", text), which logged the literal string
+            -- "main" for every gagged line and dropped the line itself - 52 of
+            -- them in a one-minute session, and "GAGGED --" appears in no log
+            -- ever written. The two-arg call succeeded, so the fallback below
+            -- it never ran and nothing ever looked wrong on screen.
+            pcall(appendLog, text)
         end
     end
     deleteLine()

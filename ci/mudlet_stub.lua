@@ -79,7 +79,9 @@ getColumnCount = function() return 80 end
 ansi2decho = function(t) return tostring(t) end
 -- the wrap setting, which is what text actually breaks at
 getWindowWrap = function() return 100 end
-getCurrentLine = function() return "" end
+-- settable, so a test can put a line in front of the gag
+CURRENT_LINE = ""
+getCurrentLine = function() return CURRENT_LINE end
 getLineCount = function() return 0 end
 moveCursor = note("moveCursor")
 moveCursorEnd = note("moveCursorEnd")
@@ -692,6 +694,12 @@ function setBorderBottom(n) BORDERS.bottom = n end
 function setBorderTop(n)    BORDERS.top    = n end
 function setBorderLeft(n)   BORDERS.left   = n end
 function setBorderRight(n)  BORDERS.right  = n end
+
+LOGGED = {}
+
+-- Records what it was actually GIVEN. A no-op stub cannot tell "logged the
+-- line" from "logged the string 'main'", which is exactly what shipped.
+function appendLog(...) LOGGED[#LOGGED + 1] = table.concat({ ... }, "\1") end
 
 ENCODING = nil
 function setServerEncoding(e) ENCODING = e end
