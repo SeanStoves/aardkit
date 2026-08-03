@@ -1948,10 +1948,20 @@ function aardkit.cmd(arg)
         local rows = aardkit.gmcp.declared()
         rows[#rows + 1] = { "" }
         local live = {}
-        for _, k in ipairs({ "char", "comm", "room", "group" }) do
+        for _, k in ipairs({ "char", "comm", "room" }) do
             live[#live + 1] = k .. (type(gmcp) == "table" and gmcp[k] and " yes" or " -")
         end
         rows[#rows + 1] = { "arriving", table.concat(live, "   ") }
+
+        -- group on its own, because a dash there means something different.
+        -- char/comm/room are primed on connect with 'request'; there is no
+        -- 'request group', so group is only ever sent when the group CHANGES.
+        -- Solo since login and nothing has changed, so nothing has been sent -
+        -- which is indistinguishable from the toggle having failed unless the
+        -- readout says so.
+        local g = type(gmcp) == "table" and gmcp.group
+        rows[#rows + 1] = { "group", g and ("yes - " .. tostring(g.count or 0) .. " member(s)")
+            or "nothing yet; Aardwolf only sends it when a group changes" }
         rows[#rows + 1] = { "" }
         rows[#rows + 1] = { "aardkit gmcp redo", "ask again now" }
         rows[#rows + 1] = { "" }
