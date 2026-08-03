@@ -2849,13 +2849,30 @@ end
 -- is what makes "re-add everything" true.
 local RETRIES = { 3, 8, 20 }
 
+-- Deferred until you are actually in the game, not dropped.
+--
+-- This used to be `if not U.playing() then return end`, and both callers land
+-- at the login prompt: the need() debounce a second after the scripts load, and
+-- the connect hook two seconds after the socket opens. On a cold connect the
+-- handshake therefore never ran at all. It has been working purely because the
+-- STOCK module negotiates off its own 'Welcome to Aardwolf' trigger - so the
+-- first clean profile would have come up with no Comm, no Group, no tags and
+-- nothing primed, and no error to say why.
+--
+-- U.ready queues until gmcp.char.status says state 3, which is the same reason
+-- the guard was there: a command sent at the password prompt IS the password.
 function G.negotiate()
-    if not U.playing() then return end
-    say_all("Set")
-    prime()
-    for _, t in ipairs(RETRIES) do
-        tempTimer(t, function() if U.playing() then say_all("Add") end end)
-    end
+    U.ready(function()
+        -- Stock sends this on every login and it is stored nowhere, so a fresh
+        -- profile talks to Aardwolf in the wrong encoding until something says
+        -- otherwise.
+        pcall(setServerEncoding, "UTF-8")
+        say_all("Set")
+        prime()
+        for _, t in ipairs(RETRIES) do
+            tempTimer(t, function() if U.playing() then say_all("Add") end end)
+        end
+    end)
 end
 
 -- Debounced: every module calls this at load, and one handshake for the lot

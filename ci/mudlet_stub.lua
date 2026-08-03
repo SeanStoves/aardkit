@@ -693,6 +693,9 @@ function setBorderTop(n)    BORDERS.top    = n end
 function setBorderLeft(n)   BORDERS.left   = n end
 function setBorderRight(n)  BORDERS.right  = n end
 
+ENCODING = nil
+function setServerEncoding(e) ENCODING = e end
+
 USERWINDOWS = {}
 
 GMCP_SENT = {}
