@@ -724,6 +724,12 @@ function enableScrollBar(n)  SCROLLBARS[tostring(n)] = true end
 function disableScrollBar(n) SCROLLBARS[tostring(n)] = false end
 function setBackgroundColor(n, r, g, b, a) BGCOLOR[tostring(n)] = { r, g, b, a } end
 
+STYLESHEETS = {}
+-- The stylesheet TEXT, because "opaque" here is a CSS validity question:
+-- rgba() alpha out of range makes Qt discard the whole declaration, and a stub
+-- that only records that setStyleSheet was called cannot see that.
+function setUserWindowStyleSheet(n, css) STYLESHEETS[tostring(n)] = tostring(css) end
+
 APPSTYLE = nil
 function setAppStyleSheet(css, tag) APPSTYLE = tostring(css) end
 

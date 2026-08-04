@@ -1043,9 +1043,24 @@ P.autodock = true
 -- scroll with the wheel does not need a visible bar taking a column.
 P.scrollbars = false
 
+-- Alpha as a PERCENTAGE, which is what Qt takes and what Mudlet's own Geyser
+-- writes (GeyserAdjustableContainer.lua: "rgba(0,0,0,100%)").
+--
+-- We were emitting rgba(13,17,23,255). Qt follows CSS3, where the alpha is 0-1
+-- or a percentage, so 255 is out of range and the whole background-color
+-- declaration is DISCARDED - leaving the panel with no background at all. That
+-- is the see-through, and it looked like a subtle opacity bug rather than a
+-- syntax error because the border and radius on the following lines still
+-- applied. It also explains why `clear` worked: alpha 0 is in range.
+--
+-- A fully opaque panel gets plain hex with no alpha channel at all, so there is
+-- nothing left to misparse in the common case.
 local function container_style(clear, alpha)
+    alpha = clear and 0 or math.max(0, math.min(255, tonumber(alpha or P.opacity) or 255))
+    local fill = (alpha &gt;= 255) and STYLE.bg
+        or string.format("rgba(13,17,23,%d%%)", math.floor(alpha / 255 * 100 + 0.5))
     return [[
-        background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(alpha or P.opacity)) .. [[);
+        background-color: ]] .. fill .. [[;
         border: 1px solid ]] .. STYLE.border .. [[;
         border-radius: 3px;
     ]]
@@ -1158,6 +1173,9 @@ local function opaque(console)
 end
 
 P.opaque = opaque
+
+-- public so the harness can read the CSS rather than the fact of a call
+P.container_style = container_style
 
 -- One place, so chat's eight tab consoles follow the same setting as everything
 -- else rather than keeping the bar they were built with.
