@@ -368,7 +368,7 @@ function CH.paint()
                 return Geyser.MiniConsole:new({
                     name = "aardkit_chat_" .. name .. "_" .. gen,
                     x = 0, y = TABH, width = 10, height = 10,
-                    autoWrap = true, scrollBar = true,
+                    autoWrap = true, scrollBar  = false,
                     fontSize = CFG.fontSize or 9,
                 }, panel.container)
             end)
@@ -670,6 +670,15 @@ end
 
 
 aardkit.register("chat", "the channels in tabs, in a window you can move", CH.cmd)
+
+-- Chat builds its own eight consoles, so it follows the shared scrollbar
+-- setting rather than keeping whatever it was constructed with.
+local function chat_scrollbars()
+    for _, c in pairs(cons or {}) do aardkit.panel.scrollbar(c) end
+end
+
+U.killhandler(aardkit_chat_scrollbars)
+aardkit_chat_scrollbars = registerAnonymousEventHandler("aardkit.panel.scrollbars", chat_scrollbars)
 
 aardkit.gmcp.need("chat", "Comm 1")
 

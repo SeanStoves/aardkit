@@ -21,6 +21,7 @@ Shared foundation every other module builds on: a GMCP watcher that hands out ch
 | `panel <name> frame off` | out of the border again |
 | `panel <name> reset` | put one panel back where it started |
 | `panel autodock on\|off` | drag a dockable panel to an edge to attach it |
+| `panel scrollbars on\|off` | whether panel consoles show a scrollbar |
 | `panel borders` | what the main window has reserved, and which panel is using it |
 | `panel borders clear` | hand back any border no panel is using |
 | `aardkit` | lists core commands and every registered module |

@@ -1037,6 +1037,12 @@ P.opacity = 255
 -- blue_arrows.png on hover, and they go when that module does.
 P.autodock = true
 
+-- Scrollbars off. Every panel console was built with one since the initial
+-- import; they only ever looked absent because the stock module's app-wide
+-- stylesheet drew them on black, and that left with the module. A panel you
+-- scroll with the wheel does not need a visible bar taking a column.
+P.scrollbars = false
+
 local function container_style(clear, alpha)
     return [[
         background-color: rgba(13,17,23,]] .. (clear and "0" or tostring(alpha or P.opacity)) .. [[);
@@ -1051,6 +1057,8 @@ end
 
 local function load_state()
     P.state = U.load("panels", {})
+    local sb = P.state["_scrollbars"]
+    if sb and sb.value ~= nil then P.scrollbars = sb.value and true or false end
     local saved = P.state["_opacity"]
     if type(saved) == "table" and tonumber(saved.value) then
         P.opacity = math.floor(tonumber(saved.value))
@@ -1107,18 +1115,13 @@ local function setborder(side, n)
     pcall(_G["setBorder" .. side], n)
 end
 
--- Scrollbars.
+-- The MAIN console's scrollbar is not ours to remove, so it still gets a theme
+-- that matches the panels rather than Qt's own chrome. The stock module's
+-- styleLoad() did this app-wide and was the only setAppStyleSheet in the
+-- profile, which is why every bar looked invisible until it left.
 --
--- Every panel console is built with scrollBar = true and always has been - git
--- blames the initial import - so these are not new widgets. What changed is
--- that the stock module's styleLoad() set an application-wide QScrollBar theme
--- (black groove, #31363b handle) and, being the only setAppStyleSheet in the
--- profile, it was the sole reason a scrollbar ever looked invisible against a
--- black console. The module went; Qt's own light chrome came back.
---
--- App-wide because no per-panel setting can reach the MAIN console's bar. The
--- tag namespaces it on Mudlet builds that take one, and is harmlessly ignored
--- on those that don't.
+-- The tag namespaces it on Mudlet builds that take one, and is harmlessly
+-- ignored on those that don't.
 local function scrollbar_style()
     local css = ([[
         QScrollBar:vertical { background: %s; width: 10px; margin: 0px; border: 0px; }
@@ -1135,6 +1138,33 @@ local function scrollbar_style()
 end
 
 P.scrollbar_style = scrollbar_style
+
+local function rgb(hex)
+    hex = tostring(hex or ""):gsub("#", "")
+    return tonumber(hex:sub(1, 2), 16) or 0,
+           tonumber(hex:sub(3, 4), 16) or 0,
+           tonumber(hex:sub(5, 6), 16) or 0
+end
+
+-- Geyser defines setColor on Button and Gauge and nowhere else; a MiniConsole
+-- reaches one through inheritance and takes a hex STRING, which is the shape of
+-- call that quietly does nothing. setBackgroundColor takes numbers and an
+-- explicit alpha, so the panel is opaque because it was told to be rather than
+-- because nothing made it transparent.
+local function opaque(console)
+    if type(console) ~= "table" or type(console.name) ~= "string" then return end
+    local r, g, b = rgb(STYLE.bg)
+    pcall(setBackgroundColor, console.name, r, g, b, 255)
+end
+
+P.opaque = opaque
+
+-- One place, so chat's eight tab consoles follow the same setting as everything
+-- else rather than keeping the bar they were built with.
+function P.scrollbar(console)
+    if type(console) ~= "table" or type(console.name) ~= "string" then return end
+    pcall(P.scrollbars and enableScrollBar or disableScrollBar, console.name)
+end
 
 function Panel:_build()
     local s = st(self.name)
@@ -1247,6 +1277,8 @@ function Panel:_build()
             scrollBar  = true,
         }, self.holder)
         self.console:setColor(STYLE.bg)
+        opaque(self.console)
+        P.scrollbar(self.console)
         if old then migrate(old, self.console.name) end
     end
 
@@ -1791,6 +1823,33 @@ function P.cmd(arg)
     -- The stock module reserved these and Mudlet writes them to the profile, so
     -- they outlived the module that set them: 405px of right column with
     -- nothing left to draw in it.
+    elseif verb == "scrollbars" or verb == "scrollbar" then
+        local want = U.trim(rest):lower()
+        if want ~= "on" and want ~= "off" then
+            U.help("panel scrollbars", {
+                { "state", P.scrollbars and "on" or "off" },
+                { "" },
+                { "Panel consoles scroll with the wheel either way; this is only" },
+                { "whether a bar takes a column down the right of each one." },
+                { "" },
+                { "The main window's own bar is Mudlet's and stays - it is themed" },
+                { "to match, which is what the stock module used to do app-wide." },
+                { "" },
+                { "panel scrollbars on|off", "switch it" },
+            })
+            return
+        end
+        P.scrollbars = (want == "on")
+        st("_scrollbars").value = P.scrollbars
+        save_state()
+        local n = 0
+        for _, p in pairs(P.reg) do
+            if p.console then P.scrollbar(p.console); n = n + 1 end
+        end
+        -- modules with consoles of their own (chat's eight tabs) rebuild theirs
+        raiseEvent("aardkit.panel.scrollbars", P.scrollbars)
+        U.ok("Panel scrollbars " .. want .. "  (" .. n .. " console(s))")
+
     elseif verb == "borders" then
         local want = U.trim(rest):lower()
         local sides = { "Left", "Right", "Top", "Bottom" }
@@ -1886,6 +1945,7 @@ function P.cmd(arg)
             { "panel &lt;name&gt; dock",    "make it a real dockable window" },
             { "panel &lt;name&gt; dock &lt;edge&gt;", "and snap it there: top bottom left right floating" },
             { "panel autodock on|off",   "drag a dockable panel to an edge to attach it" },
+            { "panel scrollbars on|off", "whether panel consoles show a scrollbar" },
             { "panel borders",           "what the main window has reserved, and who is using it" },
             { "panel borders clear",     "hand back any border no panel is using" },
             { "panel &lt;name&gt; autodock on|off", "override that for one panel" },

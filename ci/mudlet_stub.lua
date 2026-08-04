@@ -717,6 +717,13 @@ function getBorderTop()    return BORDERS.top    or 0 end
 function getBorderLeft()   return BORDERS.left   or 0 end
 function getBorderRight()  return BORDERS.right  or 0 end
 
+SCROLLBARS, BGCOLOR = {}, {}
+-- Recorded per window: "no scrollbar" and "opaque" are both claims a no-op stub
+-- cannot check, and both were asked for explicitly.
+function enableScrollBar(n)  SCROLLBARS[tostring(n)] = true end
+function disableScrollBar(n) SCROLLBARS[tostring(n)] = false end
+function setBackgroundColor(n, r, g, b, a) BGCOLOR[tostring(n)] = { r, g, b, a } end
+
 APPSTYLE = nil
 function setAppStyleSheet(css, tag) APPSTYLE = tostring(css) end
 
