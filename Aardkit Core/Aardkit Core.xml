@@ -1184,6 +1184,31 @@ function P.scrollbar(console)
     pcall(P.scrollbars and enableScrollBar or disableScrollBar, console.name)
 end
 
+-- newest saved geometry for this panel, whatever generation wrote it
+local function carry_geometry(name, gen)
+    local dir  = getMudletHomeDir() .. "/AdjustableContainer/"
+    local want = dir .. name .. "_ac" .. gen .. ".lua"
+    if io.exists and io.exists(want) then return end
+
+    local best, bestgen
+    local ok, iter = pcall(lfs.dir, dir)
+    if not ok then return end
+    for f in iter do
+        local g = type(f) == "string" and f:match("^" .. name:gsub("%W", "%%%0") .. "_ac(%d+)%.lua$")
+        if g and tonumber(g) &lt; gen and (not bestgen or tonumber(g) &gt; bestgen) then
+            best, bestgen = dir .. f, tonumber(g)
+        end
+    end
+    if not best then return end
+
+    local src = io.open(best, "rb")
+    if not src then return end
+    local body = src:read("*a"); src:close()
+    local dst = io.open(want, "wb")
+    if not dst then return end
+    dst:write(body); dst:close()
+end
+
 function Panel:_build()
     local s = st(self.name)
     local mode = s.mode or self.defmode
@@ -1191,6 +1216,20 @@ function Panel:_build()
     -- bumped every rebuild so widget names stay unique; Mudlet keeps the old
     -- label objects alive and reusing a name orphans them
     self.gen = (self.gen or 0) + 1
+
+    -- Carry the saved geometry to the new generation.
+    --
+    -- Adjustable.Container writes its position to
+    -- &lt;profile&gt;/AdjustableContainer/&lt;its name&gt;.lua, and its name carries the
+    -- generation - so every dock, embed, frame or reset moves the file it will
+    -- look for next time. Toggle a panel once and Mudlet saves gen 2 on exit;
+    -- the next session builds gen 1, finds nothing, and the panel comes back
+    -- wherever it was first put. That is ordinary use, and it hits anyone
+    -- running the modules exactly as it hits a rebuild here.
+    --
+    -- Copied rather than renamed: if this build fails the old file is still
+    -- the last known-good position.
+    carry_geometry(self.name, self.gen)
 
     -- "frame": in the main window's own border, which is where the stock module
     -- puts its bars and the only placement that sits ABOVE the command line.
